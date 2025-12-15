@@ -1,3 +1,4 @@
+import symptomRoutes from './routes/symptom.routes';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
@@ -26,6 +27,7 @@ app.get('/health', (req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/glucose', glucoseRoutes);
 app.use('/api/v1/coach', coachRoutes);
+app.use('/api/v1/symptoms', symptomRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });
