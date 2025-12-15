@@ -1,11 +1,11 @@
 export interface Symptom {
   id: string;
-  userId: string;
-  symptomType: string;
-  severity: number; // 1-10
-  loggedAt: string;
-  glucoseReadingId?: string;
-  fastingSessionId?: string;
+  user_id: string;  // Changed from userId
+  symptom_type: string;  // Changed from symptomType
+  severity: number;
+  logged_at: string;  // Changed from loggedAt
+  glucose_reading_id?: string;  // Changed from glucoseReadingId
+  fasting_session_id?: string;  // Changed from fastingSessionId
   notes?: string;
 }
 
