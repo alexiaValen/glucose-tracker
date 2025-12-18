@@ -1,3 +1,5 @@
+import { useCycleStore } from '../stores/cycleStore';
+import { CYCLE_PHASES } from '../types/cycle';
 import React, { useEffect } from 'react';
 import {
   View,
@@ -16,11 +18,13 @@ export default function DashboardScreen({ navigation }: any) {
   const { user, logout } = useAuthStore();
   const { readings, stats, isLoading, fetchReadings, fetchStats } = useGlucoseStore();
   const { symptoms, fetchSymptoms } = useSymptomStore();
+  const { currentCycle, fetchCurrentCycle } = useCycleStore();
 
   useEffect(() => {
     fetchReadings();
     fetchStats();
     fetchSymptoms();
+    fetchCurrentCycle();
   }, []);
 
   const formatDate = (dateString: string) => {
@@ -102,7 +106,27 @@ export default function DashboardScreen({ navigation }: any) {
           </View>
         )}
 
-        {/* Quick Actions */}
+        {/* Cycle Card */}
+        {currentCycle && (
+          <View style={styles.cycleCard}>
+            <View style={styles.cycleHeader}>
+              <Text style={styles.cycleTitle}>Current Cycle</Text>
+              <Text style={styles.cycleDay}>Day {currentCycle.current_day}</Text>
+            </View>
+            <View style={styles.cyclePhase}>
+              <Text style={styles.cyclePhaseText}>
+                {CYCLE_PHASES.find(p => p.id === currentCycle.phase)?.label || currentCycle.phase}
+              </Text>
+            </View>
+            {currentCycle.flow && (
+              <Text style={styles.cycleFlow}>
+                Flow: {currentCycle.flow.charAt(0).toUpperCase() + currentCycle.flow.slice(1)}
+              </Text>
+            )}
+          </View>
+        )}
+
+       {/* Quick Actions */}
         <View style={styles.quickActions}>
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonPrimary]}
@@ -116,6 +140,13 @@ export default function DashboardScreen({ navigation }: any) {
             onPress={() => navigation.navigate('AddSymptom')}
           >
             <Text style={styles.actionButtonTextSecondary}>+ Symptom</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.actionButton, styles.actionButtonCycle]}
+            onPress={() => navigation.navigate('LogCycle')}
+          >
+            <Text style={styles.actionButtonTextCycle}>🩸 Cycle</Text>
           </TouchableOpacity>
         </View>
 
@@ -373,5 +404,57 @@ const styles = StyleSheet.create({
   emptySubtext: {
     fontSize: 14,
     color: '#999',
+  },
+  cycleCard: {
+    backgroundColor: '#FEF2F2',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 20,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: '#FCA5A5',
+  },
+  cycleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  cycleTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#991B1B',
+  },
+  cycleDay: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  cyclePhase: {
+    backgroundColor: '#FFF',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  cyclePhaseText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    textAlign: 'center',
+  },
+  cycleFlow: {
+    fontSize: 14,
+    color: '#991B1B',
+  },
+  actionButtonCycle: {
+    flex: 1,
+    backgroundColor: '#FFF',
+    borderWidth: 2,
+    borderColor: '#EF4444',
+  },
+  actionButtonTextCycle: {
+    color: '#EF4444',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

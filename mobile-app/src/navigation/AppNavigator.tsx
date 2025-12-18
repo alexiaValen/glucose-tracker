@@ -68,6 +68,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import AddGlucoseScreen from '../screens/AddGlucoseScreen';
 import { View, ActivityIndicator, StyleSheet } from 'react-native'; //newsest import
 import AddSymptomScreen from '../screens/AddSymptomScreen';
+import LogCycleScreen from '../screens/LogCycleScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -103,6 +104,7 @@ export default function AppNavigator() {
             <Stack.Screen name="Dashboard" component={DashboardScreen} />
             <Stack.Screen name="AddGlucose" component={AddGlucoseScreen} />
             <Stack.Screen name="AddSymptom" component={AddSymptomScreen} />
+            <Stack.Screen name="LogCycle" component={LogCycleScreen} /> 
           </>
         ) : (
           <>
