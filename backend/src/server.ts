@@ -1,3 +1,5 @@
+
+import cycleRoutes from './routes/cycle.routes';
 import symptomRoutes from './routes/symptom.routes';
 import express from 'express';
 import helmet from 'helmet';
@@ -6,6 +8,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.routes';
 import glucoseRoutes from './routes/glucose.routes';
 import coachRoutes from './routes/coach.routes';
+
 
 dotenv.config();
 
@@ -28,6 +31,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/glucose', glucoseRoutes);
 app.use('/api/v1/coach', coachRoutes);
 app.use('/api/v1/symptoms', symptomRoutes);
+app.use('/api/v1/cycle', cycleRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ error: 'Route not found' });

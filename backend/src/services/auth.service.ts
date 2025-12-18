@@ -5,8 +5,8 @@ import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
-const ACCESS_TOKEN_EXPIRY = '15m';
-const REFRESH_TOKEN_EXPIRY = '7d';
+const ACCESS_TOKEN_EXPIRY = '24h';  // Changed from 15m to 24h
+const REFRESH_TOKEN_EXPIRY = '30d';  // Extended refresh token too
 
 // UserPayload should be HERE in auth.service.ts not in interfaces
 export interface UserPayload {
