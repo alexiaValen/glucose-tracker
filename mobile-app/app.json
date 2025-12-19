@@ -14,7 +14,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alekia33.graceflow"
+      "bundleIdentifier": "com.alekia33.graceflow",
+      "infoPlist": {
+        "NSHealthShareUsageDescription": "We need access to read your glucose data from Apple Health to automatically track your levels.",
+        "NSHealthUpdateUsageDescription": "We need access to save glucose data to Apple Health.",
+        "UIBackgroundModes": ["fetch"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -32,6 +37,9 @@
         "projectId": "6f4a2e56-93c6-4ba8-9f83-5966ee4220e4"
       }
     },
-    "owner": "alekia33"
+    "owner": "alekia33",
+    "plugins": [
+      "react-native-health"
+    ]
   }
 }

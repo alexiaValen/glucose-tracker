@@ -6,7 +6,7 @@ import axios from 'axios';
 // If testing on simulator: use localhost
 
 
-const API_URL = 'http://192.168.1.233:3000/api/v1';
+const API_URL = 'http://192.168.0.127:3000/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,
