@@ -1,12 +1,12 @@
 import axios from 'axios';
-// import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from 'expo-secure-store';
 
 // IMPORTANT: Change this based on where you're testing
 // If testing on physical iPhone: use your computer's local IP (192.168.0.x)
 // If testing on simulator: use localhost
 
 
-const API_URL = 'http://192.168.0.127:3000/api/v1';
+const API_URL = 'http://172.20.10.5:3000/api/v1';
 
 export const api = axios.create({
   baseURL: API_URL,

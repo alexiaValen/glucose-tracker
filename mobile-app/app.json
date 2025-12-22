@@ -18,10 +18,7 @@
       "infoPlist": {
         "NSHealthShareUsageDescription": "We need access to read your glucose data from Apple Health to automatically track your levels.",
         "NSHealthUpdateUsageDescription": "We need access to save glucose data to Apple Health.",
-        "UIBackgroundModes": [
-          "fetch",
-          "fetch"
-        ],
+        "UIBackgroundModes": ["fetch"],
         "ITSAppUsesNonExemptEncryption": false
       }
     },
@@ -43,7 +40,12 @@
     },
     "owner": "alekia33",
     "plugins": [
-      "react-native-health"
+      [
+        "react-native-health",
+        {
+          "isAvailable": true
+        }
+      ]
     ]
   }
 }
