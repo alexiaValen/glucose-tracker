@@ -1,0 +1,18 @@
+
+# Backend
+backend/node_modules/
+backend/.env
+backend/dist/
+
+# Mobile
+mobile-app/node_modules/
+mobile-app/.expo/
+
+# Coach Dashboard
+coach-dashboard/node_modules/
+coach-dashboard/dist/
+
+# General
+.DS_Store
+*.log
+

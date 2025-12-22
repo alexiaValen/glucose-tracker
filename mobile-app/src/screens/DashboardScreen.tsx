@@ -1,3 +1,5 @@
+
+import { Alert, Platform } from 'react-native';
 import { useCycleStore } from '../stores/cycleStore';
 import { CYCLE_PHASES } from '../types/cycle';
 import React, { useEffect } from 'react';
@@ -15,10 +17,28 @@ import { useSymptomStore } from '../stores/symptomStore';
 import { SYMPTOM_TYPES } from '../types/symptom';
 
 export default function DashboardScreen({ navigation }: any) {
-  const { user, logout } = useAuthStore();
-  const { readings, stats, isLoading, fetchReadings, fetchStats } = useGlucoseStore();
-  const { symptoms, fetchSymptoms } = useSymptomStore();
-  const { currentCycle, fetchCurrentCycle } = useCycleStore();
+  const { 
+    user, 
+    logout 
+  } = useAuthStore();
+
+  const { 
+    readings, 
+    stats, 
+    isLoading, 
+    fetchReadings, 
+    fetchStats,
+    syncFromHealthKit,      // newest 
+    initializeHealthKit //newest
+    } = useGlucoseStore();
+  const { 
+    symptoms, 
+    fetchSymptoms 
+  } = useSymptomStore();
+  const { 
+    currentCycle, 
+    fetchCurrentCycle 
+  } = useCycleStore();
 
   useEffect(() => {
     fetchReadings();
@@ -26,6 +46,46 @@ export default function DashboardScreen({ navigation }: any) {
     fetchSymptoms();
     fetchCurrentCycle();
   }, []);
+
+const [isSyncing, setIsSyncing] = React.useState(false);
+const [lastSyncTime, setLastSyncTime] = React.useState<Date | null>(null);
+
+const handleHealthKitSync = async () => {
+  if (Platform.OS !== 'ios') {
+    Alert.alert('Not Available', 'HealthKit is only available on iOS devices');
+    return;
+  }
+
+  setIsSyncing(true);
+  
+  try {
+    // First, initialize/request permissions
+    const initialized = await initializeHealthKit();
+    
+    if (!initialized) {
+      Alert.alert(
+        'Permission Required',
+        'Please grant access to HealthKit in Settings to sync your glucose data.'
+      );
+      setIsSyncing(false);
+      return;
+    }
+
+    // Sync data
+    const syncedCount = await syncFromHealthKit();
+    setLastSyncTime(new Date());
+    
+    Alert.alert(
+      'Sync Complete',
+      `Synced ${syncedCount} new reading${syncedCount !== 1 ? 's' : ''} from Apple Health`
+    );
+  } catch (error: any) {
+    console.error('Sync error:', error);
+    Alert.alert('Sync Failed', error.message || 'Could not sync from HealthKit');
+  } finally {
+    setIsSyncing(false);
+  }
+};
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/a';
@@ -149,6 +209,29 @@ export default function DashboardScreen({ navigation }: any) {
             <Text style={styles.actionButtonTextCycle}>🩸 Cycle</Text>
           </TouchableOpacity>
         </View>
+
+        {/* HealthKit Sync Section - ADD THIS NEW SECTION */}
+        {Platform.OS === 'ios' && (
+          <View style={styles.healthKitSection}>
+            <View style={styles.healthKitHeader}>
+              <Text style={styles.healthKitTitle}>🍎 Apple Health</Text>
+              {lastSyncTime && (
+                <Text style={styles.lastSyncText}>
+                  Last synced: {formatDate(lastSyncTime.toISOString())}
+                </Text>
+              )}
+            </View>
+            <TouchableOpacity
+              style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
+              onPress={handleHealthKitSync}
+              disabled={isSyncing}
+            >
+              <Text style={styles.syncButtonText}>
+                {isSyncing ? '⏳ Syncing...' : '🔄 Sync from Apple Health'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Recent Symptoms */}
         {symptoms.length > 0 && (
@@ -455,6 +538,44 @@ const styles = StyleSheet.create({
   actionButtonTextCycle: {
     color: '#EF4444',
     fontSize: 16,
+    fontWeight: '600',
+  },
+  healthKitSection: {
+    backgroundColor: '#F0F9FF',
+    marginHorizontal: 20,
+    marginBottom: 20,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  healthKitHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  healthKitTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0369A1',
+  },
+  lastSyncText: {
+    fontSize: 11,
+    color: '#0369A1',
+  },
+  syncButton: {
+    backgroundColor: '#0EA5E9',
+    padding: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  syncButtonDisabled: {
+    backgroundColor: '#BAE6FD',
+  },
+  syncButtonText: {
+    color: '#FFF',
+    fontSize: 15,
     fontWeight: '600',
   },
 });

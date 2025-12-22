@@ -18,7 +18,11 @@
       "infoPlist": {
         "NSHealthShareUsageDescription": "We need access to read your glucose data from Apple Health to automatically track your levels.",
         "NSHealthUpdateUsageDescription": "We need access to save glucose data to Apple Health.",
-        "UIBackgroundModes": ["fetch"]
+        "UIBackgroundModes": [
+          "fetch",
+          "fetch"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {

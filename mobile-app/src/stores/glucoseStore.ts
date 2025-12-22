@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { GlucoseReading, GlucoseStats } from '../types/glucose';
 import { glucoseService } from '../services/glucose.service';
+import { healthKitService } from '../services/healthkit.service';
 
 interface GlucoseState {
   readings: GlucoseReading[];
@@ -10,6 +11,8 @@ interface GlucoseState {
   fetchStats: () => Promise<void>;
   addReading: (value: number, mealContext?: string, notes?: string) => Promise<void>;
   deleteReading: (id: string) => Promise<void>;
+  syncFromHealthKit: () => Promise<number>;
+  initializeHealthKit: () => Promise<boolean>;
 }
 
 export const useGlucoseStore = create<GlucoseState>((set, get) => ({
@@ -74,6 +77,70 @@ export const useGlucoseStore = create<GlucoseState>((set, get) => ({
     } catch (error) {
       console.error('Failed to delete reading:', error);
       throw error;
+    }
+  },
+
+  // HealthKit sync methods
+  syncFromHealthKit: async () => {
+    set({ isLoading: true });
+    try {
+      // Get readings from the last 7 days
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const healthKitSamples = await healthKitService.getGlucoseSamples(sevenDaysAgo);
+
+      console.log(`Found ${healthKitSamples.length} HealthKit glucose samples`);
+
+      // Import each sample into our database
+      let syncedCount = 0;
+      for (const sample of healthKitSamples) {
+        try {
+          const value = healthKitService.convertToMgDl(sample.value, 'mg/dL');
+          const measuredAt = new Date(sample.startDate);
+
+          // Check if we already have this reading (avoid duplicates)
+          const exists = get().readings.some(
+            (r) =>
+              Math.abs(r.value - value) < 1 &&
+              Math.abs(new Date(r.measuredAt).getTime() - measuredAt.getTime()) < 60000 // within 1 minute
+          );
+
+          if (!exists) {
+            await glucoseService.createReading({
+              value,
+              measuredAt: measuredAt.toISOString(),
+              unit: 'mg/dL',
+              mealContext: 'other',
+              notes: 'Synced from Apple Health',
+            });
+            syncedCount++;
+          }
+        } catch (error) {
+          console.error('Error syncing individual reading:', error);
+        }
+      }
+
+      console.log(`✅ Synced ${syncedCount} new readings from HealthKit`);
+
+      // Refresh the readings list
+      await get().fetchReadings();
+      await get().fetchStats();
+
+      set({ isLoading: false });
+      return syncedCount;
+    } catch (error) {
+      console.error('HealthKit sync error:', error);
+      set({ isLoading: false });
+      throw error;
+    }
+  },
+
+  initializeHealthKit: async () => {
+    try {
+      const initialized = await healthKitService.initialize();
+      return initialized;
+    } catch (error) {
+      console.error('Failed to initialize HealthKit:', error);
+      return false;
     }
   },
 }));
