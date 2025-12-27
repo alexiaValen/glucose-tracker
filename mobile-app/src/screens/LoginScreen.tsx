@@ -9,9 +9,30 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 
-export default function LoginScreen({ navigation }: any) {
+type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+
+interface Props {
+  navigation: LoginScreenNavigationProp;
+}
+
+// Match Dashboard colors
+const colors = {
+  sage: '#7A8B6F',
+  charcoal: '#3A3A3A',
+  warmBrown: '#8B6F47',
+  cream: '#FAF8F4',
+  lightSage: '#B8C5A8',
+  white: '#FFFFFF',
+  textDark: '#2C2C2C',
+  textLight: '#6B6B6B',
+  border: '#E8E6E0',
+};
+
+export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading } = useAuthStore();
@@ -36,28 +57,38 @@ export default function LoginScreen({ navigation }: any) {
       style={styles.container}
     >
       <View style={styles.content}>
-        <Text style={styles.title}>Grace & Glucose</Text>
-        <Text style={styles.subtitle}>Track your glucose journey</Text>
+        <View style={styles.headerContainer}>
+          <Text style={styles.title}>GraceFlow</Text>
+          <Text style={styles.subtitle}>Track your glucose & cycle with grace</Text>
+        </View>
 
         <View style={styles.form}>
-          <TextInput
-            style={styles.input}
-            placeholder="Email"
-            value={email}
-            onChangeText={setEmail}
-            autoCapitalize="none"
-            keyboardType="email-address"
-            editable={!isLoading}
-          />
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Email</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="your@email.com"
+              placeholderTextColor={colors.textLight}
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              editable={!isLoading}
+            />
+          </View>
 
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            editable={!isLoading}
-          />
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>Password</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Enter your password"
+              placeholderTextColor={colors.textLight}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              editable={!isLoading}
+            />
+          </View>
 
           <TouchableOpacity
             style={[styles.button, isLoading && styles.buttonDisabled]}
@@ -87,63 +118,89 @@ export default function LoginScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.cream,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     padding: 20,
   },
+  headerContainer: {
+    marginBottom: 48,
+  },
   title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontSize: 42,
+    fontWeight: '700',
+    color: colors.charcoal,
     marginBottom: 8,
     textAlign: 'center',
+    letterSpacing: 0.5,
   },
   subtitle: {
     fontSize: 16,
-    color: '#666',
-    marginBottom: 40,
+    color: colors.textLight,
     textAlign: 'center',
+    fontWeight: '400',
   },
   form: {
     width: '100%',
   },
+  inputContainer: {
+    marginBottom: 20,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textDark,
+    marginBottom: 8,
+    letterSpacing: 0.2,
+  },
   input: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 14,
     padding: 16,
     fontSize: 16,
-    marginBottom: 16,
+    color: colors.textDark,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   button: {
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.sage,
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   buttonDisabled: {
-    backgroundColor: '#A5A6F6',
+    backgroundColor: colors.lightSage,
+    opacity: 0.6,
   },
   buttonText: {
-    color: '#FFF',
-    fontSize: 16,
+    color: colors.white,
+    fontSize: 17,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
   linkButton: {
-    marginTop: 20,
+    marginTop: 24,
     alignItems: 'center',
   },
   linkText: {
-    color: '#666',
-    fontSize: 14,
+    color: colors.textLight,
+    fontSize: 15,
   },
   linkTextBold: {
-    color: '#6366F1',
+    color: colors.sage,
     fontWeight: '600',
   },
 });

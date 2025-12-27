@@ -1,93 +1,44 @@
-// import React, { useEffect, useState } from 'react';
-// import { NavigationContainer } from '@react-navigation/native';
-// import { createNativeStackNavigator } from '@react-navigation/native-stack';
-// import { useAuthStore } from '../stores/authStore';
-// import LoginScreen from '../screens/LoginScreen';
-// import RegisterScreen from '../screens/RegisterScreen';
-// import DashboardScreen from '../screens/DashboardScreen';
-// import { View, ActivityIndicator, StyleSheet } from 'react-native';
-
-// const Stack = createNativeStackNavigator();
-
-// export default function AppNavigator() {
-//   const { isAuthenticated, checkAuth } = useAuthStore();
-//   const [isLoading, setIsLoading] = useState(true);
-
-//   useEffect(() => {
-//     const initAuth = async () => {
-//       await checkAuth();
-//       setIsLoading(false);
-//     };
-//     initAuth();
-//   }, []);
-
-//   if (isLoading) {
-//     return (
-//       <View style={styles.loadingContainer}>
-//         <ActivityIndicator size="large" color="#6366F1" />
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <NavigationContainer>
-//       <Stack.Navigator
-//         screenOptions={{
-//           headerShown: false,
-//         }}
-//       >
-//         {isAuthenticated ? (
-//           <Stack.Screen name="Dashboard" component={DashboardScreen} />
-//         ) : (
-//           <>
-//             <Stack.Screen name="Login" component={LoginScreen} />
-//             <Stack.Screen name="Register" component={RegisterScreen} />
-//           </>
-//         )}
-//       </Stack.Navigator>
-//     </NavigationContainer>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   loadingContainer: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     backgroundColor: '#F8F9FA',
-//   },
-// });
-
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
+import type { RootStackParamList } from '../types/navigation';
+
+// Import screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import AddGlucoseScreen from '../screens/AddGlucoseScreen';
-import { View, ActivityIndicator, StyleSheet } from 'react-native'; //newsest import
 import AddSymptomScreen from '../screens/AddSymptomScreen';
 import LogCycleScreen from '../screens/LogCycleScreen';
 
-const Stack = createNativeStackNavigator();
+// Colors matching Dashboard
+const colors = {
+  sage: '#7A8B6F',
+  cream: '#FAF8F4',
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
   const { isAuthenticated, checkAuth } = useAuthStore();
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initAuth = async () => {
+    const initializeAuth = async () => {
       await checkAuth();
       setIsLoading(false);
     };
-    initAuth();
-  }, []);
+    
+    initializeAuth();
+  }, [checkAuth]);
 
+  // Loading screen
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366F1" />
+        <ActivityIndicator size="large" color={colors.sage} />
       </View>
     );
   }
@@ -97,19 +48,41 @@ export default function AppNavigator() {
       <Stack.Navigator
         screenOptions={{
           headerShown: false,
+          animation: 'slide_from_right',
+          contentStyle: { backgroundColor: colors.cream },
         }}
       >
         {isAuthenticated ? (
+          // Authenticated Stack
           <>
-            <Stack.Screen name="Dashboard" component={DashboardScreen} />
-            <Stack.Screen name="AddGlucose" component={AddGlucoseScreen} />
-            <Stack.Screen name="AddSymptom" component={AddSymptomScreen} />
-            <Stack.Screen name="LogCycle" component={LogCycleScreen} /> 
+            <Stack.Screen 
+              name="Dashboard" 
+              component={DashboardScreen}
+            />
+            <Stack.Screen 
+              name="AddGlucose" 
+              component={AddGlucoseScreen}
+            />
+            <Stack.Screen 
+              name="AddSymptom" 
+              component={AddSymptomScreen}
+            />
+            <Stack.Screen 
+              name="LogCycle" 
+              component={LogCycleScreen}
+            />
           </>
         ) : (
+          // Unauthenticated Stack
           <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen 
+              name="Login" 
+              component={LoginScreen}
+            />
+            <Stack.Screen 
+              name="Register" 
+              component={RegisterScreen}
+            />
           </>
         )}
       </Stack.Navigator>
@@ -122,6 +95,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.cream,
   },
 });

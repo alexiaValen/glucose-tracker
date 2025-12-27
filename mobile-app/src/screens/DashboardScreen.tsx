@@ -1,8 +1,4 @@
-
-import { Alert, Platform } from 'react-native';
-import { useCycleStore } from '../stores/cycleStore';
-import { CYCLE_PHASES } from '../types/cycle';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -10,82 +6,79 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 import { useGlucoseStore } from '../stores/glucoseStore';
 import { useSymptomStore } from '../stores/symptomStore';
-import { SYMPTOM_TYPES } from '../types/symptom';
+import { useCycleStore } from '../stores/cycleStore';
+import { healthKitService } from '../services/healthkit.service';
+import { CYCLE_PHASES } from '../types/cycle';
 
-export default function DashboardScreen({ navigation }: any) {
-  const { 
-    user, 
-    logout 
-  } = useAuthStore();
+type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
-  const { 
-    readings, 
-    stats, 
-    isLoading, 
-    fetchReadings, 
-    fetchStats,
-    syncFromHealthKit,      // newest 
-    initializeHealthKit //newest
-    } = useGlucoseStore();
-  const { 
-    symptoms, 
-    fetchSymptoms 
-  } = useSymptomStore();
-  const { 
-    currentCycle, 
-    fetchCurrentCycle 
-  } = useCycleStore();
+interface Props {
+  navigation: DashboardScreenNavigationProp;
+}
+
+// Natural, earthy color palette from oak tree logo
+const colors = {
+  sage: '#7A8B6F',
+  charcoal: '#3A3A3A',
+  warmBrown: '#8B6F47',
+  cream: '#FAF8F4',
+  lightSage: '#B8C5A8',
+  white: '#FFFFFF',
+  textDark: '#2C2C2C',
+  textLight: '#6B6B6B',
+  border: '#E8E6E0',
+  accentPeach: '#D4A798',
+};
+
+export default function DashboardScreen({ navigation }: Props) {
+  const { user, logout } = useAuthStore();
+  const { readings, stats, isLoading, fetchReadings, fetchStats, initializeHealthKit, syncFromHealthKit } = useGlucoseStore();
+  const { symptoms, fetchSymptoms } = useSymptomStore();
+  const { currentCycle, fetchCurrentCycle } = useCycleStore();
+  const [healthKitEnabled, setHealthKitEnabled] = useState(false);
 
   useEffect(() => {
     fetchReadings();
     fetchStats();
     fetchSymptoms();
     fetchCurrentCycle();
+    checkHealthKitStatus();
   }, []);
 
-const [isSyncing, setIsSyncing] = React.useState(false);
-const [lastSyncTime, setLastSyncTime] = React.useState<Date | null>(null);
+  const checkHealthKitStatus = async () => {
+    const enabled = await healthKitService.isAvailable();
+    setHealthKitEnabled(enabled);
+  };
 
-const handleHealthKitSync = async () => {
-  if (Platform.OS !== 'ios') {
-    Alert.alert('Not Available', 'HealthKit is only available on iOS devices');
-    return;
-  }
-
-  setIsSyncing(true);
-  
-  try {
-    // First, initialize/request permissions
-    const initialized = await initializeHealthKit();
-    
-    if (!initialized) {
-      Alert.alert(
-        'Permission Required',
-        'Please grant access to HealthKit in Settings to sync your glucose data.'
-      );
-      setIsSyncing(false);
-      return;
+  const requestHealthKitPermissions = async () => {
+    const success = await initializeHealthKit();
+    if (success) {
+      Alert.alert('Success', 'HealthKit connected!', [
+        {
+          text: 'Sync Now',
+          onPress: async () => {
+            try {
+              const count = await syncFromHealthKit();
+              Alert.alert('Sync Complete', `Synced ${count} new readings from Apple Health`);
+            } catch (error) {
+              Alert.alert('Sync Failed', 'Could not sync data from HealthKit');
+            }
+          },
+        },
+        { text: 'Later', style: 'cancel' },
+      ]);
+      setHealthKitEnabled(true);
+    } else {
+      Alert.alert('Error', 'Could not connect to HealthKit');
     }
-
-    // Sync data
-    const syncedCount = await syncFromHealthKit();
-    setLastSyncTime(new Date());
-    
-    Alert.alert(
-      'Sync Complete',
-      `Synced ${syncedCount} new reading${syncedCount !== 1 ? 's' : ''} from Apple Health`
-    );
-  } catch (error: any) {
-    console.error('Sync error:', error);
-    Alert.alert('Sync Failed', error.message || 'Could not sync from HealthKit');
-  } finally {
-    setIsSyncing(false);
-  }
-};
+  };
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/a';
@@ -107,24 +100,33 @@ const handleHealthKitSync = async () => {
 
   const getMealContextLabel = (context?: string) => {
     const labels: Record<string, string> = {
-      fasting: '🌅 Fasting',
-      pre_meal: '🍽️ Before Meal',
-      post_meal: '🍴 After Meal',
-      bedtime: '🌙 Bedtime',
-      other: '📊 Other',
+      fasting: 'Fasting',
+      pre_meal: 'Before Meal',
+      post_meal: 'After Meal',
+      bedtime: 'Bedtime',
+      other: 'Other',
     };
-    return labels[context || 'other'] || '📊';
-  };
-
-  const getSymptomEmoji = (type: string) => {
-    const symptom = SYMPTOM_TYPES.find(s => s.id === type);
-    return symptom?.emoji || '📝';
+    return labels[context || 'other'] || 'Other';
   };
 
   const getSymptomLabel = (type: string) => {
-    const symptom = SYMPTOM_TYPES.find(s => s.id === type);
-    if (!symptom) return type;
-    return symptom.label.replace(/.*\s/, '');
+    const symptoms: Record<string, string> = {
+      headache: 'Headache',
+      fatigue: 'Fatigue',
+      dizziness: 'Dizziness',
+      hunger: 'Hunger',
+      irritability: 'Irritability',
+      nausea: 'Nausea',
+      shaking: 'Shaking',
+      sweating: 'Sweating',
+      brain_fog: 'Brain Fog',
+      anxiety: 'Anxiety',
+      cramps: 'Cramps',
+      bloating: 'Bloating',
+      mood_swings: 'Mood Swings',
+      other: 'Other',
+    };
+    return symptoms[type] || type;
   };
 
   return (
@@ -132,15 +134,15 @@ const handleHealthKitSync = async () => {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.greeting}>Hello, {user?.firstName || 'there'}! 👋</Text>
-          <Text style={styles.subtitle}>Grace & Glucose</Text>
+          <Text style={styles.subtitle}>GraceFlow</Text>
+<Text style={styles.greeting}>Hello, {user?.firstName || 'there'}</Text>
         </View>
         <TouchableOpacity onPress={logout} style={styles.logoutButton}>
           <Text style={styles.logoutText}>Logout</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Stats Card */}
         {stats && (
           <View style={styles.statsCard}>
@@ -148,16 +150,19 @@ const handleHealthKitSync = async () => {
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.avgGlucose.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>Avg</Text>
+                <Text style={styles.statLabel}>Average</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.minGlucose.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>Min</Text>
+                <Text style={styles.statLabel}>Lowest</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.maxGlucose.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>Max</Text>
+                <Text style={styles.statLabel}>Highest</Text>
               </View>
+              <View style={styles.statDivider} />
               <View style={styles.statItem}>
                 <Text style={styles.statValue}>{stats.timeInRange.toFixed(0)}%</Text>
                 <Text style={styles.statLabel}>In Range</Text>
@@ -171,9 +176,11 @@ const handleHealthKitSync = async () => {
           <View style={styles.cycleCard}>
             <View style={styles.cycleHeader}>
               <Text style={styles.cycleTitle}>Current Cycle</Text>
-              <Text style={styles.cycleDay}>Day {currentCycle.current_day}</Text>
+              <View style={styles.cycleDayBadge}>
+                <Text style={styles.cycleDayText}>Day {currentCycle.current_day}</Text>
+              </View>
             </View>
-            <View style={styles.cyclePhase}>
+            <View style={styles.cyclePhaseContainer}>
               <Text style={styles.cyclePhaseText}>
                 {CYCLE_PHASES.find(p => p.id === currentCycle.phase)?.label || currentCycle.phase}
               </Text>
@@ -186,52 +193,48 @@ const handleHealthKitSync = async () => {
           </View>
         )}
 
-       {/* Quick Actions */}
+        {/* HealthKit Banner (iOS only) */}
+        {healthKitService.isAvailable() && !healthKitEnabled && (
+          <TouchableOpacity 
+            style={styles.healthKitBanner}
+            onPress={requestHealthKitPermissions}
+          >
+            <Text style={styles.healthKitIcon}>❤️</Text>
+            <View style={styles.healthKitTextContainer}>
+              <Text style={styles.healthKitTitle}>Connect Apple Health</Text>
+              <Text style={styles.healthKitSubtitle}>Sync glucose data automatically</Text>
+            </View>
+            <Text style={styles.healthKitArrow}>›</Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Action Buttons */}
         <View style={styles.quickActions}>
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonPrimary]}
             onPress={() => navigation.navigate('AddGlucose')}
           >
-            <Text style={styles.actionButtonText}>+ Glucose</Text>
+            <Text style={styles.actionButtonText}>Log Glucose</Text>
           </TouchableOpacity>
           
           <TouchableOpacity
             style={[styles.actionButton, styles.actionButtonSecondary]}
             onPress={() => navigation.navigate('AddSymptom')}
           >
-            <Text style={styles.actionButtonTextSecondary}>+ Symptom</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.actionButton, styles.actionButtonCycle]}
-            onPress={() => navigation.navigate('LogCycle')}
-          >
-            <Text style={styles.actionButtonTextCycle}>🩸 Cycle</Text>
+            <Text style={styles.actionButtonTextSecondary}>Log Symptom</Text>
           </TouchableOpacity>
         </View>
 
-        {/* HealthKit Sync Section - ADD THIS NEW SECTION */}
-        {Platform.OS === 'ios' && (
-          <View style={styles.healthKitSection}>
-            <View style={styles.healthKitHeader}>
-              <Text style={styles.healthKitTitle}>🍎 Apple Health</Text>
-              {lastSyncTime && (
-                <Text style={styles.lastSyncText}>
-                  Last synced: {formatDate(lastSyncTime.toISOString())}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity
-              style={[styles.syncButton, isSyncing && styles.syncButtonDisabled]}
-              onPress={handleHealthKitSync}
-              disabled={isSyncing}
-            >
-              <Text style={styles.syncButtonText}>
-                {isSyncing ? '⏳ Syncing...' : '🔄 Sync from Apple Health'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* NEW: Log Period Button */}
+        <View style={styles.periodButtonContainer}>
+          <TouchableOpacity
+            style={styles.periodButton}
+            onPress={() => navigation.navigate('LogCycle')}
+          >
+            <Text style={styles.periodButtonIcon}>🩸</Text>
+            <Text style={styles.periodButtonText}>Log Period Start</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Recent Symptoms */}
         {symptoms.length > 0 && (
@@ -240,9 +243,6 @@ const handleHealthKitSync = async () => {
             {symptoms.slice(0, 3).map((symptom) => (
               <View key={symptom.id} style={styles.symptomCard}>
                 <View style={styles.symptomHeader}>
-                  <Text style={styles.symptomIcon}>
-                    {getSymptomEmoji(symptom.symptom_type)}
-                  </Text>
                   <View style={styles.symptomInfo}>
                     <Text style={styles.symptomType}>
                       {getSymptomLabel(symptom.symptom_type)}
@@ -251,9 +251,9 @@ const handleHealthKitSync = async () => {
                       {formatDate(symptom.logged_at)}
                     </Text>
                   </View>
-                  <Text style={styles.symptomSeverity}>
-                    {symptom.severity}/10
-                  </Text>
+                  <View style={styles.severityBadge}>
+                    <Text style={styles.severityText}>{symptom.severity}/10</Text>
+                  </View>
                 </View>
                 {symptom.notes && (
                   <Text style={styles.symptomNotes}>{symptom.notes}</Text>
@@ -268,27 +268,33 @@ const handleHealthKitSync = async () => {
           <Text style={styles.sectionTitle}>Recent Readings</Text>
 
           {isLoading && readings.length === 0 ? (
-            <ActivityIndicator size="large" color="#6366F1" style={{ marginTop: 20 }} />
+            <ActivityIndicator size="large" color={colors.sage} style={{ marginTop: 20 }} />
           ) : readings.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No readings yet</Text>
-              <Text style={styles.emptySubtext}>Tap "+ Glucose" to add your first reading</Text>
+              <Text style={styles.emptySubtext}>Tap "Log Glucose" to add your first reading</Text>
             </View>
           ) : (
             readings.slice(0, 5).map((reading) => (
               <View key={reading.id} style={styles.readingCard}>
                 <View style={styles.readingHeader}>
-                  <Text style={styles.readingValue}>{reading.value} mg/dL</Text>
-                  <Text style={styles.readingContext}>
-                    {getMealContextLabel(reading.mealContext)}
-                  </Text>
+                  <View>
+                    <Text style={styles.readingValue}>{reading.value} mg/dL</Text>
+                    <Text style={styles.readingDate}>{formatDate(reading.measuredAt)}</Text>
+                  </View>
+                  <View style={styles.contextBadge}>
+                    <Text style={styles.contextText}>
+                      {getMealContextLabel(reading.mealContext)}
+                    </Text>
+                  </View>
                 </View>
-                <Text style={styles.readingDate}>{formatDate(reading.measuredAt)}</Text>
                 {reading.notes && <Text style={styles.readingNotes}>{reading.notes}</Text>}
               </View>
             ))
           )}
         </View>
+
+        <View style={{ height: 40 }} />
       </ScrollView>
     </View>
   );
@@ -297,7 +303,7 @@ const handleHealthKitSync = async () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.cream,
   },
   header: {
     flexDirection: 'row',
@@ -305,197 +311,98 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     padding: 20,
     paddingTop: 60,
-    backgroundColor: '#FFF',
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: colors.border,
   },
   greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontSize: 26,
+    fontWeight: '600',
+    color: colors.charcoal,
+    marginBottom: 4,
   },
   subtitle: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    color: colors.textLight,
+    fontWeight: '400',
   },
   logoutButton: {
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   logoutText: {
-    color: '#EF4444',
+    color: colors.textDark,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   content: {
     flex: 1,
   },
+  
+  // Stats Card
   statsCard: {
-    backgroundColor: '#FFF',
+    backgroundColor: colors.white,
     margin: 20,
+    marginBottom: 16,
     padding: 20,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   statsTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 16,
+    color: colors.textDark,
+    marginBottom: 20,
+    letterSpacing: 0.3,
   },
   statsGrid: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  statItem: {
     alignItems: 'center',
   },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.border,
+  },
   statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#6366F1',
+    fontSize: 26,
+    fontWeight: '700',
+    color: colors.sage,
+    marginBottom: 6,
   },
   statLabel: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 4,
+    color: colors.textLight,
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  actionButton: {
-    flex: 1,
-    padding: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  actionButtonPrimary: {
-    backgroundColor: '#6366F1',
-  },
-  actionButtonSecondary: {
-    backgroundColor: '#FFF',
-    borderWidth: 2,
-    borderColor: '#6366F1',
-  },
-  actionButtonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  actionButtonTextSecondary: {
-    color: '#6366F1',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  section: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 16,
-  },
-  symptomCard: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  symptomHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  symptomIcon: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  symptomInfo: {
-    flex: 1,
-  },
-  symptomType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 2,
-  },
-  symptomDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  symptomSeverity: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#6366F1',
-  },
-  symptomNotes: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  readingCard: {
-    backgroundColor: '#FFF',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-  },
-  readingHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  readingValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-  },
-  readingContext: {
-    fontSize: 14,
-    color: '#666',
-  },
-  readingDate: {
-    fontSize: 12,
-    color: '#999',
-  },
-  readingNotes: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 8,
-    fontStyle: 'italic',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 8,
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#999',
-  },
+
+  // Cycle Card
   cycleCard: {
-    backgroundColor: '#FEF2F2',
+    backgroundColor: colors.white,
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
     padding: 20,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: '#FCA5A5',
+    borderLeftWidth: 4,
+    borderLeftColor: colors.accentPeach,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   cycleHeader: {
     flexDirection: 'row',
@@ -504,78 +411,272 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cycleTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#991B1B',
+    color: colors.textDark,
+    letterSpacing: 0.3,
   },
-  cycleDay: {
-    fontSize: 14,
+  cycleDayBadge: {
+    backgroundColor: colors.cream,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  cycleDayText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#EF4444',
+    color: colors.warmBrown,
   },
-  cyclePhase: {
-    backgroundColor: '#FFF',
+  cyclePhaseContainer: {
+    backgroundColor: colors.cream,
     padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    borderRadius: 10,
+    marginBottom: 10,
   },
   cyclePhaseText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1A1A1A',
+    fontSize: 15,
+    fontWeight: '500',
+    color: colors.textDark,
     textAlign: 'center',
   },
   cycleFlow: {
-    fontSize: 14,
-    color: '#991B1B',
+    fontSize: 13,
+    color: colors.textLight,
+    fontWeight: '500',
   },
-  actionButtonCycle: {
-    flex: 1,
-    backgroundColor: '#FFF',
-    borderWidth: 2,
-    borderColor: '#EF4444',
-  },
-  actionButtonTextCycle: {
-    color: '#EF4444',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  healthKitSection: {
-    backgroundColor: '#F0F9FF',
+
+  // HealthKit Banner
+  healthKitBanner: {
+    backgroundColor: colors.white,
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
     padding: 16,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#BAE6FD',
-  },
-  healthKitHeader: {
+    borderRadius: 14,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+  },
+  healthKitIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  healthKitTextContainer: {
+    flex: 1,
   },
   healthKitTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0369A1',
-  },
-  lastSyncText: {
-    fontSize: 11,
-    color: '#0369A1',
-  },
-  syncButton: {
-    backgroundColor: '#0EA5E9',
-    padding: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  syncButtonDisabled: {
-    backgroundColor: '#BAE6FD',
-  },
-  syncButtonText: {
-    color: '#FFF',
     fontSize: 15,
     fontWeight: '600',
+    color: colors.textDark,
+    marginBottom: 2,
+  },
+  healthKitSubtitle: {
+    fontSize: 12,
+    color: colors.textLight,
+  },
+  healthKitArrow: {
+    fontSize: 24,
+    color: colors.textLight,
+    fontWeight: '300',
+  },
+
+  // Action Buttons
+  quickActions: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  actionButton: {
+    flex: 1,
+    padding: 18,
+    borderRadius: 14,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  actionButtonPrimary: {
+    backgroundColor: colors.sage,
+  },
+  actionButtonSecondary: {
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.sage,
+  },
+  actionButtonText: {
+    color: colors.white,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+  actionButtonTextSecondary: {
+    color: colors.sage,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+
+  // Period Button
+  periodButtonContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 20,
+  },
+  periodButton: {
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.accentPeach,
+    borderRadius: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  periodButtonIcon: {
+    fontSize: 20,
+    marginRight: 8,
+  },
+  periodButtonText: {
+    color: colors.accentPeach,
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+
+  // Sections
+  section: {
+    paddingHorizontal: 20,
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.charcoal,
+    marginBottom: 14,
+    letterSpacing: 0.2,
+  },
+
+  // Symptom Cards
+  symptomCard: {
+    backgroundColor: colors.white,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.lightSage,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  symptomHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  symptomInfo: {
+    flex: 1,
+  },
+  symptomType: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textDark,
+    marginBottom: 4,
+    letterSpacing: 0.2,
+  },
+  symptomDate: {
+    fontSize: 12,
+    color: colors.textLight,
+    fontWeight: '400',
+  },
+  severityBadge: {
+    backgroundColor: colors.cream,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  severityText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.warmBrown,
+  },
+  symptomNotes: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginTop: 10,
+    lineHeight: 20,
+  },
+
+  // Reading Cards
+  readingCard: {
+    backgroundColor: colors.white,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  readingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 4,
+  },
+  readingValue: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: colors.sage,
+    marginBottom: 4,
+  },
+  readingDate: {
+    fontSize: 12,
+    color: colors.textLight,
+    fontWeight: '400',
+  },
+  contextBadge: {
+    backgroundColor: colors.cream,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  contextText: {
+    fontSize: 12,
+    color: colors.textDark,
+    fontWeight: '500',
+  },
+  readingNotes: {
+    fontSize: 14,
+    color: colors.textLight,
+    marginTop: 8,
+    lineHeight: 20,
+  },
+
+  // Empty State
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: colors.textLight,
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: colors.textLight,
+    textAlign: 'center',
   },
 });

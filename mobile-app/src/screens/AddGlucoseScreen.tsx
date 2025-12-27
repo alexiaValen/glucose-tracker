@@ -10,7 +10,29 @@ import {
   Platform,
   ScrollView,
 } from 'react-native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types/navigation';
 import { useGlucoseStore } from '../stores/glucoseStore';
+
+type AddGlucoseScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddGlucose'>;
+
+interface Props {
+  navigation: AddGlucoseScreenNavigationProp;
+}
+
+// Match Dashboard colors
+const colors = {
+  sage: '#7A8B6F',
+  charcoal: '#3A3A3A',
+  warmBrown: '#8B6F47',
+  cream: '#FAF8F4',
+  lightSage: '#B8C5A8',
+  white: '#FFFFFF',
+  textDark: '#2C2C2C',
+  textLight: '#6B6B6B',
+  border: '#E8E6E0',
+  accentPeach: '#D4A798',
+};
 
 const MEAL_CONTEXTS = [
   { label: 'Fasting', value: 'fasting' },
@@ -20,7 +42,7 @@ const MEAL_CONTEXTS = [
   { label: 'Other', value: 'other' },
 ];
 
-export default function AddGlucoseScreen({ navigation }: any) {
+export default function AddGlucoseScreen({ navigation }: Props) {
   const [value, setValue] = useState('');
   const [selectedContext, setSelectedContext] = useState('fasting');
   const [notes, setNotes] = useState('');
@@ -50,162 +72,254 @@ export default function AddGlucoseScreen({ navigation }: any) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backButton}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.title}>Log Glucose</Text>
-        </View>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Back</Text>
+        </TouchableOpacity>
+        <Text style={styles.title}>Log Glucose</Text>
+        <Text style={styles.subtitle}>Track your glucose levels</Text>
+      </View>
 
-        <View style={styles.form}>
-          <Text style={styles.label}>Glucose Level (mg/dL)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., 95"
-            value={value}
-            onChangeText={setValue}
-            keyboardType="numeric"
-            editable={!isLoading}
-          />
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.flex}
+      >
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.form}>
+            {/* Glucose Input */}
+            <View style={styles.inputSection}>
+              <Text style={styles.label}>Glucose Level</Text>
+              <View style={styles.inputContainer}>
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., 95"
+                  placeholderTextColor={colors.textLight}
+                  value={value}
+                  onChangeText={setValue}
+                  keyboardType="numeric"
+                  editable={!isLoading}
+                />
+                <Text style={styles.unit}>mg/dL</Text>
+              </View>
+            </View>
 
-          <Text style={styles.label}>Context</Text>
-          <View style={styles.contextButtons}>
-            {MEAL_CONTEXTS.map((context) => (
-              <TouchableOpacity
-                key={context.value}
-                style={[
-                  styles.contextButton,
-                  selectedContext === context.value && styles.contextButtonActive,
-                ]}
-                onPress={() => setSelectedContext(context.value)}
-                disabled={isLoading}
-              >
-                <Text
-                  style={[
-                    styles.contextButtonText,
-                    selectedContext === context.value && styles.contextButtonTextActive,
-                  ]}
-                >
-                  {context.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            {/* Context Selection */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Context</Text>
+              <View style={styles.contextGrid}>
+                {MEAL_CONTEXTS.map((context) => (
+                  <TouchableOpacity
+                    key={context.value}
+                    style={[
+                      styles.contextButton,
+                      selectedContext === context.value && styles.contextButtonActive,
+                    ]}
+                    onPress={() => setSelectedContext(context.value)}
+                    disabled={isLoading}
+                  >
+                    <Text
+                      style={[
+                        styles.contextButtonText,
+                        selectedContext === context.value && styles.contextButtonTextActive,
+                      ]}
+                    >
+                      {context.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            {/* Notes */}
+            <View style={styles.section}>
+              <Text style={styles.label}>Notes (Optional)</Text>
+              <TextInput
+                style={styles.textArea}
+                placeholder="How are you feeling? Any additional context..."
+                placeholderTextColor={colors.textLight}
+                value={notes}
+                onChangeText={setNotes}
+                multiline
+                numberOfLines={4}
+                editable={!isLoading}
+                textAlignVertical="top"
+              />
+            </View>
+
+            {/* Submit Button */}
+            <TouchableOpacity
+              style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={isLoading}
+            >
+              <Text style={styles.submitButtonText}>
+                {isLoading ? 'Saving...' : 'Save Reading'}
+              </Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={styles.label}>Notes (Optional)</Text>
-          <TextInput
-            style={[styles.input, styles.textArea]}
-            placeholder="How are you feeling?"
-            value={notes}
-            onChangeText={setNotes}
-            multiline
-            numberOfLines={4}
-            editable={!isLoading}
-          />
-
-          <TouchableOpacity
-            style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-            onPress={handleSubmit}
-            disabled={isLoading}
-          >
-            <Text style={styles.submitButtonText}>
-              {isLoading ? 'Saving...' : 'Save Reading'}
-            </Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8F9FA',
+    backgroundColor: colors.cream,
   },
-  scrollContent: {
-    flexGrow: 1,
+  flex: {
+    flex: 1,
   },
   header: {
+    backgroundColor: colors.white,
     padding: 20,
     paddingTop: 60,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
   },
   backButton: {
-    fontSize: 16,
-    color: '#6366F1',
     marginBottom: 16,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: colors.sage,
+    fontWeight: '500',
   },
   title: {
     fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontWeight: '700',
+    color: colors.charcoal,
+    marginBottom: 4,
+    letterSpacing: 0.2,
   },
-  form: {
+  subtitle: {
+    fontSize: 14,
+    color: colors.textLight,
+    fontWeight: '400',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     padding: 20,
   },
+  form: {
+    gap: 24,
+  },
+  section: {
+    gap: 12,
+  },
+  inputSection: {
+    gap: 12,
+  },
   label: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginTop: 16,
+    color: colors.textDark,
+    letterSpacing: 0.2,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   input: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 12,
-    padding: 16,
+    flex: 1,
+    fontSize: 32,
+    fontWeight: '700',
+    color: colors.sage,
+    paddingVertical: 20,
+  },
+  unit: {
     fontSize: 16,
+    fontWeight: '600',
+    color: colors.textLight,
+    marginLeft: 8,
   },
-  textArea: {
-    height: 100,
-    textAlignVertical: 'top',
-  },
-  contextButtons: {
+  contextGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 10,
   },
   contextButton: {
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 20,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    marginBottom: 8,
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    minWidth: '30%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   contextButtonActive: {
-    backgroundColor: '#6366F1',
-    borderColor: '#6366F1',
+    backgroundColor: colors.sage,
+    borderColor: colors.sage,
   },
   contextButtonText: {
     fontSize: 14,
-    color: '#666',
+    color: colors.textDark,
+    fontWeight: '500',
   },
   contextButtonTextActive: {
-    color: '#FFF',
+    color: colors.white,
     fontWeight: '600',
+  },
+  textArea: {
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 14,
+    padding: 16,
+    fontSize: 15,
+    color: colors.textDark,
+    minHeight: 100,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
   },
   submitButton: {
-    backgroundColor: '#6366F1',
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: colors.sage,
+    borderRadius: 14,
+    padding: 18,
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   submitButtonDisabled: {
-    backgroundColor: '#A5A6F6',
+    backgroundColor: colors.lightSage,
+    opacity: 0.6,
   },
   submitButtonText: {
-    color: '#FFF',
-    fontSize: 16,
+    color: colors.white,
+    fontSize: 17,
     fontWeight: '600',
+    letterSpacing: 0.3,
   },
 });

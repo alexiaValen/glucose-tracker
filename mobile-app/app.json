@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "mobile-app",
+    "name": "GraceFlow",
     "slug": "graceflow",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -10,28 +10,39 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#FAF8F4"
     },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alekia33.graceflow",
       "infoPlist": {
-        "NSHealthShareUsageDescription": "We need access to read your glucose data from Apple Health to automatically track your levels.",
-        "NSHealthUpdateUsageDescription": "We need access to save glucose data to Apple Health.",
-        "UIBackgroundModes": ["fetch"],
+        "NSHealthShareUsageDescription": "GraceFlow needs access to read your glucose data from Apple Health to automatically track your levels and provide personalized insights.",
+        "NSHealthUpdateUsageDescription": "GraceFlow needs access to save glucose data to Apple Health for comprehensive health tracking.",
+        "UIBackgroundModes": [
+          "fetch",
+          "remote-notification"
+        ],
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
+      "package": "com.alekia33.graceflow",
+      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#FAF8F4"
       },
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE"
+      ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
     },
     "extra": {
       "eas": {
@@ -45,7 +56,14 @@
         {
           "isAvailable": true
         }
-      ]
+      ],
+      "expo-secure-store"
+    ],
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
     ]
   }
 }
