@@ -3,14 +3,6 @@ import { pool } from '../config/database';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { body, query, validationResult } from 'express-validator';
 
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: 'user' | 'coach' | 'admin';
-  };
-}
-
 const router = Router();
 
 // All routes require authentication
@@ -23,8 +15,9 @@ router.get(
     query('limit').optional().isInt({ min: 1, max: 100 }),
     query('offset').optional().isInt({ min: 0 }),
   ],
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
+      const userId = req.user!.userId;
       const { limit, offset } = req.query;
 
       const result = await pool.query(
@@ -32,7 +25,7 @@ router.get(
          WHERE user_id = $1 
          ORDER BY logged_at DESC 
          LIMIT $2 OFFSET $3`,
-        [(req as any).user!.id, limit || 50, offset || 0]
+        [userId, limit || 50, offset || 0]
       );
 
       res.json({ symptoms: result.rows });
@@ -52,9 +45,11 @@ router.post(
     body('notes').optional().isString(),
     body('glucoseReadingId').optional().isUUID(),
   ],
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
+      const userId = req.user!.userId;
       const errors = validationResult(req);
+      
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
@@ -67,7 +62,7 @@ router.post(
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
         [
-          (req as any).user!.id,
+          userId,
           symptomType,
           severity,
           loggedAt || new Date().toISOString(),
@@ -84,11 +79,13 @@ router.post(
 );
 
 // DELETE /api/v1/symptoms/:id
-router.delete('/:id', async (req: AuthRequest, res: Response) => {
+router.delete('/:id', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.userId;
+
     const result = await pool.query(
       'DELETE FROM symptoms WHERE id = $1 AND user_id = $2 RETURNING id',
-      [req.params.id, (req as any).user!.id]
+      [req.params.id, userId]
     );
 
     if (result.rows.length === 0) {

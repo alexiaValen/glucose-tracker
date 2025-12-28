@@ -3,14 +3,6 @@ import { pool } from '../config/database';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { body, validationResult } from 'express-validator';
 
-interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-    role: 'user' | 'coach' | 'admin';
-  };
-}
-
 const router = Router();
 
 // All routes require authentication
@@ -26,8 +18,9 @@ function calculatePhase(day: number): string {
 }
 
 // GET /api/v1/cycle - List cycles
-router.get('/', async (req: AuthRequest, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.userId;
     const { limit = 12 } = req.query;
 
     const result = await pool.query(
@@ -35,7 +28,7 @@ router.get('/', async (req: AuthRequest, res: Response) => {
        WHERE user_id = $1 
        ORDER BY cycle_start_date DESC 
        LIMIT $2`,
-      [(req as any).user!.id, limit]
+      [userId, limit]
     );
 
     res.json({ cycles: result.rows });
@@ -45,14 +38,16 @@ router.get('/', async (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/v1/cycle/current - Get current active cycle
-router.get('/current', async (req: AuthRequest, res: Response) => {
+router.get('/current', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.userId;
+
     const result = await pool.query(
       `SELECT * FROM cycle_logs 
        WHERE user_id = $1 AND cycle_end_date IS NULL 
        ORDER BY cycle_start_date DESC 
        LIMIT 1`,
-      [(req as any).user!.id]
+      [userId]
     );
 
     if (result.rows.length === 0) {
@@ -92,9 +87,11 @@ router.post(
     body('flow').optional().isIn(['light', 'medium', 'heavy']),
     body('symptoms').optional().isArray(),
   ],
-  async (req: AuthRequest, res: Response) => {
+  async (req: Request, res: Response) => {
     try {
+      const userId = req.user!.userId;
       const errors = validationResult(req);
+      
       if (!errors.isEmpty()) {
         return res.status(400).json({ errors: errors.array() });
       }
@@ -105,7 +102,7 @@ router.post(
       const activeResult = await pool.query(
         `SELECT id FROM cycle_logs 
          WHERE user_id = $1 AND cycle_end_date IS NULL`,
-        [(req as any).user!.id]
+        [userId]
       );
 
       if (activeResult.rows.length > 0) {
@@ -123,7 +120,7 @@ router.post(
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
         [
-          (req as any).user!.id,
+          userId,
           cycleStartDate,
           phase,
           currentDay,
@@ -140,8 +137,9 @@ router.post(
 );
 
 // PATCH /api/v1/cycle/:id - Update cycle (end it)
-router.patch('/:id', async (req: AuthRequest, res: Response) => {
+router.patch('/:id', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.userId;
     const { cycleEndDate, flow, symptoms } = req.body;
 
     const result = await pool.query(
@@ -149,7 +147,7 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
        SET cycle_end_date = $1, flow = COALESCE($2, flow), symptoms = COALESCE($3, symptoms)
        WHERE id = $4 AND user_id = $5
        RETURNING *`,
-      [cycleEndDate, flow, JSON.stringify(symptoms), req.params.id, (req as any).user!.id]
+      [cycleEndDate, flow, JSON.stringify(symptoms), req.params.id, userId]
     );
 
     if (result.rows.length === 0) {
@@ -163,8 +161,10 @@ router.patch('/:id', async (req: AuthRequest, res: Response) => {
 });
 
 // GET /api/v1/cycle/predict - Predict next cycle
-router.get('/predict', async (req: AuthRequest, res: Response) => {
+router.get('/predict', async (req: Request, res: Response) => {
   try {
+    const userId = req.user!.userId;
+
     // Get last 3 completed cycles to calculate average length
     const result = await pool.query(
       `SELECT cycle_start_date, cycle_end_date 
@@ -172,7 +172,7 @@ router.get('/predict', async (req: AuthRequest, res: Response) => {
        WHERE user_id = $1 AND cycle_end_date IS NOT NULL
        ORDER BY cycle_start_date DESC 
        LIMIT 3`,
-      [(req as any).user!.id]
+      [userId]
     );
 
     if (result.rows.length === 0) {
