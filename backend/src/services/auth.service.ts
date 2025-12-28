@@ -5,14 +5,16 @@ import crypto from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
-const ACCESS_TOKEN_EXPIRY = '24h';  // Changed from 15m to 24h
-const REFRESH_TOKEN_EXPIRY = '30d';  // Extended refresh token too
+const ACCESS_TOKEN_EXPIRY = '24h';
+const REFRESH_TOKEN_EXPIRY = '30d';
 
-// UserPayload should be HERE in auth.service.ts not in interfaces
+// UserPayload interface - used for JWT tokens
 export interface UserPayload {
-  id: string;
+  userId: string;
   email: string;
   role: 'user' | 'coach' | 'admin';
+  firstName?: string;
+  lastName?: string;
 }
 
 export class AuthService {
@@ -42,17 +44,28 @@ export class AuthService {
     await pool.query(`INSERT INTO user_profiles (user_id) VALUES ($1)`, [user.id]);
 
     const tokens = await this.generateTokens({
-      id: user.id,
+      userId: user.id,
       email: user.email,
       role: user.role,
+      firstName: user.first_name,
+      lastName: user.last_name,
     });
 
-    return { user, ...tokens };
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        firstName: user.first_name,
+        lastName: user.last_name,
+      },
+      ...tokens,
+    };
   }
 
   async login(email: string, password: string, ipAddress?: string, userAgent?: string) {
     const result = await pool.query(
-      'SELECT id, email, password_hash, role, is_active FROM users WHERE email = $1',
+      'SELECT id, email, password_hash, role, is_active, first_name, last_name FROM users WHERE email = $1',
       [email]
     );
 
@@ -80,9 +93,11 @@ export class AuthService {
     );
 
     const tokens = await this.generateTokens({
-      id: user.id,
+      userId: user.id,
       email: user.email,
       role: user.role,
+      firstName: user.first_name,
+      lastName: user.last_name,
     });
 
     return {
@@ -90,6 +105,8 @@ export class AuthService {
         id: user.id,
         email: user.email,
         role: user.role,
+        firstName: user.first_name,
+        lastName: user.last_name,
       },
       ...tokens,
     };
@@ -105,12 +122,12 @@ export class AuthService {
     });
 
     const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
     await pool.query(
       `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) 
        VALUES ($1, $2, $3)`,
-      [payload.id, tokenHash, expiresAt]
+      [payload.userId, tokenHash, expiresAt]
     );
 
     return { accessToken, refreshToken };
@@ -124,7 +141,7 @@ export class AuthService {
       const result = await pool.query(
         `SELECT id FROM refresh_tokens 
          WHERE user_id = $1 AND token_hash = $2 AND revoked_at IS NULL AND expires_at > NOW()`,
-        [payload.id, tokenHash]
+        [payload.userId, tokenHash]
       );
 
       if (result.rows.length === 0) {
@@ -132,7 +149,13 @@ export class AuthService {
       }
 
       const accessToken = jwt.sign(
-        { id: payload.id, email: payload.email, role: payload.role },
+        {
+          userId: payload.userId,
+          email: payload.email,
+          role: payload.role,
+          firstName: payload.firstName,
+          lastName: payload.lastName,
+        },
         JWT_SECRET,
         { expiresIn: ACCESS_TOKEN_EXPIRY }
       );
