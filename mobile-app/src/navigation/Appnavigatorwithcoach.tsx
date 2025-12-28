@@ -16,8 +16,8 @@ import AddSymptomScreen from '../screens/AddSymptomScreen';
 import LogCycleScreen from '../screens/LogCycleScreen';
 
 // Coach Screens
-import CoachDashboardScreen from '../screens/CoachDashboardScreen';
-import ClientDetailScreen from '../screens/ClientDetailScreen';
+import CoachDashboardScreen from '../screens/Coachdashboardscreen';
+import ClientDetailScreen from '../screens/Clientdetailscreen';
 
 // Colors matching Dashboard
 const colors = {

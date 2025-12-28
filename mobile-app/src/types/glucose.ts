@@ -1,14 +1,14 @@
 export interface GlucoseReading {
   id: string;
-  userId: string;
+  user_id: string;
   value: number;
   unit: 'mg/dL' | 'mmol/L';
-  measuredAt: string;
+  measured_at: string;
   source: 'manual' | 'healthkit' | 'terra' | 'dexcom';
-  sourceDevice?: string;
+  source_device?: string;
   notes?: string;
-  mealContext?: 'fasting' | 'pre_meal' | 'post_meal' | 'bedtime' | 'other';
-  createdAt: string;
+  meal_context?: 'fasting' | 'pre_meal' | 'post_meal' | 'bedtime' | 'other';
+  created_at: string;
 }
 
 export interface GlucoseStats {

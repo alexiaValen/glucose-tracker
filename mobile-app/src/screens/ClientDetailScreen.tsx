@@ -1,3 +1,4 @@
+// src/screens/ClientDetailScreen.tsx
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -6,24 +7,22 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
-import { useAuthStore } from '../stores/authStore';
-import { useGlucoseStore } from '../stores/glucoseStore';
-import { useSymptomStore } from '../stores/symptomStore';
-import { useCycleStore } from '../stores/cycleStore';
-import { healthKitService } from '../services/healthkit.service';
+import { coachService } from '../services/coach.service';
+import { useCoachStore } from '../stores/coachStore';
 import { CYCLE_PHASES } from '../types/cycle';
 
-type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
+type ClientDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ClientDetail'>;
+type ClientDetailScreenRouteProp = RouteProp<RootStackParamList, 'ClientDetail'>;
 
 interface Props {
-  navigation: DashboardScreenNavigationProp;
+  navigation: ClientDetailScreenNavigationProp;
+  route: ClientDetailScreenRouteProp;
 }
 
-// Natural, earthy color palette from oak tree logo
 const colors = {
   sage: '#7A8B6F',
   charcoal: '#3A3A3A',
@@ -37,56 +36,46 @@ const colors = {
   accentPeach: '#D4A798',
 };
 
-export default function DashboardScreen({ navigation }: Props) {
-  const { user, logout } = useAuthStore();
-  const { readings, stats, isLoading, fetchReadings, fetchStats, initializeHealthKit, syncFromHealthKit } = useGlucoseStore();
-  const { symptoms, fetchSymptoms } = useSymptomStore();
-  const { currentCycle, fetchCurrentCycle } = useCycleStore();
-  const [healthKitEnabled, setHealthKitEnabled] = useState(false);
+export default function ClientDetailScreen({ navigation, route }: Props) {
+  const { clientId } = route.params;
+  const { selectedClient } = useCoachStore();
+  const [readings, setReadings] = useState<any[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [symptoms, setSymptoms] = useState<any[]>([]);
+  const [cycle, setCycle] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    fetchReadings();
-    fetchStats();
-    fetchSymptoms();
-    fetchCurrentCycle();
-    checkHealthKitStatus();
-  }, []);
-  console.log('First reading:', readings[0]);
+    loadClientData();
+  }, [clientId]);
 
-  const checkHealthKitStatus = async () => {
-    const enabled = await healthKitService.isAvailable();
-    setHealthKitEnabled(enabled);
-  };
-
-  const requestHealthKitPermissions = async () => {
-    const success = await initializeHealthKit();
-    if (success) {
-      Alert.alert('Success', 'HealthKit connected!', [
-        {
-          text: 'Sync Now',
-          onPress: async () => {
-            try {
-              const count = await syncFromHealthKit();
-              Alert.alert('Sync Complete', `Synced ${count} new readings from Apple Health`);
-            } catch (error) {
-              Alert.alert('Sync Failed', 'Could not sync data from HealthKit');
-            }
-          },
-        },
-        { text: 'Later', style: 'cancel' },
+  const loadClientData = async () => {
+    setIsLoading(true);
+    try {
+      const [glucoseData, statsData, symptomsData, cycleData] = await Promise.all([
+        coachService.getClientGlucose(clientId, 20),
+        coachService.getClientStats(clientId),
+        coachService.getClientSymptoms(clientId, 10),
+        coachService.getClientCycle(clientId),
       ]);
-      setHealthKitEnabled(true);
-    } else {
-      Alert.alert('Error', 'Could not connect to HealthKit');
+
+      setReadings(glucoseData);
+      setStats(statsData);
+      setSymptoms(symptomsData);
+      setCycle(cycleData.currentCycle || null);
+    } catch (error) {
+      console.error('Failed to load client data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const formatDate = (dateString: string) => {
-    if (!dateString) return 'N/a';
+  const formatDate = (dateString: string | undefined) => {
+    if (!dateString) return 'Just now';
     
     try {
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) return 'N/a';
+      if (isNaN(date.getTime())) return 'Just now';
       
       return date.toLocaleDateString('en-US', {
         month: 'short',
@@ -95,7 +84,7 @@ export default function DashboardScreen({ navigation }: Props) {
         minute: '2-digit',
       });
     } catch (error) {
-      return 'N/a';
+      return 'Just now';
     }
   };
 
@@ -130,17 +119,25 @@ export default function DashboardScreen({ navigation }: Props) {
     return symptoms[type] || type;
   };
 
+  if (isLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={colors.sage} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.subtitle}>GraceFlow</Text>
-<Text style={styles.greeting}>Hello, {user?.firstName || 'there'}</Text>
-        </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+          <Text style={styles.backButtonText}>← Clients</Text>
         </TouchableOpacity>
+        <Text style={styles.title}>
+          {selectedClient?.firstName} {selectedClient?.lastName}
+        </Text>
+        <Text style={styles.subtitle}>Client Health Dashboard</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -150,22 +147,22 @@ export default function DashboardScreen({ navigation }: Props) {
             <Text style={styles.statsTitle}>Last 7 Days</Text>
             <View style={styles.statsGrid}>
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.avgGlucose.toFixed(0)}</Text>
+                <Text style={styles.statValue}>{stats.avgGlucose?.toFixed(0) || '—'}</Text>
                 <Text style={styles.statLabel}>Average</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.minGlucose.toFixed(0)}</Text>
+                <Text style={styles.statValue}>{stats.minGlucose?.toFixed(0) || '—'}</Text>
                 <Text style={styles.statLabel}>Lowest</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.maxGlucose.toFixed(0)}</Text>
+                <Text style={styles.statValue}>{stats.maxGlucose?.toFixed(0) || '—'}</Text>
                 <Text style={styles.statLabel}>Highest</Text>
               </View>
               <View style={styles.statDivider} />
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.timeInRange.toFixed(0)}%</Text>
+                <Text style={styles.statValue}>{stats.timeInRange?.toFixed(0) || '—'}%</Text>
                 <Text style={styles.statLabel}>In Range</Text>
               </View>
             </View>
@@ -173,69 +170,26 @@ export default function DashboardScreen({ navigation }: Props) {
         )}
 
         {/* Cycle Card */}
-        {currentCycle && (
+        {cycle && (
           <View style={styles.cycleCard}>
             <View style={styles.cycleHeader}>
               <Text style={styles.cycleTitle}>Current Cycle</Text>
               <View style={styles.cycleDayBadge}>
-                <Text style={styles.cycleDayText}>Day {currentCycle.current_day}</Text>
+                <Text style={styles.cycleDayText}>Day {cycle.current_day}</Text>
               </View>
             </View>
             <View style={styles.cyclePhaseContainer}>
               <Text style={styles.cyclePhaseText}>
-                {CYCLE_PHASES.find(p => p.id === currentCycle.phase)?.label || currentCycle.phase}
+                {CYCLE_PHASES.find(p => p.id === cycle.phase)?.label || cycle.phase}
               </Text>
             </View>
-            {currentCycle.flow && (
+            {cycle.flow && (
               <Text style={styles.cycleFlow}>
-                Flow: {currentCycle.flow.charAt(0).toUpperCase() + currentCycle.flow.slice(1)}
+                Flow: {cycle.flow.charAt(0).toUpperCase() + cycle.flow.slice(1)}
               </Text>
             )}
           </View>
         )}
-
-        {/* HealthKit Banner (iOS only) */}
-        {healthKitService.isAvailable() && !healthKitEnabled && (
-          <TouchableOpacity 
-            style={styles.healthKitBanner}
-            onPress={requestHealthKitPermissions}
-          >
-            <Text style={styles.healthKitIcon}>❤️</Text>
-            <View style={styles.healthKitTextContainer}>
-              <Text style={styles.healthKitTitle}>Connect Apple Health</Text>
-              <Text style={styles.healthKitSubtitle}>Sync glucose data automatically</Text>
-            </View>
-            <Text style={styles.healthKitArrow}>›</Text>
-          </TouchableOpacity>
-        )}
-
-        {/* Action Buttons */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity
-            style={[styles.actionButton, styles.actionButtonPrimary]}
-            onPress={() => navigation.navigate('AddGlucose')}
-          >
-            <Text style={styles.actionButtonText}>Log Glucose</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity
-            style={[styles.actionButton, styles.actionButtonSecondary]}
-            onPress={() => navigation.navigate('AddSymptom')}
-          >
-            <Text style={styles.actionButtonTextSecondary}>Log Symptom</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* NEW: Log Period Button */}
-        <View style={styles.periodButtonContainer}>
-          <TouchableOpacity
-            style={styles.periodButton}
-            onPress={() => navigation.navigate('LogCycle')}
-          >
-            <Text style={styles.periodButtonIcon}>🩸</Text>
-            <Text style={styles.periodButtonText}>Log Period Start</Text>
-          </TouchableOpacity>
-        </View>
 
         {/* Recent Symptoms */}
         {symptoms.length > 0 && (
@@ -266,31 +220,25 @@ export default function DashboardScreen({ navigation }: Props) {
 
         {/* Recent Readings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Recent Readings</Text>
+          <Text style={styles.sectionTitle}>Recent Glucose Readings</Text>
 
-          {isLoading && readings.length === 0 ? (
-            <ActivityIndicator size="large" color={colors.sage} style={{ marginTop: 20 }} />
-          ) : readings.length === 0 ? (
+          {readings.length === 0 ? (
             <View style={styles.emptyState}>
               <Text style={styles.emptyText}>No readings yet</Text>
-              <Text style={styles.emptySubtext}>Tap "Log Glucose" to add your first reading</Text>
+              <Text style={styles.emptySubtext}>Client hasn't logged any glucose readings</Text>
             </View>
           ) : (
-            readings.slice(0, 5).map((reading) => (
+            readings.slice(0, 10).map((reading) => (
               <View key={reading.id} style={styles.readingCard}>
                 <View style={styles.readingHeader}>
                   <View>
-
                     <Text style={styles.readingValue}>{reading.value} mg/dL</Text>
-<Text style={styles.readingDate}>{formatDate(reading.measured_at)}</Text>
-
+                    <Text style={styles.readingDate}>{formatDate(reading.measured_at)}</Text>
                   </View>
                   <View style={styles.contextBadge}>
-
                     <Text style={styles.contextText}>
-  {getMealContextLabel(reading.meal_context)}
-</Text>
-
+                      {getMealContextLabel(reading.meal_context)}
+                    </Text>
                   </View>
                 </View>
                 {reading.notes && <Text style={styles.readingNotes}>{reading.notes}</Text>}
@@ -310,44 +258,40 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    backgroundColor: colors.white,
     padding: 20,
     paddingTop: 60,
-    backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  greeting: {
-    fontSize: 26,
-    fontWeight: '600',
+  backButton: {
+    marginBottom: 16,
+  },
+  backButtonText: {
+    fontSize: 16,
+    color: colors.sage,
+    fontWeight: '500',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: '700',
     color: colors.charcoal,
     marginBottom: 4,
+    letterSpacing: 0.2,
   },
   subtitle: {
     fontSize: 14,
     color: colors.textLight,
     fontWeight: '400',
   },
-  logoutButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  logoutText: {
-    color: colors.textDark,
-    fontSize: 14,
-    fontWeight: '500',
-  },
   content: {
     flex: 1,
   },
-  
-  // Stats Card
   statsCard: {
     backgroundColor: colors.white,
     margin: 20,
@@ -393,8 +337,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-
-  // Cycle Card
   cycleCard: {
     backgroundColor: colors.white,
     marginHorizontal: 20,
@@ -449,114 +391,6 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     fontWeight: '500',
   },
-
-  // HealthKit Banner
-  healthKitBanner: {
-    backgroundColor: colors.white,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  healthKitIcon: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  healthKitTextContainer: {
-    flex: 1,
-  },
-  healthKitTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textDark,
-    marginBottom: 2,
-  },
-  healthKitSubtitle: {
-    fontSize: 12,
-    color: colors.textLight,
-  },
-  healthKitArrow: {
-    fontSize: 24,
-    color: colors.textLight,
-    fontWeight: '300',
-  },
-
-  // Action Buttons
-  quickActions: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  actionButton: {
-    flex: 1,
-    padding: 18,
-    borderRadius: 14,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  actionButtonPrimary: {
-    backgroundColor: colors.sage,
-  },
-  actionButtonSecondary: {
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.sage,
-  },
-  actionButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  actionButtonTextSecondary: {
-    color: colors.sage,
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-
-  // Period Button
-  periodButtonContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  periodButton: {
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.accentPeach,
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  periodButtonIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  periodButtonText: {
-    color: colors.accentPeach,
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-
-  // Sections
   section: {
     paddingHorizontal: 20,
     marginBottom: 24,
@@ -568,8 +402,6 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     letterSpacing: 0.2,
   },
-
-  // Symptom Cards
   symptomCard: {
     backgroundColor: colors.white,
     padding: 16,
@@ -620,8 +452,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     lineHeight: 20,
   },
-
-  // Reading Cards
   readingCard: {
     backgroundColor: colors.white,
     padding: 16,
@@ -667,8 +497,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     lineHeight: 20,
   },
-
-  // Empty State
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
