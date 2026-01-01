@@ -1,6 +1,8 @@
+// mobile-app/src/stores/authStore.ts
 import { create } from 'zustand';
 import { User } from '../types/auth';
 import { authService } from '../services/auth.service';
+import { clearAuthToken } from '../config/api';
 
 interface AuthState {
   user: User | null;
@@ -21,6 +23,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await authService.login({ email, password });
+      // authService.login already calls setAuthToken via saveTokens()
       set({ user: response.user, isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
@@ -32,6 +35,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ isLoading: true });
     try {
       const response = await authService.register({ email, password, firstName, lastName });
+      // authService.register already calls setAuthToken via saveTokens()
       set({ user: response.user, isAuthenticated: true, isLoading: false });
     } catch (error) {
       set({ isLoading: false });
@@ -40,15 +44,25 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: async () => {
+    // authService.logout already calls clearTokens()
     await authService.logout();
     set({ user: null, isAuthenticated: false });
   },
 
   checkAuth: async () => {
-    const isAuth = await authService.isAuthenticated();
-    if (isAuth) {
-      const user = await authService.getUser();
-      set({ user, isAuthenticated: true });
+    try {
+      const isAuth = await authService.isAuthenticated();
+      if (isAuth) {
+        const user = await authService.getUser();
+        set({ user, isAuthenticated: true });
+      } else {
+        await clearAuthToken();
+        set({ user: null, isAuthenticated: false });
+      }
+    } catch (error) {
+      console.error('Error checking auth:', error);
+      await clearAuthToken();
+      set({ user: null, isAuthenticated: false });
     }
   },
 }));

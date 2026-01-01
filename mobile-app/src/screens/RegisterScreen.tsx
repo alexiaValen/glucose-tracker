@@ -93,6 +93,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 value={firstName}
                 onChangeText={setFirstName}
                 editable={!isLoading}
+                autoComplete="name-given"
               />
             </View>
 
@@ -105,6 +106,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 value={lastName}
                 onChangeText={setLastName}
                 editable={!isLoading}
+                autoComplete="name-family"
               />
             </View>
 
@@ -119,6 +121,7 @@ export default function RegisterScreen({ navigation }: Props) {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={!isLoading}
+                autoComplete="email"
               />
             </View>
 
@@ -132,6 +135,9 @@ export default function RegisterScreen({ navigation }: Props) {
                 onChangeText={setPassword}
                 secureTextEntry
                 editable={!isLoading}
+                autoComplete="off"
+                textContentType="none"
+                autoCorrect={false}
               />
             </View>
 
@@ -145,6 +151,9 @@ export default function RegisterScreen({ navigation }: Props) {
                 onChangeText={setConfirmPassword}
                 secureTextEntry
                 editable={!isLoading}
+                autoComplete="off"
+                textContentType="none"
+                autoCorrect={false}
               />
             </View>
 
