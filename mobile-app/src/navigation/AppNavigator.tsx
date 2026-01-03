@@ -19,6 +19,10 @@ import LogCycleScreen from '../screens/LogCycleScreen';
 import CoachDashboardScreen from '../screens/CoachDashboardScreen';
 import ClientDetailScreen from '../screens/ClientDetailScreen';
 
+// Shared Screens
+import ConversationsScreen from '../screens/ConversationsScreen';
+import MessagingScreen from '../screens/MessagingScreen';
+
 // Colors matching Dashboard
 const colors = {
   sage: '#7A8B6F',
@@ -74,6 +78,14 @@ export default function AppNavigator() {
                 name="ClientDetail" 
                 component={ClientDetailScreen}
               />
+              <Stack.Screen 
+                name="Conversations" 
+                component={ConversationsScreen}
+              />
+              <Stack.Screen 
+                name="Messaging" 
+                component={MessagingScreen}
+              />
             </>
           ) : (
             // User Stack
@@ -93,6 +105,14 @@ export default function AppNavigator() {
               <Stack.Screen 
                 name="LogCycle" 
                 component={LogCycleScreen}
+              />
+              <Stack.Screen 
+                name="Conversations" 
+                component={ConversationsScreen}
+              />
+              <Stack.Screen 
+                name="Messaging" 
+                component={MessagingScreen}
               />
             </>
           )

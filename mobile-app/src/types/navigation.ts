@@ -15,8 +15,13 @@ export type RootStackParamList = {
   // Coach screens
   CoachDashboard: undefined;
   ClientDetail: { clientId: string };
+  
+  // Common screens navigated to from both user and coach
+  Settings: undefined;
+  Profile: undefined;
 
-   // 
+  // Messaging screens 
+  Conversations: undefined;  // NEW: Inbox/conversations list
   Messaging: { userId: string; userName: string };
   HealthSync: undefined;
 };

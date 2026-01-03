@@ -55,14 +55,22 @@ export default function CoachDashboardScreen({ navigation }: Props) {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.subtitle}>Coach Dashboard</Text>
-          <Text style={styles.greeting}>Welcome, {user?.firstName}</Text>
-        </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
-      </View>
+  <View>
+    <Text style={styles.subtitle}>Coach Dashboard</Text>
+    <Text style={styles.greeting}>Welcome, {user?.firstName}</Text>
+  </View>
+  <View style={styles.headerActions}>
+    <TouchableOpacity 
+      onPress={() => navigation.navigate('Conversations')} 
+      style={styles.messagesButton}
+    >
+      <Text style={styles.messagesButtonText}>💬</Text>
+    </TouchableOpacity>
+    <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+      <Text style={styles.logoutText}>Logout</Text>
+    </TouchableOpacity>
+  </View>
+</View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Stats Summary */}
@@ -181,6 +189,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
+  headerActions: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 8,
+},
+messagesButton: {
+  paddingVertical: 8,
+  paddingHorizontal: 14,
+  borderRadius: 8,
+  borderWidth: 1,
+  borderColor: colors.border,
+  backgroundColor: colors.white,
+},
+messagesButtonText: {
+  fontSize: 18,
+},
   greeting: {
     fontSize: 26,
     fontWeight: '600',

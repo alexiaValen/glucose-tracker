@@ -23,7 +23,7 @@ interface Props {
   navigation: DashboardScreenNavigationProp;
 }
 
-// Natural, earthy color palette from oak tree logo
+// Natural, earthy color palette
 const colors = {
   sage: '#7A8B6F',
   charcoal: '#3A3A3A',
@@ -39,7 +39,7 @@ const colors = {
 
 export default function DashboardScreen({ navigation }: Props) {
   const { user, logout } = useAuthStore();
-  const { readings, stats, isLoading, fetchReadings, fetchStats, initializeHealthKit, syncFromHealthKit } = useGlucoseStore();
+  const { readings, stats, isLoading, fetchReadings, fetchStats } = useGlucoseStore();
   const { symptoms, fetchSymptoms } = useSymptomStore();
   const { currentCycle, fetchCurrentCycle } = useCycleStore();
   const [healthKitEnabled, setHealthKitEnabled] = useState(false);
@@ -51,34 +51,10 @@ export default function DashboardScreen({ navigation }: Props) {
     fetchCurrentCycle();
     checkHealthKitStatus();
   }, []);
-  console.log('First reading:', readings[0]);
 
   const checkHealthKitStatus = async () => {
     const enabled = await healthKitService.isAvailable();
     setHealthKitEnabled(enabled);
-  };
-
-  const requestHealthKitPermissions = async () => {
-    const success = await initializeHealthKit();
-    if (success) {
-      Alert.alert('Success', 'HealthKit connected!', [
-        {
-          text: 'Sync Now',
-          onPress: async () => {
-            try {
-              const count = await syncFromHealthKit();
-              Alert.alert('Sync Complete', `Synced ${count} new readings from Apple Health`);
-            } catch (error) {
-              Alert.alert('Sync Failed', 'Could not sync data from HealthKit');
-            }
-          },
-        },
-        { text: 'Later', style: 'cancel' },
-      ]);
-      setHealthKitEnabled(true);
-    } else {
-      Alert.alert('Error', 'Could not connect to HealthKit');
-    }
   };
 
   const formatDate = (dateString: string) => {
@@ -136,11 +112,19 @@ export default function DashboardScreen({ navigation }: Props) {
       <View style={styles.header}>
         <View>
           <Text style={styles.subtitle}>GraceFlow</Text>
-<Text style={styles.greeting}>Hello, {user?.firstName || 'there'}</Text>
+          <Text style={styles.greeting}>Hello, {user?.firstName || 'there'}</Text>
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-          <Text style={styles.logoutText}>Logout</Text>
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity 
+            onPress={() => navigation.navigate('Conversations')} 
+            style={styles.messagesButton}
+          >
+            <Text style={styles.messagesButtonText}>💬</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={logout} style={styles.logoutButton}>
+            <Text style={styles.logoutText}>Logout</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -194,21 +178,6 @@ export default function DashboardScreen({ navigation }: Props) {
           </View>
         )}
 
-        {/* HealthKit Banner (iOS only) */}
-        {healthKitService.isAvailable() && !healthKitEnabled && (
-          <TouchableOpacity 
-            style={styles.healthKitBanner}
-            onPress={requestHealthKitPermissions}
-          >
-            <Text style={styles.healthKitIcon}>❤️</Text>
-            <View style={styles.healthKitTextContainer}>
-              <Text style={styles.healthKitTitle}>Connect Apple Health</Text>
-              <Text style={styles.healthKitSubtitle}>Sync glucose data automatically</Text>
-            </View>
-            <Text style={styles.healthKitArrow}>›</Text>
-          </TouchableOpacity>
-        )}
-
         {/* Action Buttons */}
         <View style={styles.quickActions}>
           <TouchableOpacity
@@ -226,7 +195,7 @@ export default function DashboardScreen({ navigation }: Props) {
           </TouchableOpacity>
         </View>
 
-        {/* NEW: Log Period Button */}
+        {/* Log Period Button */}
         <View style={styles.periodButtonContainer}>
           <TouchableOpacity
             style={styles.periodButton}
@@ -280,17 +249,13 @@ export default function DashboardScreen({ navigation }: Props) {
               <View key={reading.id} style={styles.readingCard}>
                 <View style={styles.readingHeader}>
                   <View>
-
                     <Text style={styles.readingValue}>{reading.value} mg/dL</Text>
-<Text style={styles.readingDate}>{formatDate(reading.measured_at)}</Text>
-
+                    <Text style={styles.readingDate}>{formatDate(reading.measured_at)}</Text>
                   </View>
                   <View style={styles.contextBadge}>
-
                     <Text style={styles.contextText}>
-  {getMealContextLabel(reading.meal_context)}
-</Text>
-
+                      {getMealContextLabel(reading.meal_context)}
+                    </Text>
                   </View>
                 </View>
                 {reading.notes && <Text style={styles.readingNotes}>{reading.notes}</Text>}
@@ -330,6 +295,22 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textLight,
     fontWeight: '400',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  messagesButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  messagesButtonText: {
+    fontSize: 18,
   },
   logoutButton: {
     paddingVertical: 8,
@@ -448,42 +429,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textLight,
     fontWeight: '500',
-  },
-
-  // HealthKit Banner
-  healthKitBanner: {
-    backgroundColor: colors.white,
-    marginHorizontal: 20,
-    marginBottom: 16,
-    padding: 16,
-    borderRadius: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-  },
-  healthKitIcon: {
-    fontSize: 32,
-    marginRight: 12,
-  },
-  healthKitTextContainer: {
-    flex: 1,
-  },
-  healthKitTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textDark,
-    marginBottom: 2,
-  },
-  healthKitSubtitle: {
-    fontSize: 12,
-    color: colors.textLight,
-  },
-  healthKitArrow: {
-    fontSize: 24,
-    color: colors.textLight,
-    fontWeight: '300',
   },
 
   // Action Buttons

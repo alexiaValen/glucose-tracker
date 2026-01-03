@@ -47,6 +47,7 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
   const [symptoms, setSymptoms] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [activeTab, setActiveTab] = useState<'glucose' | 'symptoms' | 'analytics'>('glucose');
+  const [clientInfo, setClientInfo] = useState<{ firstName: string; lastName: string } | null>(null);
 
   useEffect(() => {
     loadClientData();
@@ -64,6 +65,16 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
       setGlucoseData(glucose);
       setSymptoms(symptomsData);
       setStats(statsData);
+
+      // get client info from coach store
+      const { useCoachStore } = require('../stores/coachStore');
+    const selectedClient = useCoachStore.getState().selectedClient;
+    if (selectedClient) {
+      setClientInfo({
+        firstName: selectedClient.firstName,
+        lastName: selectedClient.lastName,
+      });
+    }
     } catch (error) {
       console.error('Failed to load client data:', error);
     } finally {
@@ -192,18 +203,24 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
     </View>
   );
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity.toLowerCase()) {
-      case 'severe':
-        return colors.red;
-      case 'moderate':
-        return colors.yellow;
-      case 'mild':
-        return colors.green;
-      default:
-        return colors.textLight;
-    }
-  };
+const getSeverityColor = (severity: string | undefined | null) => {
+  if (!severity || typeof severity !== 'string') {
+    return colors.textLight;
+  }
+  
+  const severityLower = severity.toLowerCase();
+  
+  switch (severityLower) {
+    case 'severe':
+      return colors.red;
+    case 'moderate':
+      return colors.yellow;
+    case 'mild':
+      return colors.green;
+    default:
+      return colors.textLight;
+  }
+};
 
   const renderAnalyticsTab = () => (
     <View>
@@ -292,9 +309,13 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
         <TouchableOpacity 
           style={styles.messageButton}
           onPress={() => {
-            // Navigate to messaging screen (we'll build this next)
-            console.log('Message client');
-          }}
+            navigation.navigate('Messaging', {
+      userId: clientId,
+      userName: clientInfo 
+        ? `${clientInfo.firstName} ${clientInfo.lastName}`
+        : 'Client'
+    });
+  }}
         >
           <Text style={styles.messageButtonText}>Message</Text>
         </TouchableOpacity>
