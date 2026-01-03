@@ -43,8 +43,8 @@ export default function DashboardScreen({ navigation }: Props) {
   const { symptoms, fetchSymptoms } = useSymptomStore();
   const { currentCycle, fetchCurrentCycle } = useCycleStore();
   const [healthKitEnabled, setHealthKitEnabled] = useState(false);
-  const [coachId, setCoachId] = useState<string | null>(null);
-  const [coachName, setCoachName] = useState<string | null>(null);
+  // const [coachId, setCoachId] = useState<string | null>(null);
+  // const [coachName, setCoachName] = useState<string | null>(null);
 
   useEffect(() => {
     fetchReadings();
@@ -52,42 +52,42 @@ export default function DashboardScreen({ navigation }: Props) {
     fetchSymptoms();
     fetchCurrentCycle();
     checkHealthKitStatus();
-    fetchCoachInfo();
+    // fetchCoachInfo();
   }, []);
 
-const fetchCoachInfo = async () => {
-  try {
-    console.log('📞 Fetching coach info...');
-    const { api } = require('../config/api');
-    const response = await api.get('/coach/my-coach');
-    console.log('✅ Response:', response.data);
+// const fetchCoachInfo = async () => {
+//   try {
+//     console.log('📞 Fetching coach info...');
+//     const { api } = require('../config/api');
+//     const response = await api.get('/coach/my-coach');
+//     console.log('✅ Response:', response.data);
     
-    if (response.data.coach) {
-      setCoachId(response.data.coach.id);
-      setCoachName(`${response.data.coach.first_name} ${response.data.coach.last_name}`);
-      console.log('✅ Coach set:', response.data.coach);
-    } else {
-      console.log('ℹ️ No coach assigned');
-    }
-  } catch (error: any) {
-    console.log('❌ Error details:');
-    console.log('  Status:', error.response?.status);
-    console.log('  URL:', error.config?.url);
-    console.log('  Base URL:', error.config?.baseURL);
-    console.log('  Message:', error.message);
-  }
-};
+//     if (response.data.coach) {
+//       setCoachId(response.data.coach.id);
+//       setCoachName(`${response.data.coach.first_name} ${response.data.coach.last_name}`);
+//       console.log('✅ Coach set:', response.data.coach);
+//     } else {
+//       console.log('ℹ️ No coach assigned');
+//     }
+//   } catch (error: any) {
+//     console.log('❌ Error details:');
+//     console.log('  Status:', error.response?.status);
+//     console.log('  URL:', error.config?.url);
+//     console.log('  Base URL:', error.config?.baseURL);
+//     console.log('  Message:', error.message);
+//   }
+// };
 
-  const handleMessageCoach = () => {
-    if (coachId && coachName) {
-      navigation.navigate('Messaging', {
-        userId: coachId,
-        userName: coachName,
-      });
-    } else {
-      Alert.alert('No Coach', 'You do not have an assigned coach yet.');
-    }
-  };
+  // const handleMessageCoach = () => {
+  //   if (coachId && coachName) {
+  //     navigation.navigate('Messaging', {
+  //       userId: coachId,
+  //       userName: coachName,
+  //     });
+  //   } else {
+  //     Alert.alert('No Coach', 'You do not have an assigned coach yet.');
+  //   }
+  // };
 
   const checkHealthKitStatus = async () => {
     const enabled = await healthKitService.isAvailable();
@@ -215,7 +215,7 @@ const fetchCoachInfo = async () => {
           </View>
         )}
 
-        {/* Message Coach Button */}
+        {/* Message Coach Button
         {coachId && (
           <View style={styles.messageCoachContainer}>
             <TouchableOpacity
@@ -226,7 +226,7 @@ const fetchCoachInfo = async () => {
               <Text style={styles.messageCoachText}>Message My Coach</Text>
             </TouchableOpacity>
           </View>
-        )}
+        )} */}
 
         {/* Action Buttons */}
         <View style={styles.quickActions}>
@@ -552,33 +552,33 @@ const styles = StyleSheet.create({
   },
 
   // Message Coach Button
-  messageCoachContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  messageCoachButton: {
-    backgroundColor: colors.sage,
-    borderRadius: 14,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  messageCoachIcon: {
-    fontSize: 20,
-    marginRight: 8,
-  },
-  messageCoachText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
+  // messageCoachContainer: {
+  //   paddingHorizontal: 20,
+  //   marginBottom: 20,
+  // },
+  // messageCoachButton: {
+  //   backgroundColor: colors.sage,
+  //   borderRadius: 14,
+  //   padding: 16,
+  //   flexDirection: 'row',
+  //   alignItems: 'center',
+  //   justifyContent: 'center',
+  //   shadowColor: '#000',
+  //   shadowOffset: { width: 0, height: 2 },
+  //   shadowOpacity: 0.08,
+  //   shadowRadius: 6,
+  //   elevation: 3,
+  // },
+  // messageCoachIcon: {
+  //   fontSize: 20,
+  //   marginRight: 8,
+  // },
+  // messageCoachText: {
+  //   color: colors.white,
+  //   fontSize: 16,
+  //   fontWeight: '600',
+  //   letterSpacing: 0.3,
+  // },
 
   // Sections
   section: {
