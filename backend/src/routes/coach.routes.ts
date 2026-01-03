@@ -5,6 +5,49 @@ import { authMiddleware, requireCoach } from '../middleware/auth.middleware';
 
 const router = Router();
 
+// PUBLIC USER ROUTE - Must come BEFORE requireCoach middleware
+// GET /api/v1/coach/my-coach - Get the current user's assigned coach
+router.get('/my-coach', authMiddleware, async (req, res) => {
+  console.log('🔍 /my-coach route hit!');
+  console.log('User from token:', req.user);
+  
+  try {
+    const userId = req.user!.userId;
+    console.log('Looking for coach for user ID:', userId);
+
+    const { data: relationship, error: relError } = await supabase
+      .from('coach_clients')
+      .select('coach_id')
+      .eq('client_id', userId)
+      .single();
+
+    console.log('Relationship result:', { relationship, error: relError });
+
+    if (relError || !relationship) {
+      console.log('No coach relationship found');
+      return res.json({ coach: null });
+    }
+
+    const { data: coach, error: coachError } = await supabase
+      .from('users')
+      .select('id, email, first_name, last_name, role')
+      .eq('id', relationship.coach_id)
+      .eq('role', 'coach')
+      .single();
+
+    console.log('Coach result:', { coach, error: coachError });
+
+    if (coachError || !coach) {
+      return res.json({ coach: null });
+    }
+
+    res.json({ coach });
+  } catch (error) {
+    console.error('❌ Error in /my-coach:', error);
+    res.status(500).json({ error: 'Failed to fetch coach' });
+  }
+});
+
 // All coach routes require authentication and coach role
 router.use(authMiddleware);
 router.use(requireCoach);

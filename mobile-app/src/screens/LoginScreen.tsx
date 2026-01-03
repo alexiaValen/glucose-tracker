@@ -100,6 +100,15 @@ export default function LoginScreen({ navigation }: Props) {
             </Text>
           </TouchableOpacity>
 
+          <TouchableOpacity 
+  onPress={() => navigation.navigate('ForgotPassword')}
+  style={styles.forgotPasswordButton}
+>
+  <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+</TouchableOpacity>
+
+
+
           <TouchableOpacity
             style={styles.linkButton}
             onPress={() => navigation.navigate('Register')}
@@ -203,4 +212,14 @@ const styles = StyleSheet.create({
     color: colors.sage,
     fontWeight: '600',
   },
+  forgotPasswordButton: {
+  alignItems: 'center',
+  padding: 12,
+  marginTop: 8,
+},
+forgotPasswordText: {
+  color: colors.sage,
+  fontSize: 14,
+  fontWeight: '600',
+},
 });

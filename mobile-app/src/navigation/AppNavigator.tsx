@@ -8,6 +8,7 @@ import type { RootStackParamList } from '../types/navigation';
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
+import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 // User Screens
 import DashboardScreen from '../screens/DashboardScreen';
@@ -86,6 +87,9 @@ export default function AppNavigator() {
                 name="Messaging" 
                 component={MessagingScreen}
               />
+              <Stack.Screen 
+              name="ForgotPassword" component={ForgotPasswordScreen}
+               />
             </>
           ) : (
             // User Stack
