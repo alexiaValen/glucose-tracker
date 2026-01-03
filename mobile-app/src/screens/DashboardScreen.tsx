@@ -14,7 +14,7 @@ import { useAuthStore } from '../stores/authStore';
 import { useGlucoseStore } from '../stores/glucoseStore';
 import { useSymptomStore } from '../stores/symptomStore';
 import { useCycleStore } from '../stores/cycleStore';
-import { healthKitService } from '../services/healthkit.service';
+import { healthKitService } from '../services/healthKit.service';
 import { CYCLE_PHASES } from '../types/cycle';
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;

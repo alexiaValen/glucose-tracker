@@ -1,54 +1,75 @@
-import * as AppleHealthKit from 'react-native-health';
+// mobile-app/src/services/healthKit.service.ts
+import AppleHealthKit, {
+  HealthKitPermissions,
+} from 'react-native-health';
 import { Platform } from 'react-native';
-
-interface HealthKitPermissions {
-  permissions: {
-    read: string[];
-    write: string[];
-  };
-}
-
-interface HealthValue {
-  value: number;
-  startDate: string;
-  endDate: string;
-}
+import { api } from '../config/api';
 
 const permissions: HealthKitPermissions = {
   permissions: {
-    read: ['BloodGlucose'],
-    write: ['BloodGlucose'],
+    read: [AppleHealthKit.Constants.Permissions.BloodGlucose],
+    write: [AppleHealthKit.Constants.Permissions.BloodGlucose],
   },
 };
 
-export const healthKitService = {
-  isAvailable(): boolean {
-    return Platform.OS === 'ios';
-  },
+export interface GlucoseReading {
+  value: number;
+  date: Date;
+  source?: string;
+}
 
+export const healthKitService = {
+  /**
+   * Initialize HealthKit and request permissions
+   */
   async initialize(): Promise<boolean> {
-    if (!this.isAvailable()) {
+    if (Platform.OS !== 'ios') {
+      console.log('HealthKit is only available on iOS');
       return false;
     }
 
     return new Promise((resolve) => {
-      (AppleHealthKit as any).initHealthKit(permissions, (error: string) => {
+      AppleHealthKit.initHealthKit(permissions, (error: string) => {
         if (error) {
-          console.error('HealthKit initialization error:', error);
+          console.error('[HealthKit] Error initializing:', error);
           resolve(false);
         } else {
-          console.log('✅ HealthKit initialized successfully');
+          console.log('[HealthKit] Initialized successfully');
           resolve(true);
         }
       });
     });
   },
 
-  async getGlucoseSamples(
+  /**
+   * Check if HealthKit is available
+   */
+  async isAvailable(): Promise<boolean> {
+    if (Platform.OS !== 'ios') return false;
+
+    return new Promise((resolve) => {
+      AppleHealthKit.isAvailable((err: Object, available: boolean) => {
+        if (err) {
+          console.error('[HealthKit] Error checking availability:', err);
+          resolve(false);
+        } else {
+          resolve(available);
+        }
+      });
+    });
+  },
+
+  /**
+   * Read glucose data from Apple Health
+   * @param startDate - Start date for the query
+   * @param endDate - End date for the query (defaults to now)
+   */
+  async readGlucoseData(
     startDate: Date,
     endDate: Date = new Date()
-  ): Promise<HealthValue[]> {
-    if (!this.isAvailable()) {
+  ): Promise<GlucoseReading[]> {
+    if (Platform.OS !== 'ios') {
+      console.log('HealthKit is only available on iOS');
       return [];
     }
 
@@ -60,51 +81,52 @@ export const healthKitService = {
         limit: 100,
       };
 
-      (AppleHealthKit as any).getBloodGlucoseSamples(
+      AppleHealthKit.getBloodGlucoseSamples(
         options,
-        (error: any, results: HealthValue[]) => {
-          if (error) {
-            console.error('Error fetching glucose samples:', error);
-            reject(error);
+        (err: any, results: any[]) => {
+          if (err) {
+            console.error('[HealthKit] Error reading glucose:', err);
+            reject(err);
           } else {
-            resolve(results || []);
+            const readings: GlucoseReading[] = results.map((reading) => ({
+              value: reading.value,
+              date: new Date(reading.startDate),
+              source: reading.sourceName || 'Apple Health',
+            }));
+            console.log(`[HealthKit] Read ${readings.length} glucose readings`);
+            resolve(readings);
           }
         }
       );
     });
   },
 
-  async getLatestGlucose(): Promise<HealthValue | null> {
-    if (!this.isAvailable()) {
-      return null;
-    }
-
-    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-    const samples = await this.getGlucoseSamples(oneDayAgo);
-    
-    return samples.length > 0 ? samples[0] : null;
-  },
-
-  async saveGlucoseReading(value: number, date: Date = new Date()): Promise<boolean> {
-    if (!this.isAvailable()) {
+  /**
+   * Write glucose data to Apple Health
+   * @param value - Glucose value in mg/dL
+   * @param date - Date of the reading
+   */
+  async writeGlucoseData(value: number, date: Date = new Date()): Promise<boolean> {
+    if (Platform.OS !== 'ios') {
+      console.log('HealthKit is only available on iOS');
       return false;
     }
 
     return new Promise((resolve) => {
       const options = {
-        value,
+        value: value,
         startDate: date.toISOString(),
         endDate: date.toISOString(),
       };
 
-      (AppleHealthKit as any).saveBloodGlucoseSample(
+      AppleHealthKit.saveBloodGlucoseSample(
         options,
-        (error: any) => {
-          if (error) {
-            console.error('Error saving glucose to HealthKit:', error);
+        (err: Object, result: any) => {
+          if (err) {
+            console.error('[HealthKit] Error writing glucose:', err);
             resolve(false);
           } else {
-            console.log('✅ Glucose saved to HealthKit');
+            console.log(`[HealthKit] Wrote glucose reading: ${value} mg/dL`);
             resolve(true);
           }
         }
@@ -112,10 +134,97 @@ export const healthKitService = {
     });
   },
 
-  convertToMgDl(value: number, unit: string): number {
-    if (unit === 'mmol/L') {
-      return value * 18.0182;
+  /**
+   * Get latest glucose reading from Apple Health
+   */
+  async getLatestGlucoseReading(): Promise<GlucoseReading | null> {
+    if (Platform.OS !== 'ios') return null;
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const readings = await this.readGlucoseData(yesterday);
+    return readings.length > 0 ? readings[0] : null;
+  },
+
+  /**
+   * Sync glucose data from Apple Health to app backend
+   * @param onProgress - Callback for progress updates
+   */
+  async syncGlucoseToBackend(
+    onProgress?: (current: number, total: number) => void
+  ): Promise<{ synced: number; failed: number }> {
+    try {
+      // Get data from last 30 days
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 30);
+
+      const readings = await this.readGlucoseData(startDate);
+      console.log(`[HealthKit] Syncing ${readings.length} readings to backend`);
+
+      let synced = 0;
+      let failed = 0;
+
+      for (let i = 0; i < readings.length; i++) {
+        const reading = readings[i];
+        
+        if (onProgress) {
+          onProgress(i + 1, readings.length);
+        }
+
+        try {
+          // Sync to backend
+          await api.post('/glucose', {
+            value: reading.value,
+            measured_at: reading.date.toISOString(),
+            source: reading.source || 'Apple Health',
+          });
+          
+          synced++;
+        } catch (error) {
+          console.error('[HealthKit] Failed to sync reading:', error);
+          failed++;
+        }
+      }
+
+      console.log(`[HealthKit] Sync complete: ${synced} synced, ${failed} failed`);
+      return { synced, failed };
+    } catch (error) {
+      console.error('[HealthKit] Sync error:', error);
+      return { synced: 0, failed: 0 };
     }
-    return value;
+  },
+
+  /**
+   * Get glucose statistics from Apple Health
+   * @param days - Number of days to analyze
+   */
+  async getGlucoseStats(days: number = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const readings = await this.readGlucoseData(startDate);
+    
+    if (readings.length === 0) {
+      return null;
+    }
+
+    const values = readings.map(r => r.value);
+    const sum = values.reduce((a, b) => a + b, 0);
+    const avg = sum / values.length;
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+
+    // Calculate time in range (70-180 mg/dL)
+    const inRange = values.filter(v => v >= 70 && v <= 180).length;
+    const timeInRange = (inRange / values.length) * 100;
+
+    return {
+      average: Math.round(avg),
+      min: Math.round(min),
+      max: Math.round(max),
+      timeInRange: Math.round(timeInRange),
+      totalReadings: readings.length,
+    };
   },
 };

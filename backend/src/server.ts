@@ -7,6 +7,7 @@ import glucoseRoutes from './routes/glucose.routes';
 import coachRoutes from './routes/coach.routes';
 import cycleRoutes from './routes/cycle.routes';
 import symptomRoutes from './routes/symptom.routes';
+import messagesRoutes from './routes/messages';
 
 dotenv.config();
 
@@ -33,6 +34,7 @@ app.use('/api/v1/glucose', glucoseRoutes);
 app.use('/api/v1/coach', coachRoutes);
 app.use('/api/v1/symptoms', symptomRoutes);
 app.use('/api/v1/cycle', cycleRoutes);
+app.use('/api/v1/messages', messagesRoutes);
 
 // 404 handler
 app.use((req, res) => {

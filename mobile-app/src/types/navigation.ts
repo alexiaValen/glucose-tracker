@@ -15,6 +15,10 @@ export type RootStackParamList = {
   // Coach screens
   CoachDashboard: undefined;
   ClientDetail: { clientId: string };
+
+   // 
+  Messaging: { userId: string; userName: string };
+  HealthSync: undefined;
 };
 
 export type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
