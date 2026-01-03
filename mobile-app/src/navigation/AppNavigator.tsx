@@ -131,6 +131,10 @@ export default function AppNavigator() {
               name="Register" 
               component={RegisterScreen}
             />
+            <Stack.Screen                      //
+      name="ForgotPassword"             // 
+      component={ForgotPasswordScreen}  // 
+    />  
           </>
         )}
       </Stack.Navigator>
