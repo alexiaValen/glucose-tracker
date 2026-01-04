@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors } from '../theme/colors';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -20,15 +21,15 @@ interface Props {
   navigation: SettingsScreenNavigationProp;
 }
 
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  cream: '#FAF8F4',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-};
+// const colors = {
+//   sage: '#7A8B6F',
+//   charcoal: '#3A3A3A',
+//   cream: '#FAF8F4',
+//   white: '#FFFFFF',
+//   textDark: '#2C2C2C',
+//   textLight: '#6B6B6B',
+//   border: '#E8E6E0',
+// };
 
 const CYCLE_TRACKING_KEY = 'cycleTrackingEnabled';
 

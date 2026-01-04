@@ -15,6 +15,8 @@ import { useSymptomStore } from '../stores/symptomStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { CYCLE_PHASES } from '../types/cycle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+// import { checkHealthKitStatus } from '../utils/healthKit';
+import { colors } from '../theme/colors';
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
@@ -22,18 +24,18 @@ interface Props {
   navigation: DashboardScreenNavigationProp;
 }
 
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  warmBrown: '#8B6F47',
-  cream: '#FAF8F4',
-  lightSage: '#B8C5A8',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-  accentPeach: '#D4A798',
-};
+// const colors = {
+//   sage: '#7A8B6F',
+//   charcoal: '#3A3A3A',
+//   warmBrown: '#8B6F47',
+//   cream: '#FAF8F4',
+//   lightSage: '#B8C5A8',
+//   white: '#FFFFFF',
+//   textDark: '#2C2C2C',
+//   textLight: '#6B6B6B',
+//   border: '#E8E6E0',
+//   accentPeach: '#D4A798',
+// };
 
 export default function DashboardScreen({ navigation }: Props) {
   const { user, logout } = useAuthStore();
@@ -435,7 +437,7 @@ const styles = StyleSheet.create({
   cycleDayText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.warmBrown,
+    color: colors.charcoal,//warm brown was here but had an error
   },
   cyclePhaseContainer: {
     backgroundColor: colors.cream,
@@ -581,7 +583,7 @@ const styles = StyleSheet.create({
   severityText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.warmBrown,
+    color: colors.charcoal,//warmBrown was here but had an error
   },
   symptomNotes: {
     fontSize: 14,

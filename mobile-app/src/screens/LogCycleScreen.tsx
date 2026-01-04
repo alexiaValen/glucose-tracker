@@ -1,18 +1,17 @@
+// mobile-app/src/screens/LogCycleScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
   ScrollView,
-  KeyboardAvoidingView,
-  Platform,
+  Alert,
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
-import { useCycleStore } from '../stores/cycleStore';
-import { CYCLE_SYMPTOMS } from '../types/cycle';
+import { api } from '../config/api';
+import { colors } from '../theme/colors';
 
 type LogCycleScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'LogCycle'>;
 
@@ -20,54 +19,37 @@ interface Props {
   navigation: LogCycleScreenNavigationProp;
 }
 
-// Match Dashboard colors with period-specific red
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  warmBrown: '#8B6F47',
-  cream: '#FAF8F4',
-  lightSage: '#B8C5A8',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-  // Period-specific colors
-  periodRed: '#EF4444',
-  periodLight: '#FEF2F2',
-  periodBorder: '#FECACA',
-};
+type FlowType = 'light' | 'medium' | 'heavy' | null;
 
 export default function LogCycleScreen({ navigation }: Props) {
-  const [selectedFlow, setSelectedFlow] = useState<'light' | 'medium' | 'heavy'>('medium');
-  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
-  const { startCycle, isLoading } = useCycleStore();
-
-  const toggleSymptom = (symptom: string) => {
-    if (selectedSymptoms.includes(symptom)) {
-      setSelectedSymptoms(selectedSymptoms.filter((s) => s !== symptom));
-    } else {
-      setSelectedSymptoms([...selectedSymptoms, symptom]);
-    }
-  };
+  const [flow, setFlow] = useState<FlowType>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    try {
-      const today = new Date().toISOString();
-      await startCycle(today, selectedFlow, selectedSymptoms);
-      
-      Alert.alert('Success', 'Period started!', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
-    } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to log cycle');
+    if (!flow) {
+      Alert.alert('Flow Required', 'Please select your flow level');
+      return;
     }
-  };
 
-  const formatSymptom = (symptom: string) => {
-    return symptom
-      .split('_')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
+    setIsSubmitting(true);
+    try {
+      // Call API directly to log period start
+      await api.post('/cycle/start', {
+        startDate: new Date().toISOString(),
+        flow,
+      });
+      
+      Alert.alert(
+        'Period Logged',
+        'Your period start has been recorded successfully',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    } catch (error: any) {
+      console.error('Error logging period:', error);
+      Alert.alert('Error', error.response?.data?.error || 'Failed to log period start');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -75,124 +57,94 @@ export default function LogCycleScreen({ navigation }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
+          <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <View style={styles.titleContainer}>
-          <Text style={styles.title}>Log Period Start</Text>
-          <Text style={styles.subtitle}>Track your menstrual cycle</Text>
-        </View>
+        <Text style={styles.headerTitle}>Log Period Start</Text>
+        <View style={{ width: 60 }} />
       </View>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.form}>
-            {/* Flow Selection */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Flow</Text>
-              <View style={styles.flowContainer}>
-                {(['light', 'medium', 'heavy'] as const).map((flow) => (
-                  <TouchableOpacity
-                    key={flow}
-                    style={[
-                      styles.flowButton,
-                      selectedFlow === flow && styles.flowButtonActive,
-                    ]}
-                    onPress={() => setSelectedFlow(flow)}
-                    disabled={isLoading}
-                  >
-                    <View style={styles.flowIconContainer}>
-                      <Text style={styles.flowIcon}>💧</Text>
-                      {flow === 'medium' && <Text style={styles.flowIcon}>💧</Text>}
-                      {flow === 'heavy' && (
-                        <>
-                          <Text style={styles.flowIcon}>💧</Text>
-                          <Text style={styles.flowIcon}>💧</Text>
-                        </>
-                      )}
-                    </View>
-                    <Text
-                      style={[
-                        styles.flowButtonText,
-                        selectedFlow === flow && styles.flowButtonTextActive,
-                      ]}
-                    >
-                      {flow.charAt(0).toUpperCase() + flow.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>🩸 Period Flow</Text>
+          <Text style={styles.cardSubtitle}>Select your flow level today</Text>
 
-            {/* Symptoms Selection */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Symptoms (Optional)</Text>
-              <View style={styles.symptomGrid}>
-                {CYCLE_SYMPTOMS.map((symptom) => (
-                  <TouchableOpacity
-                    key={symptom}
-                    style={[
-                      styles.symptomButton,
-                      selectedSymptoms.includes(symptom) && styles.symptomButtonActive,
-                    ]}
-                    onPress={() => toggleSymptom(symptom)}
-                    disabled={isLoading}
-                  >
-                    <Text
-                      style={[
-                        styles.symptomButtonText,
-                        selectedSymptoms.includes(symptom) && styles.symptomButtonTextActive,
-                      ]}
-                    >
-                      {formatSymptom(symptom)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Summary Card */}
-            {(selectedFlow || selectedSymptoms.length > 0) && (
-              <View style={styles.summaryCard}>
-                <Text style={styles.summaryTitle}>Summary</Text>
-                <View style={styles.summaryContent}>
-                  <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Flow:</Text>
-                    <Text style={styles.summaryValue}>
-                      {selectedFlow.charAt(0).toUpperCase() + selectedFlow.slice(1)}
-                    </Text>
-                  </View>
-                  {selectedSymptoms.length > 0 && (
-                    <View style={styles.summaryRow}>
-                      <Text style={styles.summaryLabel}>Symptoms:</Text>
-                      <Text style={styles.summaryValue}>
-                        {selectedSymptoms.length} selected
-                      </Text>
-                    </View>
-                  )}
-                </View>
-              </View>
-            )}
-
-            {/* Submit Button */}
+          <View style={styles.flowOptions}>
             <TouchableOpacity
-              style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}
+              style={[
+                styles.flowOption,
+                flow === 'light' && styles.flowOptionSelected,
+              ]}
+              onPress={() => setFlow('light')}
             >
-              <Text style={styles.submitButtonText}>
-                {isLoading ? 'Starting Cycle...' : 'Start Cycle'}
+              <Text style={[
+                styles.flowOptionText,
+                flow === 'light' && styles.flowOptionTextSelected,
+              ]}>
+                Light
+              </Text>
+              <Text style={styles.flowOptionDescription}>
+                Spotting or light bleeding
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.flowOption,
+                flow === 'medium' && styles.flowOptionSelected,
+              ]}
+              onPress={() => setFlow('medium')}
+            >
+              <Text style={[
+                styles.flowOptionText,
+                flow === 'medium' && styles.flowOptionTextSelected,
+              ]}>
+                Medium
+              </Text>
+              <Text style={styles.flowOptionDescription}>
+                Moderate, steady flow
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.flowOption,
+                flow === 'heavy' && styles.flowOptionSelected,
+              ]}
+              onPress={() => setFlow('heavy')}
+            >
+              <Text style={[
+                styles.flowOptionText,
+                flow === 'heavy' && styles.flowOptionTextSelected,
+              ]}>
+                Heavy
+              </Text>
+              <Text style={styles.flowOptionDescription}>
+                Heavy bleeding
               </Text>
             </TouchableOpacity>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>About Cycle Tracking</Text>
+          <Text style={styles.infoText}>
+            Tracking your menstrual cycle helps you understand how it affects your glucose levels
+            and overall health. We'll use this information to provide personalized insights.
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
+          onPress={handleSubmit}
+          disabled={isSubmitting}
+        >
+          <Text style={styles.submitButtonText}>
+            {isSubmitting ? 'Logging...' : 'Log Period Start'}
+          </Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -202,183 +154,106 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.cream,
   },
-  flex: {
-    flex: 1,
-  },
   header: {
-    backgroundColor: colors.white,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     padding: 20,
     paddingTop: 60,
+    backgroundColor: colors.white,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   backButton: {
-    marginBottom: 16,
+    paddingVertical: 8,
   },
-  backButtonText: {
-    fontSize: 16,
+  backText: {
     color: colors.sage,
-    fontWeight: '500',
+    fontSize: 16,
+    fontWeight: '600',
   },
-  titleContainer: {
-    gap: 4,
-  },
-  title: {
-    fontSize: 28,
+  headerTitle: {
+    fontSize: 20,
     fontWeight: '700',
-    color: colors.charcoal,
-    letterSpacing: 0.2,
+    color: colors.textDark,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textLight,
-    fontWeight: '400',
-  },
-  scrollView: {
+  content: {
     flex: 1,
-  },
-  scrollContent: {
     padding: 20,
   },
-  form: {
-    gap: 24,
-  },
-  section: {
-    gap: 12,
-  },
-  label: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textDark,
-    letterSpacing: 0.2,
-  },
-  flowContainer: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  flowButton: {
-    flex: 1,
+  card: {
     backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 14,
-    padding: 16,
-    alignItems: 'center',
-    gap: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
   },
-  flowButtonActive: {
-    borderColor: colors.periodRed,
-    backgroundColor: colors.periodLight,
-    borderWidth: 3,
-  },
-  flowIconContainer: {
-    flexDirection: 'row',
-    gap: 2,
-  },
-  flowIcon: {
-    fontSize: 20,
-  },
-  flowButtonText: {
-    fontSize: 14,
+  cardTitle: {
+    fontSize: 22,
+    fontWeight: '700',
     color: colors.textDark,
-    fontWeight: '500',
+    marginBottom: 4,
   },
-  flowButtonTextActive: {
-    color: colors.periodRed,
-    fontWeight: '600',
-  },
-  symptomGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  symptomButton: {
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  symptomButtonActive: {
-    backgroundColor: colors.sage,
-    borderColor: colors.sage,
-  },
-  symptomButtonText: {
-    fontSize: 14,
-    color: colors.textDark,
-    fontWeight: '500',
-  },
-  symptomButtonTextActive: {
-    color: colors.white,
-    fontWeight: '600',
-  },
-  summaryCard: {
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: colors.periodRed,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  summaryTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: colors.textDark,
-    marginBottom: 12,
-    letterSpacing: 0.2,
-  },
-  summaryContent: {
-    gap: 8,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  summaryLabel: {
+  cardSubtitle: {
     fontSize: 14,
     color: colors.textLight,
-    fontWeight: '500',
+    marginBottom: 20,
   },
-  summaryValue: {
+  flowOptions: {
+    gap: 12,
+  },
+  flowOption: {
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.cream,
+  },
+  flowOptionSelected: {
+    borderColor: colors.accentPeach,
+    backgroundColor: colors.white,
+  },
+  flowOptionText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.textDark,
+    marginBottom: 4,
+  },
+  flowOptionTextSelected: {
+    color: colors.accentPeach,
+  },
+  flowOptionDescription: {
+    fontSize: 14,
+    color: colors.textLight,
+  },
+  infoCard: {
+    backgroundColor: colors.paleGreen,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: colors.textDark,
+    marginBottom: 8,
+  },
+  infoText: {
     fontSize: 14,
     color: colors.textDark,
-    fontWeight: '600',
+    lineHeight: 20,
   },
   submitButton: {
-    backgroundColor: colors.periodRed,
+    backgroundColor: colors.forestGreen,
     borderRadius: 14,
     padding: 18,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
   },
   submitButtonDisabled: {
-    backgroundColor: colors.periodBorder,
     opacity: 0.6,
   },
   submitButtonText: {
     color: colors.white,
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: '600',
     letterSpacing: 0.3,
   },

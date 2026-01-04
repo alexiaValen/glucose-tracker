@@ -16,6 +16,7 @@ import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
 import { messageService, Message } from '../services/message.service';
 import { useAuthStore } from '../stores/authStore';
+import { colors } from '../theme/colors';
 
 type MessagingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Messaging'>;
 type MessagingScreenRouteProp = RouteProp<RootStackParamList, 'Messaging'>;
@@ -25,16 +26,16 @@ interface Props {
   route: MessagingScreenRouteProp;
 }
 
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  cream: '#FAF8F4',
-  lightSage: '#B8C5A8',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-};
+// const colors = {
+//   sage: '#7A8B6F',
+//   charcoal: '#3A3A3A',
+//   cream: '#FAF8F4',
+//   lightSage: '#B8C5A8',
+//   white: '#FFFFFF',
+//   textDark: '#2C2C2C',
+//   textLight: '#6B6B6B',
+//   border: '#E8E6E0',
+// };
 
 export default function MessagingScreen({ navigation, route }: Props) {
   const { userId, userName } = route.params;

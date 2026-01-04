@@ -14,6 +14,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { api } from '../config/api';
+import { colors } from '../theme/colors';
 
 type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
 
@@ -21,16 +22,16 @@ interface Props {
   navigation: ForgotPasswordScreenNavigationProp;
 }
 
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  cream: '#FAF8F4',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-  error: '#EF4444',
-};
+// const colors = {
+//   sage: '#7A8B6F',
+//   charcoal: '#3A3A3A',
+//   cream: '#FAF8F4',
+//   white: '#FFFFFF',
+//   textDark: '#2C2C2C',
+//   textLight: '#6B6B6B',
+//   border: '#E8E6E0',
+//   error: '#EF4444',
+// };
 
 export default function ForgotPasswordScreen({ navigation }: Props) {
   const [step, setStep] = useState<'email' | 'code' | 'password'>('email');

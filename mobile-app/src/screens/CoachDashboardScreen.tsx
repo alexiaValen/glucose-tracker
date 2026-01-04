@@ -12,6 +12,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 import { useCoachStore } from '../stores/coachStore';
+import { colors } from '../theme/colors';
 
 type CoachDashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'CoachDashboard'>;
 
@@ -19,18 +20,18 @@ interface Props {
   navigation: CoachDashboardScreenNavigationProp;
 }
 
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  warmBrown: '#8B6F47',
-  cream: '#FAF8F4',
-  lightSage: '#B8C5A8',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-  accentPeach: '#D4A798',
-};
+// const colors = {
+//   sage: '#7A8B6F',
+//   charcoal: '#3A3A3A',
+//   warmBrown: '#8B6F47',
+//   cream: '#FAF8F4',
+//   lightSage: '#B8C5A8',
+//   white: '#FFFFFF',
+//   textDark: '#2C2C2C',
+//   textLight: '#6B6B6B',
+//   border: '#E8E6E0',
+//   accentPeach: '#D4A798',
+// };
 
 export default function CoachDashboardScreen({ navigation }: Props) {
   const { user, logout } = useAuthStore();

@@ -13,6 +13,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { messageService, Conversation } from '../services/message.service';
 import { useAuthStore } from '../stores/authStore';
+import { colors } from '../theme/colors';
 
 type ConversationsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Conversations'>;
 
@@ -20,17 +21,17 @@ interface Props {
   navigation: ConversationsScreenNavigationProp;
 }
 
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  cream: '#FAF8F4',
-  lightSage: '#B8C5A8',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-  red: '#EF4444',
-};
+// const colors = {
+//   sage: '#7A8B6F',
+//   charcoal: '#3A3A3A',
+//   cream: '#FAF8F4',
+//   lightSage: '#B8C5A8',
+//   white: '#FFFFFF',
+//   textDark: '#2C2C2C',
+//   textLight: '#6B6B6B',
+//   border: '#E8E6E0',
+//   red: '#EF4444',
+// };
 
 export default function ConversationsScreen({ navigation }: Props) {
   const { user, logout } = useAuthStore();

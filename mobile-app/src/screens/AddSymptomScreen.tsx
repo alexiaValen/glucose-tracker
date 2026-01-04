@@ -13,6 +13,7 @@ import {
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useSymptomStore } from '../stores/symptomStore';
+import { colors } from '../theme/colors';
 
 type AddSymptomScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddSymptom'>;
 
@@ -21,18 +22,18 @@ interface Props {
 }
 
 // Match Dashboard colors
-const colors = {
-  sage: '#7A8B6F',
-  charcoal: '#3A3A3A',
-  warmBrown: '#8B6F47',
-  cream: '#FAF8F4',
-  lightSage: '#B8C5A8',
-  white: '#FFFFFF',
-  textDark: '#2C2C2C',
-  textLight: '#6B6B6B',
-  border: '#E8E6E0',
-  accentPeach: '#D4A798',
-};
+// const colors = {
+//   sage: '#7A8B6F',
+//   charcoal: '#3A3A3A',
+//   warmBrown: '#8B6F47',
+//   cream: '#FAF8F4',
+//   lightSage: '#B8C5A8',
+//   white: '#FFFFFF',
+//   textDark: '#2C2C2C',
+//   textLight: '#6B6B6B',
+//   border: '#E8E6E0',
+//   accentPeach: '#D4A798',
+// };
 
 const SYMPTOM_TYPES = [
   { id: 'headache', label: 'Headache' },
