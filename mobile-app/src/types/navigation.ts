@@ -12,6 +12,8 @@ export type RootStackParamList = {
   AddGlucose: undefined;
   AddSymptom: undefined;
   LogCycle: undefined;
+  // Profile: undefined;
+  // HealthSync: undefined;    
   
   // Coach screens
   CoachDashboard: undefined;

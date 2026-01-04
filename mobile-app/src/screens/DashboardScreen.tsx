@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
@@ -14,8 +13,8 @@ import { useAuthStore } from '../stores/authStore';
 import { useGlucoseStore } from '../stores/glucoseStore';
 import { useSymptomStore } from '../stores/symptomStore';
 import { useCycleStore } from '../stores/cycleStore';
-import { healthKitService } from '../services/healthKit.service';
 import { CYCLE_PHASES } from '../types/cycle';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
@@ -23,7 +22,6 @@ interface Props {
   navigation: DashboardScreenNavigationProp;
 }
 
-// Natural, earthy color palette
 const colors = {
   sage: '#7A8B6F',
   charcoal: '#3A3A3A',
@@ -42,56 +40,26 @@ export default function DashboardScreen({ navigation }: Props) {
   const { readings, stats, isLoading, fetchReadings, fetchStats } = useGlucoseStore();
   const { symptoms, fetchSymptoms } = useSymptomStore();
   const { currentCycle, fetchCurrentCycle } = useCycleStore();
-  const [healthKitEnabled, setHealthKitEnabled] = useState(false);
-  // const [coachId, setCoachId] = useState<string | null>(null);
-  // const [coachName, setCoachName] = useState<string | null>(null);
+  const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
 
   useEffect(() => {
     fetchReadings();
     fetchStats();
     fetchSymptoms();
     fetchCurrentCycle();
-    checkHealthKitStatus();
-    // fetchCoachInfo();
+    //checkHealthKitStatus();
+    loadCycleTrackingSetting();
   }, []);
 
-// const fetchCoachInfo = async () => {
-//   try {
-//     console.log('📞 Fetching coach info...');
-//     const { api } = require('../config/api');
-//     const response = await api.get('/coach/my-coach');
-//     console.log('✅ Response:', response.data);
-    
-//     if (response.data.coach) {
-//       setCoachId(response.data.coach.id);
-//       setCoachName(`${response.data.coach.first_name} ${response.data.coach.last_name}`);
-//       console.log('✅ Coach set:', response.data.coach);
-//     } else {
-//       console.log('ℹ️ No coach assigned');
-//     }
-//   } catch (error: any) {
-//     console.log('❌ Error details:');
-//     console.log('  Status:', error.response?.status);
-//     console.log('  URL:', error.config?.url);
-//     console.log('  Base URL:', error.config?.baseURL);
-//     console.log('  Message:', error.message);
-//   }
-// };
-
-  // const handleMessageCoach = () => {
-  //   if (coachId && coachName) {
-  //     navigation.navigate('Messaging', {
-  //       userId: coachId,
-  //       userName: coachName,
-  //     });
-  //   } else {
-  //     Alert.alert('No Coach', 'You do not have an assigned coach yet.');
-  //   }
-  // };
-
-  const checkHealthKitStatus = async () => {
-    const enabled = await healthKitService.isAvailable();
-    setHealthKitEnabled(enabled);
+  const loadCycleTrackingSetting = async () => {
+    try {
+      const enabled = await AsyncStorage.getItem('cycleTrackingEnabled');
+      if (enabled !== null) {
+        setCycleTrackingEnabled(enabled === 'true');
+      }
+    } catch (error) {
+      console.error('Error loading cycle tracking setting:', error);
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -153,6 +121,12 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity 
+            onPress={() => navigation.navigate('Settings')} 
+            style={styles.settingsButton}
+          >
+            <Text style={styles.settingsButtonText}>⚙️</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
             onPress={() => navigation.navigate('Conversations')} 
             style={styles.messagesButton}
           >
@@ -194,7 +168,7 @@ export default function DashboardScreen({ navigation }: Props) {
         )}
 
         {/* Cycle Card */}
-        {currentCycle && (
+        {cycleTrackingEnabled && currentCycle && (
           <View style={styles.cycleCard}>
             <View style={styles.cycleHeader}>
               <Text style={styles.cycleTitle}>Current Cycle</Text>
@@ -215,19 +189,6 @@ export default function DashboardScreen({ navigation }: Props) {
           </View>
         )}
 
-        {/* Message Coach Button
-        {coachId && (
-          <View style={styles.messageCoachContainer}>
-            <TouchableOpacity
-              style={styles.messageCoachButton}
-              onPress={handleMessageCoach}
-            >
-              <Text style={styles.messageCoachIcon}>💬</Text>
-              <Text style={styles.messageCoachText}>Message My Coach</Text>
-            </TouchableOpacity>
-          </View>
-        )} */}
-
         {/* Action Buttons */}
         <View style={styles.quickActions}>
           <TouchableOpacity
@@ -246,15 +207,17 @@ export default function DashboardScreen({ navigation }: Props) {
         </View>
 
         {/* Log Period Button */}
-        <View style={styles.periodButtonContainer}>
-          <TouchableOpacity
-            style={styles.periodButton}
-            onPress={() => navigation.navigate('LogCycle')}
-          >
-            <Text style={styles.periodButtonIcon}>🩸</Text>
-            <Text style={styles.periodButtonText}>Log Period Start</Text>
-          </TouchableOpacity>
-        </View>
+        {cycleTrackingEnabled && (
+          <View style={styles.periodButtonContainer}>
+            <TouchableOpacity
+              style={styles.periodButton}
+              onPress={() => navigation.navigate('LogCycle')}
+            >
+              <Text style={styles.periodButtonIcon}>🩸</Text>
+              <Text style={styles.periodButtonText}>Log Period Start</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Recent Symptoms */}
         {symptoms.length > 0 && (
@@ -350,6 +313,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  settingsButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.white,
+  },
+  settingsButtonText: {
+    fontSize: 18,
   },
   messagesButton: {
     paddingVertical: 8,
@@ -550,35 +524,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     letterSpacing: 0.3,
   },
-
-  // Message Coach Button
-  // messageCoachContainer: {
-  //   paddingHorizontal: 20,
-  //   marginBottom: 20,
-  // },
-  // messageCoachButton: {
-  //   backgroundColor: colors.sage,
-  //   borderRadius: 14,
-  //   padding: 16,
-  //   flexDirection: 'row',
-  //   alignItems: 'center',
-  //   justifyContent: 'center',
-  //   shadowColor: '#000',
-  //   shadowOffset: { width: 0, height: 2 },
-  //   shadowOpacity: 0.08,
-  //   shadowRadius: 6,
-  //   elevation: 3,
-  // },
-  // messageCoachIcon: {
-  //   fontSize: 20,
-  //   marginRight: 8,
-  // },
-  // messageCoachText: {
-  //   color: colors.white,
-  //   fontSize: 16,
-  //   fontWeight: '600',
-  //   letterSpacing: 0.3,
-  // },
 
   // Sections
   section: {

@@ -15,6 +15,7 @@ import DashboardScreen from '../screens/DashboardScreen';
 import AddGlucoseScreen from '../screens/AddGlucoseScreen';
 import AddSymptomScreen from '../screens/AddSymptomScreen';
 import LogCycleScreen from '../screens/LogCycleScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 // Coach Screens
 import CoachDashboardScreen from '../screens/CoachDashboardScreen';
@@ -110,6 +111,10 @@ export default function AppNavigator() {
                 name="LogCycle" 
                 component={LogCycleScreen}
               />
+              <Stack.Screen 
+    name="Settings"          // 
+    component={SettingsScreen}
+  />
               <Stack.Screen 
                 name="Conversations" 
                 component={ConversationsScreen}
