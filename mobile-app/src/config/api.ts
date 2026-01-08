@@ -2,7 +2,7 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -38,14 +38,24 @@ export const clearAuthToken = () => {
   delete api.defaults.headers.common['Authorization'];
 };
 
-// Add auth token to all requests
+// Add auth token to all requests (EXCEPT auth endpoints)
 api.interceptors.request.use(
   async (config) => {
-    // Get fresh token from SecureStore on each request
-    const token = await getAuthToken();
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // ✅ FIX: Skip token for auth endpoints
+    const isAuthEndpoint = 
+      config.url?.includes('/auth/login') || 
+      config.url?.includes('/auth/register') ||
+      config.url?.includes('/auth/forgot-password') ||
+      config.url?.includes('/auth/reset-password');
+
+    // Only add token for non-auth endpoints
+    if (!isAuthEndpoint) {
+      const token = await getAuthToken();
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
+    
     return config;
   },
   (error) => {
@@ -58,9 +68,24 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     if (error.response?.status === 401) {
-      console.error('❌ 401 Unauthorized - Token may be invalid or expired');
-      console.error('Request URL:', error.config?.url);
-      console.error('Token exists:', !!(await getAuthToken()));
+      const url = error.config?.url || '';
+      const isAuthEndpoint = 
+        url.includes('/auth/login') || 
+        url.includes('/auth/register');
+
+      // Only log error if NOT an auth endpoint (auth endpoints can fail normally)
+      if (!isAuthEndpoint) {
+        console.error('❌ 401 Unauthorized - Token may be invalid or expired');
+        console.error('Request URL:', url);
+        console.error('Token exists:', !!(await getAuthToken()));
+        
+        // Clear invalid token
+        await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
+        clearAuthToken();
+      } else {
+        // Auth endpoint failure (wrong credentials) - this is normal
+        console.log('🔐 Authentication failed - check credentials');
+      }
     }
     return Promise.reject(error);
   }

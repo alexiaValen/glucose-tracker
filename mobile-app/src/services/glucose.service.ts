@@ -9,10 +9,20 @@ export const glucoseService = {
     return response.data;
   },
 
+  // async createReading(data: CreateGlucoseRequest): Promise<GlucoseReading> {
+  //   const response = await api.post('/glucose', data);
+  //   return response.data;
+  // },
   async createReading(data: CreateGlucoseRequest): Promise<GlucoseReading> {
-    const response = await api.post('/glucose', data);
-    return response.data;
-  },
+  const response = await api.post('/glucose', {
+    glucose_level: data.glucose_level,  // Not 'value'
+    timestamp: data.timestamp,          // Not 'measuredAt'
+    notes: data.notes || '',
+    source: data.source || 'manual',    // NEW
+     meal_context: data.meal_context,
+  });
+  return response.data;
+},
 
   async deleteReading(id: string): Promise<void> {
     await api.delete(`/glucose/${id}`);

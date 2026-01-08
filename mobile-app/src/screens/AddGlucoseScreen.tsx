@@ -21,19 +21,6 @@ interface Props {
   navigation: AddGlucoseScreenNavigationProp;
 }
 
-// Match Dashboard colors
-// const colors = {
-//   sage: '#7A8B6F',
-//   charcoal: '#3A3A3A',
-//   warmBrown: '#8B6F47',
-//   cream: '#FAF8F4',
-//   lightSage: '#B8C5A8',
-//   white: '#FFFFFF',
-//   textDark: '#2C2C2C',
-//   textLight: '#6B6B6B',
-//   border: '#E8E6E0',
-//   accentPeach: '#D4A798',
-// };
 
 const MEAL_CONTEXTS = [
   { label: 'Fasting', value: 'fasting' },

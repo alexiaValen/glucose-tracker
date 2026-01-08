@@ -83,7 +83,7 @@ router.get('/current', async (req: Request, res: Response) => {
 router.post(
   '/',
   [
-    body('cycleStartDate').isISO8601(),
+    body('start_date').isISO8601(),
     body('flow').optional().isIn(['light', 'medium', 'heavy']),
     body('symptoms').optional().isArray(),
   ],
@@ -96,7 +96,7 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { cycleStartDate, flow, symptoms } = req.body;
+      const { start_date, flow, symptoms } = req.body;
 
       // Check if there's already an active cycle
       const activeResult = await pool.query(
@@ -121,7 +121,7 @@ router.post(
          RETURNING *`,
         [
           userId,
-          cycleStartDate,
+          start_date,
           phase,
           currentDay,
           flow,

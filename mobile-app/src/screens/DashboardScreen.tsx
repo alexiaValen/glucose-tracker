@@ -15,7 +15,7 @@ import { useSymptomStore } from '../stores/symptomStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { CYCLE_PHASES } from '../types/cycle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-// import { checkHealthKitStatus } from '../utils/healthKit';
+// import { checkHealthKitStatus } from '../utils/healthKit.utils';
 import { colors } from '../theme/colors';
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
@@ -143,31 +143,39 @@ export default function DashboardScreen({ navigation }: Props) {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Stats Card */}
         {stats && (
-          <View style={styles.statsCard}>
-            <Text style={styles.statsTitle}>Last 7 Days</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.avgGlucose.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>Average</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.minGlucose.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>Lowest</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.maxGlucose.toFixed(0)}</Text>
-                <Text style={styles.statLabel}>Highest</Text>
-              </View>
-              <View style={styles.statDivider} />
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats.timeInRange.toFixed(0)}%</Text>
-                <Text style={styles.statLabel}>In Range</Text>
-              </View>
-            </View>
-          </View>
-        )}
+  <View style={styles.statsCard}>
+    <Text style={styles.statsTitle}>Last 7 Days</Text>
+    <View style={styles.statsGrid}>
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>
+          {stats.avgGlucose?.toFixed(0) || stats.average?.toFixed(0) || '0'}
+        </Text>
+        <Text style={styles.statLabel}>Average</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>
+          {stats.minGlucose?.toFixed(0) || stats.min?.toFixed(0) || '0'}
+        </Text>
+        <Text style={styles.statLabel}>Lowest</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>
+          {stats.maxGlucose?.toFixed(0) || stats.max?.toFixed(0) || '0'}
+        </Text>
+        <Text style={styles.statLabel}>Highest</Text>
+      </View>
+      <View style={styles.statDivider} />
+      <View style={styles.statItem}>
+        <Text style={styles.statValue}>
+          {stats.timeInRange?.toFixed(0) || stats.in_range_percentage?.toFixed(0) || '0'}%
+        </Text>
+        <Text style={styles.statLabel}>In Range</Text>
+      </View>
+    </View>
+  </View>
+)}
 
         {/* Cycle Card */}
         {cycleTrackingEnabled && currentCycle && (
@@ -264,8 +272,8 @@ export default function DashboardScreen({ navigation }: Props) {
               <View key={reading.id} style={styles.readingCard}>
                 <View style={styles.readingHeader}>
                   <View>
-                    <Text style={styles.readingValue}>{reading.value} mg/dL</Text>
-                    <Text style={styles.readingDate}>{formatDate(reading.measured_at)}</Text>
+                    <Text style={styles.readingValue}>{reading.created_at} mg/dL</Text>
+                    <Text style={styles.readingDate}>{formatDate(reading.created_at)}</Text>
                   </View>
                   <View style={styles.contextBadge}>
                     <Text style={styles.contextText}>

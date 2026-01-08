@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
 import type { RootStackParamList } from '../types/navigation';
+import { HealthSyncScreen } from '../screens/HealthSyncScreen';
 
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
@@ -14,7 +15,7 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import DashboardScreen from '../screens/DashboardScreen';
 import AddGlucoseScreen from '../screens/AddGlucoseScreen';
 import AddSymptomScreen from '../screens/AddSymptomScreen';
-import LogCycleScreen from '../screens/LogCycleScreen';
+import { LogCycleScreen } from '../screens/LogCycleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 
 // Coach Screens
@@ -123,7 +124,13 @@ export default function AppNavigator() {
                 name="Messaging" 
                 component={MessagingScreen}
               />
+              <Stack.Screen 
+  name="HealthSync" 
+  component={HealthSyncScreen}
+  options={{ title: 'Apple Health Sync' }}
+/>
             </>
+            
           )
         ) : (
           // Unauthenticated Stack

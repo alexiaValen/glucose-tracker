@@ -6,72 +6,39 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#F5F4F0"
+      "backgroundColor": "#3D5540"
     },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.alekia33.graceflow",
+      "bundleIdentifier": "com.graceflow.app",
       "infoPlist": {
-        "NSHealthShareUsageDescription": "GraceFlow needs access to read your glucose data from Apple Health to automatically track your levels and provide personalized insights.",
-        "NSHealthUpdateUsageDescription": "GraceFlow needs access to save glucose data to Apple Health for comprehensive health tracking.",
-        "UIBackgroundModes": [
-          "fetch",
-          "remote-notification"
-        ],
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSAppTransportSecurity": {
-          "NSAllowsArbitraryLoads": true,
-          "NSExceptionDomains": {
-            "localhost": {
-              "NSExceptionAllowsInsecureHTTPLoads": true
-            }
-          }
-        }
-      },
-      "buildNumber": "1"
+        "UIBackgroundModes": ["fetch", "processing"],
+        "NSHealthShareUsageDescription": "GraceFlow needs access to read your blood glucose data from Apple Health to help your coach track your progress.",
+        "NSHealthUpdateUsageDescription": "GraceFlow needs access to save your blood glucose readings to Apple Health for a complete health record."
+      }
     },
     "android": {
-      "package": "com.alekia33.graceflow",
-      "versionCode": 1,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3D5540"
       },
-      "permissions": [
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE"
-      ],
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "package": "com.graceflow.app"
     },
-    "web": {
-      "favicon": "./assets/favicon.png",
-      "bundler": "metro"
-    },
-    "extra": {
-      "eas": {
-        "projectId": "6f4a2e56-93c6-4ba8-9f83-5966ee4220e4"
-      }
-    },
-    "owner": "alekia33",
     "plugins": [
       [
-        "react-native-health",
+        "expo-build-properties",
         {
-          "isAvailable": true
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
         }
-      ],
-      "expo-secure-store"
-    ],
-    "updates": {
-      "fallbackToCacheTimeout": 0
-    },
-    "assetBundlePatterns": [
-      "**/*"
+      ]
     ]
   }
 }

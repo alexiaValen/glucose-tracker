@@ -1,30 +1,42 @@
+// mobile-app/src/types/glucose.ts
 export interface GlucoseReading {
   id: string;
   user_id: string;
-  value: number;
-  unit: 'mg/dL' | 'mmol/L';
-  measured_at: string;
-  source: 'manual' | 'healthkit' | 'terra' | 'dexcom';
-  source_device?: string;
+  glucose_level: number;
+  timestamp: string;
   notes?: string;
-  meal_context?: 'fasting' | 'pre_meal' | 'post_meal' | 'bedtime' | 'other';
+  source?: string;
+  meal_context?: string;
   created_at: string;
 }
 
-export interface GlucoseStats {
-  avgGlucose: number;
-  minGlucose: number;
-  maxGlucose: number;
-  stdDeviation: number;
-  timeInRange: number;
-  readingsCount: number;
-  trend: 'rising' | 'falling' | 'stable';
+export interface CreateGlucoseRequest {
+  glucose_level: number;
+  timestamp: string;
+  notes?: string;
+  source?: string;
+  meal_context?: string;
 }
 
-export interface CreateGlucoseRequest {
+export interface GlucoseStats {
+  avgGlucose: number;    
+  minGlucose: number;       
+  maxGlucose: number;     
+  timeInRange: number;
+  
+  average: number;
+  min: number;
+  max: number;
+  count: number;
+  in_range_percentage?: number;
+  target_range?: {
+    min: number;
+    max: number;
+  };
+}
+
+export interface GlucoseChartData {
+  timestamp: string;
   value: number;
-  measuredAt: string;
-  unit?: 'mg/dL' | 'mmol/L';
-  notes?: string;
-  mealContext?: 'fasting' | 'pre_meal' | 'post_meal' | 'bedtime' | 'other';
+  label?: string;
 }

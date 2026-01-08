@@ -1,230 +1,331 @@
 // mobile-app/src/services/healthKit.service.ts
 import AppleHealthKit, {
+  HealthValue,
   HealthKitPermissions,
+  HealthInputOptions,
 } from 'react-native-health';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
-import { api } from '../config/api';
+import { glucoseService } from './glucose.service';
+import { CreateGlucoseRequest } from '../types/glucose';
 
-const permissions: HealthKitPermissions = {
-  permissions: {
-    read: [AppleHealthKit.Constants.Permissions.BloodGlucose],
-    write: [AppleHealthKit.Constants.Permissions.BloodGlucose],
-  },
-};
+const LAST_SYNC_KEY = 'HEALTH_KIT_LAST_SYNC';
+const AUTO_SYNC_ENABLED_KEY = 'HEALTH_KIT_AUTO_SYNC';
 
-export interface GlucoseReading {
+interface HealthKitGlucoseReading {
   value: number;
-  date: Date;
+  timestamp: string;
   source?: string;
 }
 
-export const healthKitService = {
+class HealthKitService {
+  private isInitialized = false;
+  private syncInterval: NodeJS.Timeout | null = null;
+
   /**
-   * Initialize HealthKit and request permissions
+   * Initialize HealthKit with required permissions
    */
   async initialize(): Promise<boolean> {
     if (Platform.OS !== 'ios') {
-      console.log('HealthKit is only available on iOS');
+      console.log('HealthKit only available on iOS');
       return false;
     }
 
     return new Promise((resolve) => {
+      const permissions: HealthKitPermissions = {
+        permissions: {
+          read: [
+            AppleHealthKit.Constants.Permissions.BloodGlucose,
+          ],
+          write: [
+            AppleHealthKit.Constants.Permissions.BloodGlucose,
+          ],
+        },
+      };
+
       AppleHealthKit.initHealthKit(permissions, (error: string) => {
         if (error) {
-          console.error('[HealthKit] Error initializing:', error);
+          console.error('Error initializing HealthKit:', error);
+          this.isInitialized = false;
           resolve(false);
         } else {
-          console.log('[HealthKit] Initialized successfully');
+          console.log('HealthKit initialized successfully');
+          this.isInitialized = true;
           resolve(true);
         }
       });
     });
-  },
+  }
 
   /**
-   * Check if HealthKit is available
+   * Check if HealthKit is available and authorized
    */
   async isAvailable(): Promise<boolean> {
     if (Platform.OS !== 'ios') return false;
+    if (!this.isInitialized) {
+      return await this.initialize();
+    }
+    return this.isInitialized;
+  }
 
-    return new Promise((resolve) => {
-      AppleHealthKit.isAvailable((err: Object, available: boolean) => {
-        if (err) {
-          console.error('[HealthKit] Error checking availability:', err);
-          resolve(false);
-        } else {
-          resolve(available);
-        }
-      });
-    });
-  },
+  /**
+   * Get the last sync timestamp
+   */
+  async getLastSyncTime(): Promise<Date | null> {
+    try {
+      const timestamp = await AsyncStorage.getItem(LAST_SYNC_KEY);
+      return timestamp ? new Date(timestamp) : null;
+    } catch (error) {
+      console.error('Error getting last sync time:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Update the last sync timestamp
+   */
+  private async updateLastSyncTime(): Promise<void> {
+    try {
+      await AsyncStorage.setItem(LAST_SYNC_KEY, new Date().toISOString());
+    } catch (error) {
+      console.error('Error updating last sync time:', error);
+    }
+  }
 
   /**
    * Read glucose data from Apple Health
-   * @param startDate - Start date for the query
-   * @param endDate - End date for the query (defaults to now)
+   * @param startDate - Start date for query (defaults to last sync or 7 days ago)
+   * @param endDate - End date for query (defaults to now)
    */
   async readGlucoseData(
-    startDate: Date,
-    endDate: Date = new Date()
-  ): Promise<GlucoseReading[]> {
-    if (Platform.OS !== 'ios') {
-      console.log('HealthKit is only available on iOS');
-      return [];
+    startDate?: Date,
+    endDate?: Date
+  ): Promise<HealthKitGlucoseReading[]> {
+    if (!await this.isAvailable()) {
+      throw new Error('HealthKit not available');
     }
 
-    return new Promise((resolve, reject) => {
-      const options = {
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString(),
-        ascending: false,
-        limit: 100,
-      };
+    // Default to last sync time or 7 days ago
+    const lastSync = await this.getLastSyncTime();
+    const defaultStart = lastSync || new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    
+    const options: HealthInputOptions = {
+      startDate: (startDate || defaultStart).toISOString(),
+      endDate: (endDate || new Date()).toISOString(),
+      ascending: false,
+      limit: 1000, // Max readings to fetch
+    };
 
+    return new Promise((resolve, reject) => {
       AppleHealthKit.getBloodGlucoseSamples(
         options,
-        (err: any, results: any[]) => {
-          if (err) {
-            console.error('[HealthKit] Error reading glucose:', err);
-            reject(err);
-          } else {
-            const readings: GlucoseReading[] = results.map((reading) => ({
-              value: reading.value,
-              date: new Date(reading.startDate),
-              source: reading.sourceName || 'Apple Health',
-            }));
-            console.log(`[HealthKit] Read ${readings.length} glucose readings`);
-            resolve(readings);
+        (error: Object, results: HealthValue[]) => {
+          if (error) {
+            console.error('Error reading glucose from HealthKit:', error);
+            reject(error);
+            return;
           }
+
+          const readings: HealthKitGlucoseReading[] = results.map((sample) => ({
+            value: sample.value,
+            timestamp: sample.startDate,
+            source: 'Apple Health', // HealthValue doesn't expose source in type definition
+          }));
+
+          resolve(readings);
         }
       );
     });
-  },
+  }
 
   /**
-   * Write glucose data to Apple Health
-   * @param value - Glucose value in mg/dL
-   * @param date - Date of the reading
+   * Write glucose reading to Apple Health
    */
-  async writeGlucoseData(value: number, date: Date = new Date()): Promise<boolean> {
-    if (Platform.OS !== 'ios') {
-      console.log('HealthKit is only available on iOS');
+  async writeGlucoseReading(
+    value: number,
+    timestamp: Date = new Date()
+  ): Promise<boolean> {
+    if (!await this.isAvailable()) {
+      console.error('HealthKit not available');
       return false;
     }
 
-    return new Promise((resolve) => {
-      const options = {
-        value: value,
-        startDate: date.toISOString(),
-        endDate: date.toISOString(),
-      };
+    const options = {
+      value,
+      startDate: timestamp.toISOString(),
+      endDate: timestamp.toISOString(),
+    };
 
+    return new Promise((resolve) => {
       AppleHealthKit.saveBloodGlucoseSample(
         options,
-        (err: Object, result: any) => {
-          if (err) {
-            console.error('[HealthKit] Error writing glucose:', err);
+        (error: Object) => {
+          if (error) {
+            console.error('Error writing glucose to HealthKit:', error);
             resolve(false);
           } else {
-            console.log(`[HealthKit] Wrote glucose reading: ${value} mg/dL`);
+            console.log('Successfully wrote glucose to HealthKit');
             resolve(true);
           }
         }
       );
     });
-  },
+  }
 
   /**
-   * Get latest glucose reading from Apple Health
+   * Sync glucose data from Apple Health to backend
+   * Returns number of new readings synced
    */
-  async getLatestGlucoseReading(): Promise<GlucoseReading | null> {
-    if (Platform.OS !== 'ios') return null;
-
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    const readings = await this.readGlucoseData(yesterday);
-    return readings.length > 0 ? readings[0] : null;
-  },
-
-  /**
-   * Sync glucose data from Apple Health to app backend
-   * @param onProgress - Callback for progress updates
-   */
-  async syncGlucoseToBackend(
-    onProgress?: (current: number, total: number) => void
-  ): Promise<{ synced: number; failed: number }> {
+  async syncToBackend(): Promise<number> {
     try {
-      // Get data from last 30 days
-      const startDate = new Date();
-      startDate.setDate(startDate.getDate() - 30);
+      console.log('Starting HealthKit sync...');
+      
+      // Read glucose data from Health
+      const readings = await this.readGlucoseData();
+      
+      if (readings.length === 0) {
+        console.log('No new glucose readings to sync');
+        await this.updateLastSyncTime();
+        return 0;
+      }
 
-      const readings = await this.readGlucoseData(startDate);
-      console.log(`[HealthKit] Syncing ${readings.length} readings to backend`);
+      console.log(`Found ${readings.length} glucose readings from Health`);
 
-      let synced = 0;
-      let failed = 0;
-
-      for (let i = 0; i < readings.length; i++) {
-        const reading = readings[i];
-        
-        if (onProgress) {
-          onProgress(i + 1, readings.length);
-        }
-
+      // Upload to backend
+      let syncedCount = 0;
+      for (const reading of readings) {
         try {
-          // Sync to backend
-          await api.post('/glucose', {
-            value: reading.value,
-            measured_at: reading.date.toISOString(),
+          // Convert to the format expected by your glucose service
+          const createRequest: CreateGlucoseRequest = {
+            glucose_level: reading.value,
+            // measuredAt: reading.timestamp,
+            timestamp: reading.timestamp,
+            notes: `Synced from ${reading.source || 'Apple Health'}`,
             source: reading.source || 'Apple Health',
-          });
+          };
           
-          synced++;
+          await glucoseService.createReading(createRequest);
+          syncedCount++;
         } catch (error) {
-          console.error('[HealthKit] Failed to sync reading:', error);
-          failed++;
+          // Skip duplicates or errors
+          console.log('Skipping reading:', error);
         }
       }
 
-      console.log(`[HealthKit] Sync complete: ${synced} synced, ${failed} failed`);
-      return { synced, failed };
+      console.log(`Successfully synced ${syncedCount} readings`);
+      await this.updateLastSyncTime();
+      
+      return syncedCount;
     } catch (error) {
-      console.error('[HealthKit] Sync error:', error);
-      return { synced: 0, failed: 0 };
+      console.error('Error syncing to backend:', error);
+      throw error;
     }
-  },
+  }
 
   /**
-   * Get glucose statistics from Apple Health
-   * @param days - Number of days to analyze
+   * Sync glucose data from backend to Apple Health
+   * (For readings entered in app)
    */
-  async getGlucoseStats(days: number = 30) {
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-
-    const readings = await this.readGlucoseData(startDate);
-    
-    if (readings.length === 0) {
-      return null;
+  async syncFromBackend(readings: any[]): Promise<number> {
+    if (!await this.isAvailable()) {
+      return 0;
     }
 
-    const values = readings.map(r => r.value);
-    const sum = values.reduce((a, b) => a + b, 0);
-    const avg = sum / values.length;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    let syncedCount = 0;
+    for (const reading of readings) {
+      const success = await this.writeGlucoseReading(
+        reading.glucose_level,
+        new Date(reading.timestamp)
+      );
+      if (success) syncedCount++;
+    }
 
-    // Calculate time in range (70-180 mg/dL)
-    const inRange = values.filter(v => v >= 70 && v <= 180).length;
-    const timeInRange = (inRange / values.length) * 100;
+    return syncedCount;
+  }
 
-    return {
-      average: Math.round(avg),
-      min: Math.round(min),
-      max: Math.round(max),
-      timeInRange: Math.round(timeInRange),
-      totalReadings: readings.length,
-    };
-  },
-};
+  /**
+   * Enable/disable auto-sync
+   */
+  async setAutoSync(enabled: boolean): Promise<void> {
+    try {
+      await AsyncStorage.setItem(AUTO_SYNC_ENABLED_KEY, enabled.toString());
+      
+      if (enabled) {
+        await this.startAutoSync();
+      } else {
+        this.stopAutoSync();
+      }
+    } catch (error) {
+      console.error('Error setting auto-sync:', error);
+    }
+  }
+
+  /**
+   * Check if auto-sync is enabled
+   */
+  async isAutoSyncEnabled(): Promise<boolean> {
+    try {
+      const enabled = await AsyncStorage.getItem(AUTO_SYNC_ENABLED_KEY);
+      return enabled === 'true';
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /**
+   * Start background auto-sync (every 15 minutes)
+   */
+  async startAutoSync(): Promise<void> {
+    // Stop existing interval if any
+    this.stopAutoSync();
+
+    // Sync immediately
+    await this.syncToBackend().catch(console.error);
+
+    // Start interval (15 minutes)
+    this.syncInterval = setInterval(async () => {
+      console.log('Auto-sync triggered');
+      await this.syncToBackend().catch(console.error);
+    }, 15 * 60 * 1000);
+
+    console.log('Auto-sync started');
+  }
+
+  /**
+   * Stop background auto-sync
+   */
+  stopAutoSync(): void {
+    if (this.syncInterval) {
+      clearInterval(this.syncInterval);
+      this.syncInterval = null;
+      console.log('Auto-sync stopped');
+    }
+  }
+
+  /**
+   * Get latest glucose reading from Health
+   */
+  async getLatestGlucose(): Promise<HealthKitGlucoseReading | null> {
+    try {
+      const readings = await this.readGlucoseData(
+        new Date(Date.now() - 24 * 60 * 60 * 1000), // Last 24 hours
+        new Date()
+      );
+
+      return readings.length > 0 ? readings[0] : null;
+    } catch (error) {
+      console.error('Error getting latest glucose:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Request permissions (in case they were denied before)
+   */
+  async requestPermissions(): Promise<boolean> {
+    this.isInitialized = false;
+    return await this.initialize();
+  }
+}
+
+export const healthKitService = new HealthKitService();

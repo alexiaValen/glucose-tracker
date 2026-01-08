@@ -14,6 +14,7 @@ import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
+import { Ionicons } from '@expo/vector-icons';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -134,7 +135,7 @@ export default function SettingsScreen({ navigation }: Props) {
             );
           }}>
             <Text style={styles.actionText}>Change Password</Text>
-            <Text style={styles.arrow}>›</Text>
+            <Text style={styles.arrow}>arrow</Text>
           </TouchableOpacity>
 
           <TouchableOpacity 
@@ -152,6 +153,19 @@ export default function SettingsScreen({ navigation }: Props) {
           >
             <Text style={styles.dangerText}>Logout</Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+  style={styles.actionCard}
+  onPress={() => navigation.navigate('HealthSync')}
+>
+  <Ionicons name="fitness-outline" size={24} color={colors.sage} />
+  <View style={styles.settingInfo}>
+    <Text style={styles.settingLabel}>Apple Health</Text>
+    <Text style={styles.settingRow}>Sync glucose data</Text>
+  </View>
+  <Ionicons name="chevron-forward" size={24} color={colors.textDark} />
+</TouchableOpacity>
+
         </View>
 
         <View style={{ height: 40 }} />

@@ -43,11 +43,12 @@ export const useGlucoseStore = create<GlucoseState>((set, get) => ({
     set({ isLoading: true });
     try {
       const newReading = await glucoseService.createReading({
-        value,
-        measuredAt: new Date().toISOString(),
-        unit: 'mg/dL',
-        mealContext: mealContext as any,
+        glucose_level: value,
+        timestamp: new Date().toISOString(),
+        // unit: 'mg/dL', not needed
+        meal_context: mealContext as any,
         notes,
+        source: 'manual',
       });
 
       // Add to the beginning of the list
