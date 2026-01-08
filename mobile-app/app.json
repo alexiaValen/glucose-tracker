@@ -18,9 +18,15 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.graceflow.app",
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "processing"],
+        "UIBackgroundModes": [
+          "fetch",
+          "processing",
+          "fetch",
+          "processing"
+        ],
         "NSHealthShareUsageDescription": "GraceFlow needs access to read your blood glucose data from Apple Health to help your coach track your progress.",
-        "NSHealthUpdateUsageDescription": "GraceFlow needs access to save your blood glucose readings to Apple Health for a complete health record."
+        "NSHealthUpdateUsageDescription": "GraceFlow needs access to save your blood glucose readings to Apple Health for a complete health record.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -39,6 +45,11 @@
           }
         }
       ]
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6f4a2e56-93c6-4ba8-9f83-5966ee4220e4"
+      }
+    }
   }
 }

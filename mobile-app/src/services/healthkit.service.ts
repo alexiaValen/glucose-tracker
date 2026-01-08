@@ -6,7 +6,7 @@ import AppleHealthKit, {
 import { Platform } from 'react-native';
 import { glucoseService } from './glucose.service';
 import { CreateGlucoseRequest } from '../types/glucose';
-import { colors } from '../theme/colors';
+//import { colors } from '../theme/colors';
 
 // HealthKit Glucose Reading Type
 export interface HealthKitGlucoseReading {
@@ -238,3 +238,4 @@ class HealthKitService {
 }
 
 export const healthKitService = new HealthKitService();
+export default healthKitService;

@@ -1,8 +1,13 @@
 // mobile-app/src/config/api.ts
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
+import Constants from 'expo-constants';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000';
+const host =
+  Constants.expoConfig?.hostUri?.split(':')[0] ||
+  Constants.manifest2?.extra?.expoGo?.debuggerHost?.split(':')[0];
+
+const API_URL = process.env.EXPO_PUBLIC_API_URL || (host ? `http://${host}:3000` : 'http://localhost:3000');
 
 export const api = axios.create({
   baseURL: API_URL,

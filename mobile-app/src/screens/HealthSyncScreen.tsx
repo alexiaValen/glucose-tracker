@@ -12,7 +12,8 @@ import {
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { healthKitService } from '../services/healthKit.service';
+import { healthKitService } from '../services/healthkit.service';
+//import healthKitService from '../services/healthkit.service';
 import { colors } from '../theme/colors';
 
 interface SyncStatus {
