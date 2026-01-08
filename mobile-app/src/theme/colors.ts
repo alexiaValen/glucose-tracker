@@ -44,6 +44,13 @@ export const colors = {
   // Accent colors (for variety)
   accentPeach: '#C9A58A',      // Soft peach (for cycle tracking)
   accentBlue: '#7A92A8',       // Soft blue (for glucose)
+  
+  // Aliases for component compatibility
+  primary: '#6B7F6E',          // Alias for sage
+  text: '#2A2D2A',             // Alias for textDark
+  textSecondary: '#6B6B6B',    // Alias for textLight
+  background: '#F5F4F0',       // Alias for cream
+  primaryLight: '#8C9B8E',     // Alias for lightSage
 };
 
 // Usage example:
