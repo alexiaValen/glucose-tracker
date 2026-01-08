@@ -42,13 +42,13 @@ export const HealthSyncScreen: React.FC = () => {
       setIsLoading(true);
 
       // Check if available
-      const isConnected = await healthKitService.isAvailable();
+      const isConnected = healthKitService.isAvailable();
       
       // Get last sync time
-      const lastSync = await healthKitService.getLastSyncTime();
+      const lastSync = healthKitService.getLastSyncTime();
       
       // Get auto-sync status
-      const autoSyncEnabled = await healthKitService.isAutoSyncEnabled();
+      const autoSyncEnabled = healthKitService.isAutoSyncEnabled();
       
       // Get latest glucose
       let latestGlucose = null;
@@ -117,7 +117,7 @@ export const HealthSyncScreen: React.FC = () => {
 
   const handleToggleAutoSync = async (enabled: boolean) => {
     try {
-      await healthKitService.setAutoSync(enabled);
+       healthKitService.setAutoSync(enabled);
       setStatus((prev) => ({ ...prev, autoSyncEnabled: enabled }));
       
       if (enabled) {

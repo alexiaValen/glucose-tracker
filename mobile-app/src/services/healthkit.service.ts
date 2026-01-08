@@ -1,12 +1,18 @@
 // mobile-app/src/services/healthKit.service.ts
-import AppleHealthKit, {
-  HealthValue,
-  HealthKitPermissions,
-} from 'react-native-health';
+// import AppleHealthKit, { HealthKitPermissions, HealthValue } from 'react-native-health';
+import type { HealthValue, HealthKitPermissions } from 'react-native-health';
 import { Platform } from 'react-native';
 import { glucoseService } from './glucose.service';
 import { CreateGlucoseRequest } from '../types/glucose';
 //import { colors } from '../theme/colors';
+
+// Normalize CJS/ESM exports (works whether the module is default-exported or not)
+const AppleHealthKit = (() => {
+  const mod = require('react-native-health');
+  return mod?.default ?? mod;
+})();
+
+//const HK = AppleHealthKit as any;
 
 // HealthKit Glucose Reading Type
 export interface HealthKitGlucoseReading {
@@ -38,9 +44,12 @@ class HealthKitService {
     }
 
     return new Promise((resolve) => {
-      AppleHealthKit.initHealthKit(permissions, (error: string) => {
+      console.log('AppleHealthKit keys:', Object.keys(AppleHealthKit));
+console.log('initHealthKit:', (AppleHealthKit as any).initHealthKit);
+
+      AppleHealthKit.initHealthKit(permissions, (error: any) => {
         if (error) {
-          console.error('HealthKit initialization error:', error);
+          console.error('initHealthKit error raw:', error);
           resolve(false);
         } else {
           console.log('HealthKit initialized successfully');
