@@ -1,3 +1,4 @@
+// mobile-app/src/screens/LoginScreen.tsx
 import React, { useState } from 'react';
 import {
   View,
@@ -8,19 +9,13 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  ImageBackground,
+  ActivityIndicator,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme/colors';
-// import { ui } from '../theme/ui';
-import { useFonts } from 'expo-font';
-// import { Ionicons } from '@expo/vector-icons';
-// import { Image } from 'react-native';
-import { typography } from '../theme/typography';
-
+import { BotanicalBackground } from '../components/BotanicalBackground';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 
@@ -32,17 +27,6 @@ export default function LoginScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, isLoading } = useAuthStore();
-//   const [fontsLoaded] = useFonts({
-//   'Playfair-Bold': require('./assets/fonts/PlayfairDisplay-Bold.ttf'),
-//   'Playfair-Italic': require('./assets/fonts/PlayfairDisplay-Italic.ttf'),
-// });
-// const [fontsLoaded] = useFonts({
-//   'Playfair-Bold': require('../assets/fonts/PlayfairDisplay-Bold.ttf'),
-//   'Playfair-Italic': require('../assets/fonts/PlayfairDisplay-Italic.ttf'),
-// });
-
-// if (!fontsLoaded) return null; // or a splash/loading 
-
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -58,35 +42,11 @@ export default function LoginScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <View style={styles.container}>
-        {/* Background image */}
-        <ImageBackground
-          source={require('../assets/bg/leaf-watercolor.png')}
-          resizeMode="cover"
-          style={StyleSheet.absoluteFill}
-        />
-
-        {/* Optional: overall wash to calm the texture */}
-        <View style={styles.topFade} />
-
-        {/* Light top → dark bottom gradient */}
-        <LinearGradient
-          colors={[
-            'rgba(245,244,240,0.92)', // cream (top)
-            'rgba(232,237,233,0.85)', // pale sage
-            'rgba(140,155,142,0.55)', // light sage
-            'rgba(61,85,64,0.32)',    // forest green
-            'rgba(42,45,42,0.70)',    // charcoal (bottom)
-          ]}
-          locations={[0, 0.35, 0.55, 0.75, 1]}
-          style={StyleSheet.absoluteFill}
-        />
-
-        {/* Content */}
+    <BotanicalBackground variant="3d" intensity="medium">
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
+      >
         <View style={styles.content}>
           {/* Header */}
           <View style={styles.header}>
@@ -97,7 +57,7 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
 
             <Text style={styles.title}>GraceFlow</Text>
-            <Text style={styles.subtitle}>Track your glucose &amp; cycle with grace</Text>
+            <Text style={styles.subtitle}>Track your glucose & cycle with grace</Text>
           </View>
 
           {/* Form card */}
@@ -113,6 +73,7 @@ export default function LoginScreen({ navigation }: Props) {
                 autoCapitalize="none"
                 keyboardType="email-address"
                 editable={!isLoading}
+                autoComplete="email"
               />
             </View>
 
@@ -126,6 +87,7 @@ export default function LoginScreen({ navigation }: Props) {
                 onChangeText={setPassword}
                 secureTextEntry
                 editable={!isLoading}
+                autoComplete="password"
               />
             </View>
 
@@ -135,7 +97,11 @@ export default function LoginScreen({ navigation }: Props) {
               disabled={isLoading}
               activeOpacity={0.9}
             >
-              <Text style={styles.buttonText}>{isLoading ? 'Logging in…' : 'Login'}</Text>
+              {isLoading ? (
+                <ActivityIndicator color={colors.white} />
+              ) : (
+                <Text style={styles.buttonText}>Login</Text>
+              )}
             </TouchableOpacity>
 
             {/* Separated bottom actions */}
@@ -154,7 +120,7 @@ export default function LoginScreen({ navigation }: Props) {
                 disabled={isLoading}
               >
                 <Text style={styles.linkText}>
-                  Don&apos;t have an account? <Text style={styles.linkBold}>Sign Up</Text>
+                  Don't have an account? <Text style={styles.linkBold}>Sign Up</Text>
                 </Text>
               </TouchableOpacity>
 
@@ -164,19 +130,15 @@ export default function LoginScreen({ navigation }: Props) {
             </View>
           </View>
         </View>
-      </View>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </BotanicalBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.cream },
-
-  bgWash: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(245,244,240,0.35)', // calm down texture
+  keyboardView: {
+    flex: 1,
   },
-
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -206,32 +168,38 @@ const styles = StyleSheet.create({
     color: colors.goldLeaf,
   },
 
- title: {
-  ...typography.title,
-  color: colors.charcoal,
-  textAlign: 'center',
-},
+  title: {
+    fontSize: 42,
+    fontWeight: '800',
+    color: colors.charcoal,
+    textAlign: 'center',
+    letterSpacing: -0.3,
+  },
   subtitle: {
-  ...typography.subtitle,
-  color: colors.textSecondary,
-  textAlign: 'center',
-  marginTop: 6,
-},
+    fontSize: 15,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 6,
+    opacity: 0.9,
+    lineHeight: 20,
+  },
 
   card: {
-    backgroundColor: 'rgba(255,255,255,0.92)', // ⬅️ more opaque so nothing shows through
+    backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 26,
     borderWidth: 1,
     borderColor: 'rgba(212,214,212,0.70)',
     padding: 18,
     shadowColor: colors.shadow,
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.12,
     shadowRadius: 18,
-    elevation: 2,
+    elevation: 3,
   },
 
-  field: { marginBottom: 14 },
+  field: { 
+    marginBottom: 14 
+  },
 
   label: {
     fontSize: 14,
@@ -280,7 +248,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  linkButton: { paddingVertical: 6 },
+  linkButton: { 
+    paddingVertical: 6 
+  },
   forgotText: {
     color: colors.sage,
     fontSize: 14,
@@ -303,26 +273,4 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     opacity: 0.9,
   },
-
-
-// subtitle: {
-//   fontFamily: 'Playfair-Italic',
-//   fontSize: 16,
-//   color: colors.textSecondary,
-//   textAlign: 'center',
-//   marginTop: 6,
-//   opacity: 0.9,
-// },
-topFade: {
-  ...StyleSheet.absoluteFillObject,
-  backgroundColor: 'rgba(245,244,240,0.70)',
-},
-bottomFade: {
-  position: 'absolute',
-  left: 0,
-  right: 0,
-  bottom: 0,
-  height: '60%',
-  backgroundColor: 'rgba(42,45,42,0.18)',
-},  
 });

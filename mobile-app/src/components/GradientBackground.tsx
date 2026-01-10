@@ -1,6 +1,6 @@
 // mobile-app/src/components/GradientBackground.tsx
 import React from 'react';
-import { View, StyleSheet, ImageBackground } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 
@@ -23,9 +23,7 @@ export const GradientBackground: React.FC<Props> = ({ children, variant = 'defau
 
   return (
     <LinearGradient
-      colors={[...getGradientColors()]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
+      colors={getGradientColors()}
       style={styles.gradient}
     >
       {children}
