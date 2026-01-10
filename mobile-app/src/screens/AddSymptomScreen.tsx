@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -9,31 +9,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Pressable,
+  Modal,
+  FlatList,
 } from 'react-native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from '../types/navigation';
-import { useSymptomStore } from '../stores/symptomStore';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
+import { symptomService } from '../services/symptom.service';
 import { colors } from '../theme/colors';
-
-type AddSymptomScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddSymptom'>;
-
-interface Props {
-  navigation: AddSymptomScreenNavigationProp;
-}
-
-// Match Dashboard colors
-// const colors = {
-//   sage: '#7A8B6F',
-//   charcoal: '#3A3A3A',
-//   warmBrown: '#8B6F47',
-//   cream: '#FAF8F4',
-//   lightSage: '#B8C5A8',
-//   white: '#FFFFFF',
-//   textDark: '#2C2C2C',
-//   textLight: '#6B6B6B',
-//   border: '#E8E6E0',
-//   accentPeach: '#D4A798',
-// };
 
 const SYMPTOM_TYPES = [
   { id: 'headache', label: 'Headache' },
@@ -52,338 +35,368 @@ const SYMPTOM_TYPES = [
   { id: 'other', label: 'Other' },
 ];
 
-export default function AddSymptomScreen({ navigation }: Props) {
-  const [selectedType, setSelectedType] = useState('');
+export default function AddSymptomScreen() {
+  const navigation = useNavigation();
+
+  const [selectedTypes, setSelectedTypes] = useState<string[]>([]);
   const [severity, setSeverity] = useState(5);
   const [notes, setNotes] = useState('');
-  const { addSymptom, isLoading } = useSymptomStore();
+  const [isLoading, setIsLoading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const toggleSymptom = (id: string) => {
+    setSelectedTypes((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const selectedSummary = useMemo(() => {
+    if (!selectedTypes.length) return 'Select symptoms…';
+
+    const labels = selectedTypes
+      .map((id) => SYMPTOM_TYPES.find((s) => s.id === id)?.label)
+      .filter(Boolean) as string[];
+
+    if (labels.length <= 2) return labels.join(', ');
+    return `${labels.slice(0, 2).join(', ')} +${labels.length - 2} more`;
+  }, [selectedTypes]);
 
   const handleSubmit = async () => {
-    if (!selectedType) {
-      Alert.alert('Error', 'Please select a symptom type');
+    if (!selectedTypes.length) {
+      Alert.alert('Error', 'Please select at least one symptom');
       return;
     }
 
     try {
-      await addSymptom(selectedType, severity, notes);
-      Alert.alert('Success', 'Symptom logged!', [
+      setIsLoading(true);
+
+      for (const type of selectedTypes) {
+        await symptomService.createSymptom({
+          symptomType: type,
+          severity,
+          notes: notes.trim() || undefined,
+        });
+      }
+
+      Alert.alert('Success', 'Symptom(s) logged', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (error: any) {
-      Alert.alert('Error', error.response?.data?.error || 'Failed to log symptom');
+      Alert.alert('Error', error?.response?.data?.error || 'Failed to log symptom');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>Log Symptom</Text>
-        <Text style={styles.subtitle}>Track how you're feeling</Text>
-      </View>
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView contentContainerStyle={styles.container}>
+        {/* Symptom selector */}
+        <View style={styles.section}>
+          <Text style={styles.label}>How are you feeling?</Text>
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.flex}
-      >
-        <ScrollView 
-          style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.form}>
-            {/* Symptom Selection */}
-            <View style={styles.section}>
-              <Text style={styles.label}>How are you feeling?</Text>
-              <View style={styles.symptomGrid}>
-                {SYMPTOM_TYPES.map((symptom) => (
-                  <TouchableOpacity
-                    key={symptom.id}
-                    style={[
-                      styles.symptomButton,
-                      selectedType === symptom.id && styles.symptomButtonActive,
-                    ]}
-                    onPress={() => setSelectedType(symptom.id)}
-                    disabled={isLoading}
-                  >
-                    <Text
-                      style={[
-                        styles.symptomLabel,
-                        selectedType === symptom.id && styles.symptomLabelActive,
-                      ]}
-                    >
-                      {symptom.label}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            {/* Severity Slider */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Severity</Text>
-              <View style={styles.severityContainer}>
-                <View style={styles.severityNumbers}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <TouchableOpacity
-                      key={num}
-                      style={[
-                        styles.severityButton,
-                        severity === num && styles.severityButtonActive,
-                      ]}
-                      onPress={() => setSeverity(num)}
-                      disabled={isLoading}
-                    >
-                      <Text
-                        style={[
-                          styles.severityText,
-                          severity === num && styles.severityTextActive,
-                        ]}
-                      >
-                        {num}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-                <View style={styles.severityLabels}>
-                  <Text style={styles.severityLabelText}>Mild</Text>
-                  <View style={styles.severityValueDisplay}>
-                    <Text style={styles.severityValueText}>{severity}</Text>
-                    <Text style={styles.severityValueLabel}>/10</Text>
-                  </View>
-                  <Text style={styles.severityLabelText}>Severe</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Notes */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Notes (Optional)</Text>
-              <TextInput
-                style={styles.textArea}
-                placeholder="Any additional details about how you're feeling..."
-                placeholderTextColor={colors.textLight}
-                value={notes}
-                onChangeText={setNotes}
-                multiline
-                numberOfLines={4}
-                editable={!isLoading}
-                textAlignVertical="top"
-              />
-            </View>
-
-            {/* Submit Button */}
-            <TouchableOpacity
-              style={[styles.submitButton, isLoading && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
-              disabled={isLoading}
+          <Pressable
+            style={styles.multiSelectTrigger}
+            onPress={() => setPickerOpen(true)}
+          >
+            <Text
+              style={[
+                styles.multiSelectText,
+                selectedTypes.length === 0 && styles.placeholder,
+              ]}
             >
-              <Text style={styles.submitButtonText}>
-                {isLoading ? 'Saving...' : 'Save Symptom'}
-              </Text>
-            </TouchableOpacity>
+              {selectedSummary}
+            </Text>
+            <Text style={styles.chevron}>▾</Text>
+          </Pressable>
+        </View>
+
+        {/* Severity */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Severity</Text>
+          <View style={styles.severityRow}>
+            {Array.from({ length: 10 }).map((_, i) => {
+              const value = i + 1;
+              const active = severity === value;
+              return (
+                <TouchableOpacity
+                  key={value}
+                  style={[styles.severityDot, active && styles.severityActive]}
+                  onPress={() => setSeverity(value)}
+                >
+                  <Text
+                    style={[
+                      styles.severityText,
+                      active && styles.severityTextActive,
+                    ]}
+                  >
+                    {value}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </View>
+          <Text style={styles.severityHint}>
+            {severity}/10
+          </Text>
+        </View>
+
+        {/* Notes */}
+        <View style={styles.section}>
+          <Text style={styles.label}>Notes (Optional)</Text>
+          <TextInput
+            style={styles.textInput}
+            placeholder="Any additional details about how you're feeling…"
+            placeholderTextColor={colors.textLight}
+            multiline
+            value={notes}
+            onChangeText={setNotes}
+          />
+        </View>
+
+        {/* Submit */}
+        <TouchableOpacity
+          style={[styles.submitButton, isLoading && { opacity: 0.6 }]}
+          onPress={handleSubmit}
+          disabled={isLoading}
+        >
+          <Text style={styles.submitText}>
+            {isLoading ? 'Saving…' : 'Log Symptom'}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+
+      {/* Multi-select modal */}
+      <Modal visible={pickerOpen} animationType="slide" transparent>
+        <Pressable style={styles.backdrop} onPress={() => setPickerOpen(false)} />
+
+        <SafeAreaView style={styles.sheet}>
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>Check all that apply</Text>
+            <Pressable onPress={() => setPickerOpen(false)}>
+              <Text style={styles.done}>Done</Text>
+            </Pressable>
+          </View>
+
+          <FlatList
+            data={SYMPTOM_TYPES}
+            keyExtractor={(item) => item.id}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            renderItem={({ item }) => {
+              const checked = selectedTypes.includes(item.id);
+              return (
+                <Pressable
+                  style={styles.row}
+                  onPress={() => toggleSymptom(item.id)}
+                >
+                  <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
+                    {checked && <Text style={styles.check}>✓</Text>}
+                  </View>
+                  <Text style={styles.rowText}>{item.label}</Text>
+                </Pressable>
+              );
+            }}
+          />
+        </SafeAreaView>
+      </Modal>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: colors.cream,
-  },
-  flex: {
-    flex: 1,
-  },
-  header: {
-    backgroundColor: colors.white,
-    padding: 20,
-    paddingTop: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  backButton: {
-    marginBottom: 16,
-  },
-  backButtonText: {
-    fontSize: 16,
-    color: colors.sage,
-    fontWeight: '500',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.charcoal,
-    marginBottom: 4,
-    letterSpacing: 0.2,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textLight,
-    fontWeight: '400',
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-  },
-  form: {
-    gap: 24,
+    padding: 16,
+    paddingBottom: 40,
   },
   section: {
-    gap: 12,
+    marginBottom: 24,
   },
   label: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
+    marginBottom: 10,
     color: colors.textDark,
-    letterSpacing: 0.2,
   },
-  symptomGrid: {
+
+  /* Dropdown */
+  multiSelectTrigger: {
+    backgroundColor: colors.white,
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  multiSelectText: {
+    fontSize: 15,
+    color: colors.textDark,
+    flex: 1,
+    paddingRight: 10,
+  },
+  placeholder: {
+    color: colors.textLight,
+  },
+  chevron: {
+    fontSize: 18,
+    color: colors.textLight,
+  },
+
+  /* Severity */
+  severityRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 10,
+    gap: 8,
   },
-  symptomButton: {
-    backgroundColor: colors.white,
+  severityDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     borderWidth: 2,
     borderColor: colors.border,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    minWidth: '30%',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  symptomButtonActive: {
-    backgroundColor: colors.sage,
-    borderColor: colors.sage,
-  },
-  symptomLabel: {
-    fontSize: 14,
-    color: colors.textDark,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  symptomLabelActive: {
-    color: colors.white,
-    fontWeight: '600',
-  },
-  severityContainer: {
-    backgroundColor: colors.white,
-    borderRadius: 14,
-    padding: 16,
-    borderWidth: 2,
-    borderColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-  severityNumbers: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  severityButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.cream,
-    borderWidth: 2,
-    borderColor: colors.border,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  severityButtonActive: {
+  severityActive: {
     backgroundColor: colors.sage,
     borderColor: colors.sage,
   },
   severityText: {
-    fontSize: 13,
     color: colors.textDark,
     fontWeight: '600',
   },
   severityTextActive: {
     color: colors.white,
-    fontWeight: '700',
   },
-  severityLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  severityLabelText: {
-    fontSize: 12,
+  severityHint: {
+    marginTop: 8,
     color: colors.textLight,
-    fontWeight: '500',
   },
-  severityValueDisplay: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    backgroundColor: colors.cream,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  severityValueText: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.sage,
-  },
-  severityValueLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.textLight,
-    marginLeft: 2,
-  },
-  textArea: {
-    backgroundColor: colors.white,
+
+  /* Notes */
+  textInput: {
     borderWidth: 2,
     borderColor: colors.border,
     borderRadius: 14,
-    padding: 16,
-    fontSize: 15,
-    color: colors.textDark,
+    padding: 14,
     minHeight: 100,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    textAlignVertical: 'top',
+    color: colors.textDark,
   },
+
+  /* Submit */
   submitButton: {
     backgroundColor: colors.sage,
-    borderRadius: 14,
-    padding: 18,
+    paddingVertical: 16,
+    borderRadius: 16,
     alignItems: 'center',
-    marginTop: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    marginTop: 10,
   },
-  submitButtonDisabled: {
-    backgroundColor: colors.lightSage,
-    opacity: 0.6,
-  },
-  submitButtonText: {
+  submitText: {
     color: colors.white,
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: 0.3,
+    fontSize: 16,
+    fontWeight: '700',
   },
+
+  /* Modal */
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    maxHeight: '70%',
+    backgroundColor: colors.white,
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  sheetHeader: {
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  done: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.sage,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+  },
+  rowText: {
+    fontSize: 16,
+    color: colors.textDark,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: colors.border,
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    borderColor: colors.sage,
+    backgroundColor: colors.cream,
+  },
+  check: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.sage,
+  },
+  separator: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginLeft: 50,
+  },
+  primaryButton: {
+  height: 56,
+  borderRadius: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.sage,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.08,
+  shadowRadius: 14,
+  elevation: 2,
+},
+primaryButtonText: {
+  color: colors.white,
+  fontSize: 16,
+  fontWeight: '700',
+  letterSpacing: 0.2,
+},
+secondaryButton: {
+  height: 56,
+  borderRadius: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.white,
+  borderWidth: 1,
+  borderColor: colors.border,
+},
+secondaryButtonText: {
+  color: colors.sage,
+  fontSize: 16,
+  fontWeight: '700',
+},
 });

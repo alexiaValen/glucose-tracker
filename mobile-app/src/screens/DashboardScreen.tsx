@@ -17,6 +17,7 @@ import { CYCLE_PHASES } from '../types/cycle';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 // import { checkHealthKitStatus } from '../utils/healthKit.utils';
 import { colors } from '../theme/colors';
+import { ui } from '../theme/ui';
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
@@ -223,7 +224,8 @@ export default function DashboardScreen({ navigation }: Props) {
               style={styles.periodButton}
               onPress={() => navigation.navigate('LogCycle')}
             >
-              <Text style={styles.periodButtonIcon}>🩸</Text>
+              {/* <Text style={styles.periodButtonIcon}>🩸</Text> */}
+              <Text style={styles.cycleIcon}>🌿</Text>
               <Text style={styles.periodButtonText}>Log Period Start</Text>
             </TouchableOpacity>
           </View>
@@ -465,6 +467,22 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 
+
+  cycleCta: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
+  padding: 16,
+  borderRadius: 20,
+  backgroundColor: colors.white,
+  borderWidth: 1,
+  // borderColor: colors.blush ?? '#D9A6A6',
+},
+cycleIcon: { fontSize: 22 },
+// cycleTitle: { fontSize: 16, fontWeight: '800', color: colors.textDark },
+cycleSubtitle: { marginTop: 2, fontSize: 13, color: colors.textLight },
+cycleChevron: { fontSize: 22, color: colors.textLight },
+
   // Action Buttons
   quickActions: {
     flexDirection: 'row',
@@ -663,4 +681,37 @@ const styles = StyleSheet.create({
     color: colors.textLight,
     textAlign: 'center',
   },
+
+  primaryButton: {
+  height: 56,
+  borderRadius: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.sage,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.08,
+  shadowRadius: 14,
+  elevation: 2,
+},
+primaryButtonText: {
+  color: colors.white,
+  fontSize: 16,
+  fontWeight: '700',
+  letterSpacing: 0.2,
+},
+secondaryButton: {
+  height: 56,
+  borderRadius: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.white,
+  borderWidth: 1,
+  borderColor: colors.border,
+},
+secondaryButtonText: {
+  color: colors.sage,
+  fontSize: 16,
+  fontWeight: '700',
+},
 });

@@ -391,4 +391,37 @@ messagesButtonText: {
     color: colors.textLight,
     textAlign: 'center',
   },
+
+  primaryButton: {
+  height: 56,
+  borderRadius: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.sage,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.08,
+  shadowRadius: 14,
+  elevation: 2,
+},
+primaryButtonText: {
+  color: colors.white,
+  fontSize: 16,
+  fontWeight: '700',
+  letterSpacing: 0.2,
+},
+secondaryButton: {
+  height: 56,
+  borderRadius: 20,
+  alignItems: 'center',
+  justifyContent: 'center',
+  backgroundColor: colors.white,
+  borderWidth: 1,
+  borderColor: colors.border,
+},
+secondaryButtonText: {
+  color: colors.sage,
+  fontSize: 16,
+  fontWeight: '700',
+},
 });

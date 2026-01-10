@@ -22,6 +22,13 @@
 
 import React from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
+// import { LogBox } from 'react-native';
+
+// // Ignore specific log notifications
+// LogBox.ignoreLogs([
+//   'Setting a timer for a long period of time',
+//   'VirtualizedLists should never be nested',
+// ]);
 
 export default function App() {
   return <AppNavigator />;

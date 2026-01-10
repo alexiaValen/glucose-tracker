@@ -15,23 +15,16 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { api } from '../config/api';
 import { colors } from '../theme/colors';
+import { ui } from '../theme/ui';
 
-type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>;
+type ForgotPasswordScreenNavigationProp = NativeStackNavigationProp<
+  RootStackParamList,
+  'ForgotPassword'
+>;
 
 interface Props {
   navigation: ForgotPasswordScreenNavigationProp;
 }
-
-// const colors = {
-//   sage: '#7A8B6F',
-//   charcoal: '#3A3A3A',
-//   cream: '#FAF8F4',
-//   white: '#FFFFFF',
-//   textDark: '#2C2C2C',
-//   textLight: '#6B6B6B',
-//   border: '#E8E6E0',
-//   error: '#EF4444',
-// };
 
 export default function ForgotPasswordScreen({ navigation }: Props) {
   const [step, setStep] = useState<'email' | 'code' | 'password'>('email');
@@ -49,9 +42,10 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
     setIsLoading(true);
     try {
-      const response = await api.post('/auth/request-reset', { email: email.toLowerCase() });
-      
-      // In development, show the code (remove in production)
+      const response = await api.post('/auth/request-reset', {
+        email: email.toLowerCase(),
+      });
+
       if (response.data.resetCode) {
         Alert.alert(
           'Reset Code Sent',
@@ -61,7 +55,7 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
       } else {
         Alert.alert(
           'Check Your Email',
-          'If that email exists, we\'ve sent a 6-digit reset code.',
+          "If that email exists, we've sent a 6-digit reset code.",
           [{ text: 'OK', onPress: () => setStep('code') }]
         );
       }
@@ -80,9 +74,9 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
 
     setIsLoading(true);
     try {
-      await api.post('/auth/verify-reset-code', { 
-        email: email.toLowerCase(), 
-        resetCode 
+      await api.post('/auth/verify-reset-code', {
+        email: email.toLowerCase(),
+        resetCode,
       });
       setStep('password');
     } catch (error: any) {
@@ -97,7 +91,6 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
       Alert.alert('Error', 'Password must be at least 8 characters');
       return;
     }
-
     if (newPassword !== confirmPassword) {
       Alert.alert('Error', 'Passwords do not match');
       return;
@@ -123,210 +116,285 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
     }
   };
 
+  const subtitle =
+    step === 'email'
+      ? 'Enter your email to receive a reset code'
+      : step === 'code'
+      ? 'Enter the 6-digit code sent to your email'
+      : 'Create a new password for your account';
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
+      style={ui.screen}
     >
-      <View style={styles.content}>
-        {/* Back Button */}
-        <TouchableOpacity 
-          onPress={() => navigation.goBack()} 
-          style={styles.backButton}
-        >
+      <View style={[styles.content, ui.screenPadded]}>
+        {/* Back */}
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
 
         {/* Header */}
         <View style={styles.header}>
+          <View style={styles.accentRow}>
+            <View style={styles.accentLine} />
+            <Text style={styles.accentLeaf}>🌿</Text>
+            <View style={styles.accentLine} />
+          </View>
+
           <Text style={styles.title}>Reset Password</Text>
-          <Text style={styles.subtitle}>
-            {step === 'email' && "Enter your email to receive a reset code"}
-            {step === 'code' && "Enter the 6-digit code sent to your email"}
-            {step === 'password' && "Enter your new password"}
-          </Text>
+          <Text style={styles.subtitle}>{subtitle}</Text>
+
+          {/* Step indicator */}
+          <View style={styles.stepRow}>
+            <View style={[styles.stepDot, step === 'email' && styles.stepDotActive]} />
+            <View style={[styles.stepDot, step === 'code' && styles.stepDotActive]} />
+            <View style={[styles.stepDot, step === 'password' && styles.stepDotActive]} />
+          </View>
         </View>
 
-        {/* Email Step */}
-        {step === 'email' && (
-          <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="Email"
-              placeholderTextColor={colors.textLight}
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-              keyboardType="email-address"
-              autoComplete="email"
-            />
+        {/* Body */}
+        <View style={styles.form}>
+          {step === 'email' && (
+            <>
+              <View>
+                <Text style={ui.label}>Email</Text>
+                <TextInput
+                  style={ui.input}
+                  placeholder="your@email.com"
+                  placeholderTextColor={colors.textMuted}
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  editable={!isLoading}
+                />
+              </View>
 
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleRequestReset}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.buttonText}>Send Reset Code</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+              <TouchableOpacity
+                style={[ui.buttonPrimary, isLoading && ui.buttonPrimaryDisabled]}
+                onPress={handleRequestReset}
+                disabled={isLoading}
+                activeOpacity={0.9}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={ui.buttonPrimaryText}>Send Reset Code</Text>
+                )}
+              </TouchableOpacity>
+            </>
+          )}
 
-        {/* Code Step */}
-        {step === 'code' && (
-          <View style={styles.form}>
-            <Text style={styles.label}>Code sent to: {email}</Text>
-            
-            <TextInput
-              style={[styles.input, styles.codeInput]}
-              placeholder="000000"
-              placeholderTextColor={colors.textLight}
-              value={resetCode}
-              onChangeText={(text) => setResetCode(text.replace(/[^0-9]/g, ''))}
-              keyboardType="number-pad"
-              maxLength={6}
-              autoFocus
-            />
+          {step === 'code' && (
+            <>
+              <View style={styles.codeMeta}>
+                <Text style={styles.metaLabel}>Code sent to</Text>
+                <Text style={styles.metaEmail}>{email}</Text>
+              </View>
 
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleVerifyCode}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.buttonText}>Verify Code</Text>
-              )}
-            </TouchableOpacity>
+              <View>
+                <Text style={ui.label}>6-digit code</Text>
+                <TextInput
+                  style={[ui.input, styles.codeInput]}
+                  placeholder="000000"
+                  placeholderTextColor={colors.textMuted}
+                  value={resetCode}
+                  onChangeText={(text) => setResetCode(text.replace(/[^0-9]/g, ''))}
+                  keyboardType="number-pad"
+                  maxLength={6}
+                  autoFocus
+                  editable={!isLoading}
+                />
+              </View>
 
-            <TouchableOpacity onPress={handleRequestReset} style={styles.linkButton}>
-              <Text style={styles.linkText}>Resend Code</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              <TouchableOpacity
+                style={[ui.buttonPrimary, isLoading && ui.buttonPrimaryDisabled]}
+                onPress={handleVerifyCode}
+                disabled={isLoading}
+                activeOpacity={0.9}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={ui.buttonPrimaryText}>Verify Code</Text>
+                )}
+              </TouchableOpacity>
 
-        {/* Password Step */}
-        {step === 'password' && (
-          <View style={styles.form}>
-            <TextInput
-              style={styles.input}
-              placeholder="New Password"
-              placeholderTextColor={colors.textLight}
-              value={newPassword}
-              onChangeText={setNewPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+              <TouchableOpacity
+                onPress={handleRequestReset}
+                style={ui.linkButton}
+                disabled={isLoading}
+              >
+                <Text style={[ui.link, { color: colors.sage, fontWeight: '800' }]}>
+                  Resend Code
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
 
-            <TextInput
-              style={styles.input}
-              placeholder="Confirm Password"
-              placeholderTextColor={colors.textLight}
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-              autoCapitalize="none"
-            />
+          {step === 'password' && (
+            <>
+              <View>
+                <Text style={ui.label}>New password</Text>
+                <TextInput
+                  style={ui.input}
+                  placeholder="At least 8 characters"
+                  placeholderTextColor={colors.textMuted}
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+              </View>
 
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleResetPassword}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color={colors.white} />
-              ) : (
-                <Text style={styles.buttonText}>Reset Password</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+              <View>
+                <Text style={ui.label}>Confirm password</Text>
+                <TextInput
+                  style={ui.input}
+                  placeholder="Re-enter password"
+                  placeholderTextColor={colors.textMuted}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  autoCapitalize="none"
+                  editable={!isLoading}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[ui.buttonPrimary, isLoading && ui.buttonPrimaryDisabled]}
+                onPress={handleResetPassword}
+                disabled={isLoading}
+                activeOpacity={0.9}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color={colors.white} />
+                ) : (
+                  <Text style={ui.buttonPrimaryText}>Reset Password</Text>
+                )}
+              </TouchableOpacity>
+
+              <Text style={styles.footerNote}>
+                Tip: choose something memorable but hard to guess — a phrase works great.
+              </Text>
+            </>
+          )}
+        </View>
       </View>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.cream,
-  },
   content: {
     flex: 1,
-    padding: 20,
-    paddingTop: 60,
+    justifyContent: 'flex-start',
+    paddingTop: 8,
   },
+
   backButton: {
-    marginBottom: 20,
+    paddingVertical: 10,
+    alignSelf: 'flex-start',
   },
   backText: {
     color: colors.sage,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '800',
   },
+
   header: {
-    marginBottom: 40,
+    marginTop: 8,
+    marginBottom: 18,
   },
+
+  accentRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 14,
+    opacity: 0.9,
+  },
+  accentLine: {
+    height: 1,
+    width: 48,
+    backgroundColor: colors.border,
+  },
+  accentLeaf: {
+    fontSize: 16,
+    color: colors.goldLeaf,
+  },
+
   title: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontSize: 30,
+    fontWeight: '800',
     color: colors.charcoal,
-    marginBottom: 8,
+    textAlign: 'left',
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.textLight,
-    lineHeight: 22,
+    marginTop: 8,
+    fontSize: 15,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
+
+  stepRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 14,
+  },
+  stepDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.borderLight,
+  },
+  stepDotActive: {
+    backgroundColor: colors.sage,
+  },
+
   form: {
     gap: 16,
-  },
-  label: {
-    fontSize: 14,
-    color: colors.textDark,
-    marginBottom: -8,
-  },
-  input: {
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 12,
-    padding: 16,
-    fontSize: 16,
-    color: colors.textDark,
-  },
-  codeInput: {
-    fontSize: 24,
-    textAlign: 'center',
-    letterSpacing: 8,
-    fontWeight: '600',
-  },
-  button: {
-    backgroundColor: colors.sage,
-    borderRadius: 12,
-    padding: 16,
-    alignItems: 'center',
     marginTop: 8,
   },
-  buttonDisabled: {
-    opacity: 0.6,
-  },
-  buttonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  linkButton: {
-    alignItems: 'center',
+
+  codeMeta: {
+    backgroundColor: colors.paleGreen,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 16,
     padding: 12,
   },
-  linkText: {
-    color: colors.sage,
+  metaLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginBottom: 4,
+  },
+  metaEmail: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: colors.textDark,
+  },
+
+  codeInput: {
+    fontSize: 22,
+    textAlign: 'center',
+    letterSpacing: 10,
+    fontWeight: '800',
+  },
+
+  footerNote: {
+    marginTop: 18,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 18,
+    color: colors.textSecondary,
   },
 });
