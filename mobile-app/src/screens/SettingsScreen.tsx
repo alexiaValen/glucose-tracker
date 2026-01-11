@@ -15,6 +15,7 @@ import { useAuthStore } from '../stores/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
 import { Ionicons } from '@expo/vector-icons';
+import { BotanicalBackground } from '../components/BotanicalBackground';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
 
@@ -71,7 +72,8 @@ export default function SettingsScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <BotanicalBackground variant="green" intensity="light">
+      <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -155,29 +157,31 @@ export default function SettingsScreen({ navigation }: Props) {
           </TouchableOpacity>
 
           <TouchableOpacity
-  style={styles.actionCard}
-  onPress={() => navigation.navigate('HealthSync')}
->
-  <Ionicons name="fitness-outline" size={24} color={colors.sage} />
-  <View style={styles.settingInfo}>
-    <Text style={styles.settingLabel}>Apple Health</Text>
-    <Text style={styles.settingRow}>Sync glucose data</Text>
-  </View>
-  <Ionicons name="chevron-forward" size={24} color={colors.textDark} />
-</TouchableOpacity>
+            style={styles.actionCard}
+            onPress={() => navigation.navigate('HealthSync')}
+          >
+            <View style={styles.actionIconContainer}>
+              <Text style={styles.actionIcon}>🍃</Text>
+            </View>
+            <View style={styles.actionInfo}>
+              <Text style={styles.settingLabel}>Apple Health</Text>
+              <Text style={styles.settingDescription}>Sync glucose data</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color={colors.textLight} />
+          </TouchableOpacity>
 
         </View>
 
         <View style={{ height: 40 }} />
       </ScrollView>
     </View>
+    </BotanicalBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.cream,
   },
   header: {
     flexDirection: 'row',
@@ -219,13 +223,13 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   profileInfo: {
     paddingVertical: 8,
@@ -271,17 +275,31 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 18,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  actionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.paleGreen,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  actionIcon: {
+    fontSize: 24,
+  },
+  actionInfo: {
+    flex: 1,
   },
   dangerCard: {
     borderWidth: 1,

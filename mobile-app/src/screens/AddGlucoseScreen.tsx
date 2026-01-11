@@ -1,3 +1,8 @@
+// 
+
+
+
+
 import React, { useState } from 'react';
 import {
   View,
@@ -14,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useGlucoseStore } from '../stores/glucoseStore';
 import { colors } from '../theme/colors';
+import { BotanicalBackground } from '../components/BotanicalBackground';
 
 type AddGlucoseScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'AddGlucose'>;
 
@@ -60,7 +66,8 @@ export default function AddGlucoseScreen({ navigation }: Props) {
   };
 
   return (
-    <View style={styles.container}>
+    <BotanicalBackground variant="green" intensity="light">
+      <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
@@ -154,13 +161,13 @@ export default function AddGlucoseScreen({ navigation }: Props) {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
+    </BotanicalBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.cream,
   },
   flex: {
     flex: 1,
