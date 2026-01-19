@@ -89,9 +89,6 @@ export default function AppNavigator() {
                 name="Messaging" 
                 component={MessagingScreen}
               />
-              <Stack.Screen 
-              name="ForgotPassword" component={ForgotPasswordScreen}
-               />
             </>
           ) : (
             // User Stack
@@ -113,9 +110,9 @@ export default function AppNavigator() {
                 component={LogCycleScreen}
               />
               <Stack.Screen 
-    name="Settings"          // 
-    component={SettingsScreen}
-  />
+                name="Settings"
+                component={SettingsScreen}
+              />
               <Stack.Screen 
                 name="Conversations" 
                 component={ConversationsScreen}
@@ -125,15 +122,14 @@ export default function AppNavigator() {
                 component={MessagingScreen}
               />
               <Stack.Screen 
-  name="HealthSync" 
-  component={HealthSyncScreen}
-  options={{ title: 'Apple Health Sync' }}
-/>
+                name="HealthSync" 
+                component={HealthSyncScreen}
+                options={{ title: 'Apple Health Sync' }}
+              />
             </>
-            
           )
         ) : (
-          // Unauthenticated Stack
+          // Unauthenticated Stack - ForgotPassword belongs HERE ONLY
           <>
             <Stack.Screen 
               name="Login" 
@@ -143,10 +139,10 @@ export default function AppNavigator() {
               name="Register" 
               component={RegisterScreen}
             />
-            <Stack.Screen                      //
-      name="ForgotPassword"             // 
-      component={ForgotPasswordScreen}  // 
-    />  
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+            />
           </>
         )}
       </Stack.Navigator>

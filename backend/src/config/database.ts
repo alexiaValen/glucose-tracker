@@ -10,10 +10,17 @@ console.log('DATABASE_URL exists:', !!process.env.DATABASE_URL);
 console.log('DATABASE_URL preview:', process.env.DATABASE_URL?.substring(0, 60) + '...');
 
 // PostgreSQL Pool for direct queries
+// export const pool = new Pool({
+//   connectionString: process.env.DATABASE_URL,
+//   ssl: { rejectUnauthorized: false },
+// });
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: process.env.NODE_ENV === 'production' 
+    ? { rejectUnauthorized: false }
+    : false,  // ← Disable SSL for local development
 });
+
 
 pool.on('connect', () => {
   console.log('✅ Database connected to Supabase via Pool');

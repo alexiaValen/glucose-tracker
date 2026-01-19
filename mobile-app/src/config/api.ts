@@ -1,97 +1,121 @@
 // mobile-app/src/config/api.ts
 import axios from 'axios';
-import * as SecureStore from 'expo-secure-store';
-import Constants from 'expo-constants';
+import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const host =
-  Constants.expoConfig?.hostUri?.split(':')[0] ||
-  Constants.manifest2?.extra?.expoGo?.debuggerHost?.split(':')[0];
+// Backend API URL
+// iOS Simulator: localhost works
+// Android Emulator: Use 10.0.2.2
+// Real device: Use your computer's IP (e.g., 192.168.1.XXX)
+const BASE_URL = Platform.select({
+  ios: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
+  android: process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api/v1',
+  default: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
+});
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || (host ? `http://${host}:3000` : 'http://localhost:3000');
+console.log('🌐 API Base URL:', BASE_URL);
+console.log('📱 Platform:', Platform.OS);
+console.log('🔧 EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
 
+// Create axios instance
 export const api = axios.create({
-  baseURL: API_URL,
-  timeout: 10000,
+  baseURL: BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 15000,
 });
 
-const ACCESS_TOKEN_KEY = 'accessToken';
+// Request interceptor
+api.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
+      console.log('📍 Full URL:', `${config.baseURL}${config.url}`);
+    } catch (error) {
+      console.error('Error in request interceptor:', error);
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-// Get token from SecureStore
+// Response interceptor
+api.interceptors.response.use(
+  (response) => {
+    console.log(`✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    return response;
+  },
+  async (error) => {
+    const url = error.config?.url || 'unknown';
+    const method = error.config?.method?.toUpperCase() || 'GET';
+    
+    if (error.response) {
+      console.error(`❌ ${error.response.status} ${method} ${url}`);
+      console.error('Error data:', JSON.stringify(error.response.data, null, 2));
+    } else if (error.request) {
+      console.error(`❌ Network Error ${method} ${url}`);
+      console.error('Request was made but no response received');
+      console.error('Is backend running at:', `${error.config.baseURL}${url}`);
+    } else {
+      console.error(`❌ ${method} ${url}:`, error.message);
+    }
+
+    // Handle 401 - token refresh
+    if (error.response?.status === 401 && !error.config._retry) {
+      error.config._retry = true;
+
+      try {
+        const refreshToken = await AsyncStorage.getItem('refreshToken');
+        if (!refreshToken) throw new Error('No refresh token');
+
+        const response = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+        const { accessToken } = response.data;
+        await AsyncStorage.setItem('accessToken', accessToken);
+
+        error.config.headers.Authorization = `Bearer ${accessToken}`;
+        return api(error.config);
+      } catch (refreshError) {
+        console.error('Token refresh failed:', refreshError);
+        await clearAuthToken();
+        return Promise.reject(refreshError);
+      }
+    }
+
+    return Promise.reject(error);
+  }
+);
+
+// Helper functions
+export const setAuthToken = async (token: string) => {
+  try {
+    await AsyncStorage.setItem('accessToken', token);
+    console.log('✅ Auth token saved');
+  } catch (error) {
+    console.error('Error saving auth token:', error);
+  }
+};
+
+export const clearAuthToken = async () => {
+  try {
+    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+    console.log('🗑️ Auth tokens cleared');
+  } catch (error) {
+    console.error('Error clearing auth tokens:', error);
+  }
+};
+
 export const getAuthToken = async (): Promise<string | null> => {
   try {
-    return await SecureStore.getItemAsync(ACCESS_TOKEN_KEY);
+    return await AsyncStorage.getItem('accessToken');
   } catch (error) {
     console.error('Error getting auth token:', error);
     return null;
   }
 };
 
-// Set token (called by auth.service.ts)
-export const setAuthToken = (token: string | null) => {
-  if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  } else {
-    delete api.defaults.headers.common['Authorization'];
-  }
-};
-
-// Clear token (called by auth.service.ts)
-export const clearAuthToken = () => {
-  delete api.defaults.headers.common['Authorization'];
-};
-
-// Add auth token to all requests (EXCEPT auth endpoints)
-api.interceptors.request.use(
-  async (config) => {
-    // ✅ FIX: Skip token for auth endpoints
-    const isAuthEndpoint = 
-      config.url?.includes('/auth/login') || 
-      config.url?.includes('/auth/register') ||
-      config.url?.includes('/auth/forgot-password') ||
-      config.url?.includes('/auth/reset-password');
-
-    // Only add token for non-auth endpoints
-    if (!isAuthEndpoint) {
-      const token = await getAuthToken();
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Handle 401 errors
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      const url = error.config?.url || '';
-      const isAuthEndpoint = 
-        url.includes('/auth/login') || 
-        url.includes('/auth/register');
-
-      // Only log error if NOT an auth endpoint (auth endpoints can fail normally)
-      if (!isAuthEndpoint) {
-        console.error('❌ 401 Unauthorized - Token may be invalid or expired');
-        console.error('Request URL:', url);
-        console.error('Token exists:', !!(await getAuthToken()));
-        
-        // Clear invalid token
-        await SecureStore.deleteItemAsync(ACCESS_TOKEN_KEY);
-        clearAuthToken();
-      } else {
-        // Auth endpoint failure (wrong credentials) - this is normal
-        console.log('🔐 Authentication failed - check credentials');
-      }
-    }
-    return Promise.reject(error);
-  }
-);
+export default api;

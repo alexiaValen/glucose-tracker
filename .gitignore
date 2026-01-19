@@ -7,6 +7,7 @@ backend/dist/
 # Mobile
 mobile-app/node_modules/
 mobile-app/.expo/
+mobile-app/.env
 
 # Coach Dashboard
 coach-dashboard/node_modules/
