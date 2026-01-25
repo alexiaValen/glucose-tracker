@@ -82,21 +82,29 @@ router.get('/current', async (req: Request, res: Response) => {
 // POST /api/v1/cycle - Start new cycle
 router.post(
   '/',
-  [
-    body('start_date').isISO8601(),
-    body('flow').optional().isIn(['light', 'medium', 'heavy']),
-    body('symptoms').optional().isArray(),
-  ],
   async (req: Request, res: Response) => {
     try {
       const userId = req.user!.userId;
-      const errors = validationResult(req);
       
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+      // Accept both camelCase (cycleStartDate) and snake_case (start_date)
+      const startDate = req.body.cycleStartDate || req.body.start_date;
+      const flow = req.body.flow;
+      const symptoms = req.body.symptoms;
+
+      console.log('📅 Logging cycle start:', { userId, startDate, flow, symptoms });
+
+      if (!startDate) {
+        return res.status(400).json({ 
+          error: 'Missing required field: cycleStartDate or start_date' 
+        });
       }
 
-      const { start_date, flow, symptoms } = req.body;
+      // Validate date format
+      if (isNaN(Date.parse(startDate))) {
+        return res.status(400).json({ 
+          error: 'Invalid date format for start date' 
+        });
+      }
 
       // Check if there's already an active cycle
       const activeResult = await pool.query(
@@ -121,7 +129,7 @@ router.post(
          RETURNING *`,
         [
           userId,
-          start_date,
+          startDate,
           phase,
           currentDay,
           flow,
@@ -129,8 +137,10 @@ router.post(
         ]
       );
 
+      console.log('✅ Cycle logged:', result.rows[0].id);
       res.status(201).json(result.rows[0]);
     } catch (error: any) {
+      console.error('❌ Error logging cycle:', error);
       res.status(400).json({ error: error.message });
     }
   }
@@ -140,7 +150,13 @@ router.post(
 router.patch('/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
-    const { cycleEndDate, flow, symptoms } = req.body;
+    
+    // Accept both camelCase and snake_case
+    const cycleEndDate = req.body.cycleEndDate || req.body.cycle_end_date;
+    const flow = req.body.flow;
+    const symptoms = req.body.symptoms;
+
+    console.log('📅 Ending cycle:', { id: req.params.id, cycleEndDate });
 
     const result = await pool.query(
       `UPDATE cycle_logs 
@@ -154,8 +170,10 @@ router.patch('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Cycle not found' });
     }
 
+    console.log('✅ Cycle ended:', result.rows[0].id);
     res.json(result.rows[0]);
   } catch (error: any) {
+    console.error('❌ Error ending cycle:', error);
     res.status(500).json({ error: error.message });
   }
 });
