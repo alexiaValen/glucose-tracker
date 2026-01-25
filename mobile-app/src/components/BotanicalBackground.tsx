@@ -1,100 +1,6 @@
-// // mobile-app/src/components/BotanicalBackground.tsx
-// import React from 'react';
-// import { ImageBackground, StyleSheet, View } from 'react-native';
-// import { LinearGradient } from 'expo-linear-gradient';
-// import { colors } from '../theme/colors';
-
-// interface BotanicalBackgroundProps {
-//   children: React.ReactNode;
-//   variant?: 'green' | '3d' | 'none';
-//   intensity?: 'light' | 'medium' | 'strong';
-// }
-
-// export const BotanicalBackground: React.FC<BotanicalBackgroundProps> = ({ 
-//   children, 
-//   variant = 'green',
-//   intensity = 'light'
-// }) => {
-//   // Choose background image
-//   const getBackgroundImage = () => {
-//     switch (variant) {
-//       case 'green':
-//         return require('../assets/bg/botanical-green.png');
-//       case '3d':
-//         return require('../assets/bg/botanical-3d.png');
-//       case 'none':
-//         return null;
-//       default:
-//         return require('../assets/bg/botanical-green.png');
-//     }
-//   };
-
-//   // Choose gradient overlay based on intensity
-//   const getGradientColors = (): readonly [string, string, string] => {
-//     switch (intensity) {
-//       case 'light':
-//         return [
-//           'rgba(245,244,240,0.90)',  // cream - very opaque
-//           'rgba(232,237,233,0.85)',  // pale green
-//           'rgba(232,237,233,0.80)',  // pale green
-//         ] as const;
-//       case 'medium':
-//         return [
-//           'rgba(245,244,240,0.80)',  // cream
-//           'rgba(232,237,233,0.70)',  // pale green
-//           'rgba(232,237,233,0.65)',  // pale green
-//         ] as const;
-//       case 'strong':
-//         return [
-//           'rgba(245,244,240,0.70)',  // cream
-//           'rgba(232,237,233,0.60)',  // pale green
-//           'rgba(140,155,142,0.40)',  // light sage - show more texture
-//         ] as const;
-//       default:
-//         return [
-//           'rgba(245,244,240,0.90)',
-//           'rgba(232,237,233,0.85)',
-//           'rgba(232,237,233,0.80)',
-//         ] as const;
-//     }
-//   };
-
-//   const backgroundImage = getBackgroundImage();
-
-//   if (variant === 'none' || !backgroundImage) {
-//     return (
-//       <View style={[styles.container, { backgroundColor: colors.cream }]}>
-//         {children}
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <ImageBackground
-//       source={backgroundImage}
-//       resizeMode="cover"
-//       style={styles.container}
-//     >
-//       <LinearGradient
-//         colors={getGradientColors()}
-//         start={{ x: 0, y: 0 }}
-//         end={{ x: 0, y: 1 }}
-//         style={StyleSheet.absoluteFill}
-//       />
-//       {children}
-//     </ImageBackground>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//   },
-// });
-
 // mobile-app/src/components/BotanicalBackground.tsx
 import React from 'react';
-import { ImageBackground, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 
@@ -109,53 +15,69 @@ export const BotanicalBackground: React.FC<BotanicalBackgroundProps> = ({
   variant = 'green',
   intensity = 'light'
 }) => {
-  // Choose background image
-  const getBackgroundImage = () => {
-    switch (variant) {
-      case 'green':
-        return require('../assets/bg/botanical-green.png');
-      case '3d':
-        return require('../assets/bg/botanical-3d.png');
-      case 'none':
-        return null;
-      default:
-        return require('../assets/bg/botanical-green.png');
-    }
-  };
-
-  // Choose gradient overlay based on intensity
+  // Choose gradient colors based on variant and intensity
   const getGradientColors = (): readonly [string, string, string] => {
+    // Base gradients for different variants
+    if (variant === '3d') {
+      switch (intensity) {
+        case 'light':
+          return [
+            'rgba(245,244,240,0.95)',  // cream - very opaque
+            'rgba(235,240,235,0.90)',  // pale green
+            'rgba(232,237,233,0.85)',  // pale green
+          ] as const;
+        case 'medium':
+          return [
+            'rgba(245,244,240,0.85)',  // cream
+            'rgba(232,237,233,0.75)',  // pale green
+            'rgba(220,230,222,0.70)',  // light green
+          ] as const;
+        case 'strong':
+          return [
+            'rgba(245,244,240,0.75)',  // cream
+            'rgba(232,237,233,0.65)',  // pale green
+            'rgba(200,215,205,0.60)',  // medium green
+          ] as const;
+        default:
+          return [
+            'rgba(245,244,240,0.95)',
+            'rgba(232,237,233,0.90)',
+            'rgba(232,237,233,0.85)',
+          ] as const;
+      }
+    }
+
+    // Green variant
     switch (intensity) {
       case 'light':
         return [
-          'rgba(245,244,240,0.90)',  // cream - very opaque
-          'rgba(232,237,233,0.85)',  // pale green
-          'rgba(232,237,233,0.80)',  // pale green
+          'rgba(250,248,244,0.98)',  // cream - very opaque
+          'rgba(240,245,241,0.95)',  // very pale green
+          'rgba(235,240,237,0.92)',  // very pale green
         ] as const;
       case 'medium':
         return [
-          'rgba(245,244,240,0.80)',  // cream
-          'rgba(232,237,233,0.70)',  // pale green
-          'rgba(232,237,233,0.65)',  // pale green
+          'rgba(245,244,240,0.90)',  // cream
+          'rgba(232,237,233,0.80)',  // pale green
+          'rgba(225,235,228,0.75)',  // pale green
         ] as const;
       case 'strong':
         return [
-          'rgba(245,244,240,0.70)',  // cream
-          'rgba(232,237,233,0.60)',  // pale green
-          'rgba(140,155,142,0.40)',  // light sage - show more texture
+          'rgba(245,244,240,0.80)',  // cream
+          'rgba(225,235,228,0.70)',  // light green
+          'rgba(200,220,210,0.65)',  // medium green
         ] as const;
       default:
         return [
-          'rgba(245,244,240,0.90)',
-          'rgba(232,237,233,0.85)',
-          'rgba(232,237,233,0.80)',
+          'rgba(250,248,244,0.98)',
+          'rgba(240,245,241,0.95)',
+          'rgba(235,240,237,0.92)',
         ] as const;
     }
   };
 
-  const backgroundImage = getBackgroundImage();
-
-  if (variant === 'none' || !backgroundImage) {
+  // For 'none' variant, just use solid color
+  if (variant === 'none') {
     return (
       <View style={[styles.container, { backgroundColor: colors.cream }]}>
         {children}
@@ -163,20 +85,23 @@ export const BotanicalBackground: React.FC<BotanicalBackgroundProps> = ({
     );
   }
 
+  // Use gradient with subtle botanical feel
   return (
-    <ImageBackground
-      source={backgroundImage}
-      resizeMode="cover"
-      style={styles.container}
-    >
+    <View style={styles.container}>
+      {/* Base botanical color */}
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: '#E8EDE9' }]} />
+      
+      {/* Gradient overlay */}
       <LinearGradient
         colors={getGradientColors()}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
+      
+      {/* Content */}
       {children}
-    </ImageBackground>
+    </View>
   );
 };
 

@@ -2,7 +2,7 @@
 import { Router, Request, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { body, query, validationResult } from 'express-validator';
-import { supabase } from '../config/database';
+import { pool } from '../config/database';
 
 const router = Router();
 
@@ -28,24 +28,25 @@ router.post(
       const { glucose_level, timestamp, notes, source, meal_context } = req.body;
       const userId = req.user!.userId;
 
-      const { data, error } = await supabase
-        .from('glucose_readings')
-        .insert([{
-          user_id: userId,
-          glucose_level,
-          timestamp,
-          notes: notes || '',
-          source: source || 'manual',
-        }])
-        .select()
-        .single();
+      console.log('📝 Creating glucose reading:', { userId, glucose_level, timestamp });
 
-      if (error) throw error;
+      // Use 'value' column name (not 'glucose_level')
+      const result = await pool.query(
+        `INSERT INTO glucose_readings (user_id, value, measured_at, notes, source, meal_context)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         RETURNING *`,
+        [userId, glucose_level, timestamp, notes || '', source || 'manual', meal_context]
+      );
 
-      res.status(201).json(data);
+      console.log('✅ Glucose reading created:', result.rows[0].id);
+      res.status(201).json(result.rows[0]);
     } catch (error: any) {
-      console.error('Error creating glucose reading:', error);
-      res.status(500).json({ error: 'Failed to create glucose reading' });
+      console.error('❌ Error creating glucose reading:', error);
+      console.error('Error details:', error.message, error.code);
+      res.status(500).json({ 
+        error: 'Failed to create glucose reading',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 );
@@ -72,32 +73,54 @@ router.get(
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
       const { startDate, endDate, source } = req.query;
 
-      let query = supabase
-        .from('glucose_readings')
-        .select('*')
-        .eq('user_id', userId)
-        .order('timestamp', { ascending: false })
-        .range(offset, offset + limit - 1);
+      console.log('📊 Fetching glucose readings for user:', userId);
 
-      // Optional filters
+      let query = `
+        SELECT 
+          id, 
+          user_id, 
+          value as glucose_level, 
+          measured_at as timestamp, 
+          notes, 
+          source, 
+          meal_context,
+          created_at
+        FROM glucose_readings 
+        WHERE user_id = $1
+      `;
+      const params: any[] = [userId];
+      let paramIndex = 2;
+
       if (startDate) {
-        query = query.gte('timestamp', startDate as string);
+        query += ` AND measured_at >= $${paramIndex}`;
+        params.push(startDate);
+        paramIndex++;
       }
       if (endDate) {
-        query = query.lte('timestamp', endDate as string);
+        query += ` AND measured_at <= $${paramIndex}`;
+        params.push(endDate);
+        paramIndex++;
       }
       if (source) {
-        query = query.eq('source', source as string);
+        query += ` AND source = $${paramIndex}`;
+        params.push(source);
+        paramIndex++;
       }
 
-      const { data, error } = await query;
+      query += ` ORDER BY measured_at DESC LIMIT $${paramIndex} OFFSET $${paramIndex + 1}`;
+      params.push(limit, offset);
 
-      if (error) throw error;
+      const result = await pool.query(query, params);
 
-      res.json({ readings: data || [] });
+      console.log(`✅ Found ${result.rows.length} glucose readings`);
+      res.json({ readings: result.rows });
     } catch (error: any) {
-      console.error('Error fetching glucose readings:', error);
-      res.status(500).json({ error: 'Failed to fetch glucose readings' });
+      console.error('❌ Error fetching glucose readings:', error);
+      console.error('Error details:', error.message);
+      res.status(500).json({ 
+        error: 'Failed to fetch glucose readings',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 );
@@ -109,47 +132,55 @@ router.get('/stats', async (req: Request, res: Response) => {
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
-    let query = supabase
-      .from('glucose_readings')
-      .select('glucose_level')
-      .eq('user_id', userId);
+    console.log('📈 Fetching glucose stats for user:', userId);
+
+    let query = `
+      SELECT 
+        AVG(value) as average,
+        MIN(value) as min,
+        MAX(value) as max,
+        COUNT(*) as count,
+        SUM(CASE WHEN value >= 70 AND value <= 180 THEN 1 ELSE 0 END) as in_range_count
+      FROM glucose_readings
+      WHERE user_id = $1
+    `;
+    const params: any[] = [userId];
+    let paramIndex = 2;
 
     if (startDate) {
-      query = query.gte('timestamp', startDate);
+      query += ` AND measured_at >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
     }
     if (endDate) {
-      query = query.lte('timestamp', endDate);
+      query += ` AND measured_at <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
     }
 
-    const { data, error } = await query;
+    const result = await pool.query(query, params);
+    const stats = result.rows[0];
 
-    if (error) throw error;
-
-    if (!data || data.length === 0) {
+    if (!stats || stats.count === '0') {
       return res.json({
         average: 0,
         min: 0,
         max: 0,
         count: 0,
         in_range_percentage: 0,
+        target_range: { min: 70, max: 180 },
       });
     }
 
-    // Calculate statistics
-    const values = data.map(r => r.glucose_level);
-    const average = values.reduce((sum, val) => sum + val, 0) / values.length;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    const inRangePercentage = (parseInt(stats.in_range_count) / parseInt(stats.count)) * 100;
 
-    // Calculate in-range percentage (70-180 mg/dL)
-    const inRange = values.filter(v => v >= 70 && v <= 180).length;
-    const inRangePercentage = (inRange / values.length) * 100;
+    console.log('✅ Stats calculated:', { count: stats.count, avg: stats.average });
 
     res.json({
-      average: Math.round(average),
-      min,
-      max,
-      count: values.length,
+      average: Math.round(parseFloat(stats.average)),
+      min: parseFloat(stats.min),
+      max: parseFloat(stats.max),
+      count: parseInt(stats.count),
       in_range_percentage: Math.round(inRangePercentage),
       target_range: {
         min: 70,
@@ -157,8 +188,12 @@ router.get('/stats', async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error('Error fetching glucose stats:', error);
-    res.status(500).json({ error: 'Failed to fetch glucose stats' });
+    console.error('❌ Error fetching glucose stats:', error);
+    console.error('Error details:', error.message);
+    res.status(500).json({ 
+      error: 'Failed to fetch glucose stats',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -170,33 +205,44 @@ router.get('/chart', async (req: Request, res: Response) => {
     const endDate = req.query.endDate as string | undefined;
     const interval = (req.query.interval as 'hour' | 'day') || 'day';
 
-    let query = supabase
-      .from('glucose_readings')
-      .select('glucose_level, timestamp')
-      .eq('user_id', userId)
-      .order('timestamp', { ascending: true });
+    console.log('📉 Fetching chart data for user:', userId);
+
+    let query = `
+      SELECT value as glucose_level, measured_at as timestamp
+      FROM glucose_readings
+      WHERE user_id = $1
+    `;
+    const params: any[] = [userId];
+    let paramIndex = 2;
 
     if (startDate) {
-      query = query.gte('timestamp', startDate);
+      query += ` AND measured_at >= $${paramIndex}`;
+      params.push(startDate);
+      paramIndex++;
     }
     if (endDate) {
-      query = query.lte('timestamp', endDate);
+      query += ` AND measured_at <= $${paramIndex}`;
+      params.push(endDate);
+      paramIndex++;
     }
 
-    const { data, error } = await query;
+    query += ` ORDER BY measured_at ASC`;
 
-    if (error) throw error;
+    const result = await pool.query(query, params);
 
-    // Transform data for charting
-    const chartData = (data || []).map(reading => ({
+    const chartData = result.rows.map(reading => ({
       timestamp: reading.timestamp,
       value: reading.glucose_level,
     }));
 
+    console.log(`✅ Chart data: ${chartData.length} points`);
     res.json({ data: chartData, interval });
   } catch (error: any) {
-    console.error('Error fetching chart data:', error);
-    res.status(500).json({ error: 'Failed to fetch chart data' });
+    console.error('❌ Error fetching chart data:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch chart data',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 
@@ -206,18 +252,27 @@ router.delete('/:id', async (req: Request, res: Response) => {
     const userId = req.user!.userId;
     const { id } = req.params;
 
-    const { error } = await supabase
-      .from('glucose_readings')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', userId); // Ensure user owns the reading
+    console.log('🗑️ Deleting glucose reading:', id);
 
-    if (error) throw error;
+    const result = await pool.query(
+      `DELETE FROM glucose_readings 
+       WHERE id = $1 AND user_id = $2 
+       RETURNING id`,
+      [id, userId]
+    );
 
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Reading not found' });
+    }
+
+    console.log('✅ Glucose reading deleted');
     res.json({ message: 'Reading deleted successfully' });
   } catch (error: any) {
-    console.error('Error deleting glucose reading:', error);
-    res.status(500).json({ error: 'Failed to delete glucose reading' });
+    console.error('❌ Error deleting glucose reading:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete glucose reading',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
   }
 });
 

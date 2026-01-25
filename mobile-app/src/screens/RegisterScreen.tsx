@@ -9,10 +9,12 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
+import { BotanicalBackground } from '../components/BotanicalBackground';
 import { colors } from '../theme/colors';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
@@ -20,19 +22,6 @@ type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList
 interface Props {
   navigation: RegisterScreenNavigationProp;
 }
-
-// Match Dashboard colors
-// const colors = {
-//   sage: '#7A8B6F',
-//   charcoal: '#3A3A3A',
-//   warmBrown: '#8B6F47',
-//   cream: '#FAF8F4',
-//   lightSage: '#B8C5A8',
-//   white: '#FFFFFF',
-//   textDark: '#2C2C2C',
-//   textLight: '#6B6B6B',
-//   border: '#E8E6E0',
-// };
 
 export default function RegisterScreen({ navigation }: Props) {
   const [email, setEmail] = useState('');
@@ -70,183 +59,191 @@ export default function RegisterScreen({ navigation }: Props) {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView 
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={styles.keyboardView}
       >
-        <View style={styles.content}>
-          <View style={styles.headerContainer}>
-            <Text style={styles.title}>Join GraceFlow</Text>
-            <Text style={styles.subtitle}>Start tracking your health journey</Text>
+        <ScrollView 
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View style={styles.content}>
+            {/* Header */}
+            <View style={styles.header}>
+              <Text style={styles.title}>Join GraceFlow</Text>
+              <Text style={styles.subtitle}>Start tracking your health journey</Text>
+            </View>
+
+            {/* Form */}
+            <View style={styles.form}>
+              <View style={styles.field}>
+                <Text style={styles.label}>First Name *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Jane"
+                  placeholderTextColor="#999"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  editable={!isLoading}
+                  autoComplete="name-given"
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Last Name</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Doe"
+                  placeholderTextColor="#999"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  editable={!isLoading}
+                  autoComplete="name-family"
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Email *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="your@email.com"
+                  placeholderTextColor="#999"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  editable={!isLoading}
+                  autoComplete="email"
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Password *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="At least 8 characters"
+                  placeholderTextColor="#999"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                  editable={!isLoading}
+                  autoComplete="off"
+                  textContentType="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <View style={styles.field}>
+                <Text style={styles.label}>Confirm Password *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Re-enter your password"
+                  placeholderTextColor="#999"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                  editable={!isLoading}
+                  autoComplete="off"
+                  textContentType="none"
+                  autoCorrect={false}
+                />
+              </View>
+
+              <TouchableOpacity
+                style={[styles.button, isLoading && { opacity: 0.65 }]}
+                onPress={handleRegister}
+                disabled={isLoading}
+                activeOpacity={0.9}
+              >
+                {isLoading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.buttonText}>Create Account</Text>
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => navigation.navigate('Login')}
+                style={styles.linkButton}
+                disabled={isLoading}
+              >
+                <Text style={styles.linkText}>
+                  Already have an account? <Text style={styles.linkBold}>Login</Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-
-          <View style={styles.form}>
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>First Name *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Jane"
-                placeholderTextColor={colors.textLight}
-                value={firstName}
-                onChangeText={setFirstName}
-                editable={!isLoading}
-                autoComplete="name-given"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Last Name</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Doe"
-                placeholderTextColor={colors.textLight}
-                value={lastName}
-                onChangeText={setLastName}
-                editable={!isLoading}
-                autoComplete="name-family"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Email *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="your@email.com"
-                placeholderTextColor={colors.textLight}
-                value={email}
-                onChangeText={setEmail}
-                autoCapitalize="none"
-                keyboardType="email-address"
-                editable={!isLoading}
-                autoComplete="email"
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Password *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="At least 8 characters"
-                placeholderTextColor={colors.textLight}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-                editable={!isLoading}
-                autoComplete="off"
-                textContentType="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>Confirm Password *</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Re-enter your password"
-                placeholderTextColor={colors.textLight}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-                editable={!isLoading}
-                autoComplete="off"
-                textContentType="none"
-                autoCorrect={false}
-              />
-            </View>
-
-            <TouchableOpacity
-              style={[styles.button, isLoading && styles.buttonDisabled]}
-              onPress={handleRegister}
-              disabled={isLoading}
-            >
-              <Text style={styles.buttonText}>
-                {isLoading ? 'Creating Account...' : 'Create Account'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.linkButton}
-              onPress={() => navigation.navigate('Login')}
-              disabled={isLoading}
-            >
-              <Text style={styles.linkText}>
-                Already have an account? <Text style={styles.linkTextBold}>Login</Text>
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.cream,
+    backgroundColor: '#FAF8F4',
+  },
+  keyboardView: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
   },
   content: {
     flex: 1,
+    paddingHorizontal: 20,
     justifyContent: 'center',
-    padding: 20,
-    paddingTop: 60,
+    paddingBottom: 20,
+    paddingTop: 80,
   },
-  headerContainer: {
-    marginBottom: 40,
+  header: {
+    marginBottom: 32,
+    alignItems: 'center',
   },
   title: {
-    fontSize: 38,
-    fontWeight: '700',
-    color: colors.charcoal,
-    marginBottom: 8,
+    fontSize: 32,
+    fontWeight: '800',
+    color: '#3A3A3A',
     textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: -0.3,
   },
   subtitle: {
-    fontSize: 16,
-    color: colors.textLight,
+    fontSize: 15,
+    color: '#6B6B6B',
     textAlign: 'center',
-    fontWeight: '400',
+    marginTop: 6,
   },
   form: {
     width: '100%',
   },
-  inputContainer: {
-    marginBottom: 18,
+  field: { 
+    marginBottom: 16,
   },
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.textDark,
+    color: '#2C2C2C',
     marginBottom: 8,
-    letterSpacing: 0.2,
   },
   input: {
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.border,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E8E6E0',
     borderRadius: 14,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
     fontSize: 16,
-    color: colors.textDark,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    color: '#2C2C2C',
   },
   button: {
-    backgroundColor: colors.sage,
+    height: 56,
     borderRadius: 14,
-    padding: 18,
     alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#7A8B6F',
     marginTop: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -254,60 +251,21 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 3,
   },
-  buttonDisabled: {
-    backgroundColor: colors.lightSage,
-    opacity: 0.6,
-  },
   buttonText: {
-    color: colors.white,
-    fontSize: 17,
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: '600',
-    letterSpacing: 0.3,
   },
-  linkButton: {
+  linkButton: { 
     marginTop: 24,
     alignItems: 'center',
   },
   linkText: {
-    color: colors.textLight,
+    color: '#6B6B6B',
     fontSize: 15,
   },
-  linkTextBold: {
-    color: colors.sage,
+  linkBold: {
+    color: '#7A8B6F',
     fontWeight: '600',
   },
-
-
-  primaryButton: {
-  height: 56,
-  borderRadius: 20,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: colors.sage,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 6 },
-  shadowOpacity: 0.08,
-  shadowRadius: 14,
-  elevation: 2,
-},
-primaryButtonText: {
-  color: colors.white,
-  fontSize: 16,
-  fontWeight: '700',
-  letterSpacing: 0.2,
-},
-secondaryButton: {
-  height: 56,
-  borderRadius: 20,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: colors.white,
-  borderWidth: 1,
-  borderColor: colors.border,
-},
-secondaryButtonText: {
-  color: colors.sage,
-  fontSize: 16,
-  fontWeight: '700',
-},
 });
