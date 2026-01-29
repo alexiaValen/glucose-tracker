@@ -61,14 +61,22 @@ export default function DashboardScreen({ navigation }: Props) {
   const loadMyCoach = async () => {
     try {
       // Use the correct endpoint to get user's assigned coach
+      const token = await AsyncStorage.getItem('accessToken');
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/coach/my-coach`, {
         headers: {
-          'Authorization': `Bearer ${await AsyncStorage.getItem('accessToken')}`,
+          'Authorization': `Bearer ${token}`,
         },
       });
       const data = await response.json();
       if (data.coach) {
-        setMyCoach(data.coach);
+        // Transform snake_case to camelCase
+        setMyCoach({
+          id: data.coach.id,
+          email: data.coach.email,
+          firstName: data.coach.first_name,
+          lastName: data.coach.last_name,
+          role: data.coach.role,
+        });
       }
     } catch (error) {
       console.log('No coach assigned');
@@ -287,7 +295,7 @@ export default function DashboardScreen({ navigation }: Props) {
           )}
 
           {/* Coach Card */}
-          {myCoach && (
+          {myCoach && myCoach.firstName && (
             <TouchableOpacity
               style={styles.coachCard}
               onPress={() => navigation.navigate('Conversations')}
@@ -301,13 +309,13 @@ export default function DashboardScreen({ navigation }: Props) {
               >
                 <View style={styles.coachAvatar}>
                   <Text style={styles.coachAvatarText}>
-                    {myCoach.firstName.charAt(0)}
+                    {myCoach.firstName.charAt(0).toUpperCase()}
                   </Text>
                 </View>
                 <View style={styles.coachInfo}>
                   <Text style={styles.coachLabel}>Your Coach</Text>
                   <Text style={styles.coachName}>
-                    {myCoach.firstName} {myCoach.lastName}
+                    {myCoach.firstName} {myCoach.lastName || ''}
                   </Text>
                   <Text style={styles.coachAction}>Message your coach →</Text>
                 </View>
