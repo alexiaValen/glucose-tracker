@@ -14,7 +14,6 @@ import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { colors } from '../theme/colors';
-import { Ionicons } from '@expo/vector-icons';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
@@ -22,16 +21,6 @@ type SettingsScreenNavigationProp = NativeStackNavigationProp<RootStackParamList
 interface Props {
   navigation: SettingsScreenNavigationProp;
 }
-
-// const colors = {
-//   sage: '#7A8B6F',
-//   charcoal: '#3A3A3A',
-//   cream: '#FAF8F4',
-//   white: '#FFFFFF',
-//   textDark: '#2C2C2C',
-//   textLight: '#6B6B6B',
-//   border: '#E8E6E0',
-// };
 
 const CYCLE_TRACKING_KEY = 'cycleTrackingEnabled';
 
@@ -74,37 +63,42 @@ export default function SettingsScreen({ navigation }: Props) {
   return (
     <BotanicalBackground variant="green" intensity="light">
       <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
-        <View style={{ width: 60 }} />
-      </View>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Profile Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Profile</Text>
-          <View style={styles.card}>
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>
-                {user?.firstName} {user?.lastName}
-              </Text>
-              <Text style={styles.profileEmail}>{user?.email}</Text>
-            </View>
-          </View>
+        {/* Minimal Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Text style={styles.backText}>← Back</Text>
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Settings</Text>
+          <View style={{ width: 60 }} />
         </View>
 
-        {/* Features Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Features</Text>
+        <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+          {/* Profile Section */}
+          <Text style={styles.sectionHeader}>PROFILE</Text>
           
           <View style={styles.card}>
+            <View style={styles.profileRow}>
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>
+                  {user?.firstName?.charAt(0) || 'U'}
+                </Text>
+              </View>
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>
+                  {user?.firstName} {user?.lastName}
+                </Text>
+                <Text style={styles.profileEmail}>{user?.email}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Features Section */}
+          <Text style={styles.sectionHeader}>FEATURES</Text>
+
+          <View style={styles.card}>
             <View style={styles.settingRow}>
-              <View style={styles.settingInfo}>
-                <Text style={styles.settingLabel}>Menstrual Cycle Tracking</Text>
+              <View style={styles.settingLeft}>
+                <Text style={styles.settingLabel}>Cycle Tracking</Text>
                 <Text style={styles.settingDescription}>
                   Track your cycle and see how it affects glucose
                 </Text>
@@ -112,69 +106,80 @@ export default function SettingsScreen({ navigation }: Props) {
               <Switch
                 value={cycleTrackingEnabled}
                 onValueChange={toggleCycleTracking}
-                trackColor={{ false: colors.border, true: colors.sage }}
-                thumbColor={colors.white}
+                trackColor={{ false: 'rgba(212,214,212,0.5)', true: '#6B7F6E' }}
+                thumbColor="#FFFFFF"
+                ios_backgroundColor="rgba(212,214,212,0.5)"
               />
             </View>
 
-            <Text style={styles.helperText}>
-              {cycleTrackingEnabled 
-                ? 'Cycle tracking is enabled. Cycle card and "Log Period" button are visible.'
-                : 'Cycle tracking is disabled. Perfect for users experiencing menopause or who prefer not to track.'}
-            </Text>
+            {cycleTrackingEnabled && (
+              <View style={styles.helperBox}>
+                <Text style={styles.helperText}>
+                  ✓ Cycle tracking enabled. Cycle card visible on dashboard.
+                </Text>
+              </View>
+            )}
           </View>
-        </View>
 
-        {/* Account Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          
-          <TouchableOpacity style={styles.actionCard} onPress={() => {
-            Alert.alert(
-              'Change Password',
-              'Password change feature coming soon!',
-              [{ text: 'OK' }]
-            );
-          }}>
-            <Text style={styles.actionText}>Change Password</Text>
-            <Text style={styles.arrow}>arrow</Text>
-          </TouchableOpacity>
+          {/* Account Section */}
+          <Text style={styles.sectionHeader}>ACCOUNT</Text>
 
-          <TouchableOpacity 
-            style={[styles.actionCard, styles.dangerCard]} 
-            onPress={() => {
-              Alert.alert(
-                'Logout',
-                'Are you sure you want to logout?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Logout', style: 'destructive', onPress: logout }
-                ]
-              );
-            }}
-          >
-            <Text style={styles.dangerText}>Logout</Text>
-          </TouchableOpacity>
+          <View style={styles.card}>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => navigation.navigate('HealthSync')}
+            >
+              <View style={styles.actionLeft}>
+                <Text style={styles.actionLabel}>Apple Health</Text>
+                <Text style={styles.actionDescription}>Sync glucose data</Text>
+              </View>
+              <Text style={styles.arrow}>→</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.actionCard}
-            onPress={() => navigation.navigate('HealthSync')}
-          >
-            <View style={styles.actionIconContainer}>
-              <Text style={styles.actionIcon}>🍃</Text>
-            </View>
-            <View style={styles.actionInfo}>
-              <Text style={styles.settingLabel}>Apple Health</Text>
-              <Text style={styles.settingDescription}>Sync glucose data</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={24} color={colors.textLight} />
-          </TouchableOpacity>
+            <View style={styles.divider} />
 
-        </View>
+            <TouchableOpacity
+              style={styles.actionRow}
+              onPress={() => {
+                Alert.alert(
+                  'Change Password',
+                  'Password change feature coming soon',
+                  [{ text: 'OK' }]
+                );
+              }}
+            >
+              <View style={styles.actionLeft}>
+                <Text style={styles.actionLabel}>Change Password</Text>
+                <Text style={styles.actionDescription}>Update your password</Text>
+              </View>
+              <Text style={styles.arrow}>→</Text>
+            </TouchableOpacity>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
-    </View>
+            <View style={styles.divider} />
+
+            <TouchableOpacity 
+              style={styles.actionRow}
+              onPress={() => {
+                Alert.alert(
+                  'Logout',
+                  'Are you sure you want to logout?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Logout', style: 'destructive', onPress: logout }
+                  ]
+                );
+              }}
+            >
+              <View style={styles.actionLeft}>
+                <Text style={[styles.actionLabel, { color: '#EF4444' }]}>Logout</Text>
+                <Text style={styles.actionDescription}>Sign out of your account</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      </View>
     </BotanicalBackground>
   );
 }
@@ -187,172 +192,163 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 60,
-    backgroundColor: colors.white,
+    paddingBottom: 24,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(212,214,212,0.25)',
   },
   backButton: {
     paddingVertical: 8,
   },
   backText: {
-    color: colors.sage,
-    fontSize: 16,
-    fontWeight: '600',
+    color: '#6B7F6E',
+    fontSize: 15,
+    fontWeight: '500',
+    letterSpacing: 0.2,
   },
   headerTitle: {
     fontSize: 20,
-    fontWeight: '700',
-    color: colors.charcoal,
+    fontWeight: '600',
+    color: '#2B2B2B',
+    letterSpacing: -0.2,
   },
   content: {
     flex: 1,
   },
-  section: {
-    paddingHorizontal: 20,
-    marginTop: 24,
-  },
-  sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textLight,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
+  scrollContent: {
     padding: 20,
+    paddingTop: 24,
+  },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: 'rgba(42,45,42,0.5)',
+    marginBottom: 12,
+    marginTop: 16,
+  },
+
+  // Card
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+
+  // Profile
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+  },
+  profileAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(107,127,110,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(107,127,110,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  profileAvatarText: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#6B7F6E',
   },
   profileInfo: {
-    paddingVertical: 8,
+    flex: 1,
   },
   profileName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
-    color: colors.textDark,
+    color: '#2B2B2B',
     marginBottom: 4,
+    letterSpacing: 0.2,
   },
   profileEmail: {
     fontSize: 14,
-    color: colors.textLight,
+    color: 'rgba(42,45,42,0.5)',
+    fontWeight: '400',
   },
+
+  // Setting Row
   settingRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'space-between',
+    gap: 14,
   },
-  settingInfo: {
+  settingLeft: {
     flex: 1,
-    marginRight: 12,
   },
   settingLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textDark,
+    color: '#2B2B2B',
     marginBottom: 4,
+    letterSpacing: 0.2,
   },
   settingDescription: {
     fontSize: 13,
-    color: colors.textLight,
+    color: 'rgba(42,45,42,0.5)',
     lineHeight: 18,
+    fontWeight: '400',
+  },
+  helperBox: {
+    backgroundColor: 'rgba(107,127,110,0.08)',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
   },
   helperText: {
-    fontSize: 12,
-    color: colors.textLight,
-    lineHeight: 16,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    fontSize: 13,
+    color: 'rgba(42,45,42,0.7)',
+    lineHeight: 18,
+    fontWeight: '400',
   },
-  actionCard: {
-    backgroundColor: colors.white,
-    borderRadius: 16,
-    padding: 18,
+
+  // Action Row
+  actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    justifyContent: 'space-between',
+    paddingVertical: 4,
   },
-  actionIconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.paleGreen,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  actionIcon: {
-    fontSize: 24,
-  },
-  actionInfo: {
+  actionLeft: {
     flex: 1,
   },
-  dangerCard: {
-    borderWidth: 1,
-    borderColor: '#EF4444',
-  },
-  actionText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: colors.textDark,
-  },
-  dangerText: {
+  actionLabel: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#EF4444',
+    color: '#2B2B2B',
+    marginBottom: 4,
+    letterSpacing: 0.2,
+  },
+  actionDescription: {
+    fontSize: 13,
+    color: 'rgba(42,45,42,0.5)',
+    fontWeight: '400',
   },
   arrow: {
-    fontSize: 24,
-    color: colors.textLight,
+    fontSize: 20,
+    color: 'rgba(42,45,42,0.3)',
     fontWeight: '300',
   },
-
-
-
-  primaryButton: {
-  height: 56,
-  borderRadius: 20,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: colors.sage,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 6 },
-  shadowOpacity: 0.08,
-  shadowRadius: 14,
-  elevation: 2,
-},
-primaryButtonText: {
-  color: colors.white,
-  fontSize: 16,
-  fontWeight: '700',
-  letterSpacing: 0.2,
-},
-secondaryButton: {
-  height: 56,
-  borderRadius: 20,
-  alignItems: 'center',
-  justifyContent: 'center',
-  backgroundColor: colors.white,
-  borderWidth: 1,
-  borderColor: colors.border,
-},
-secondaryButtonText: {
-  color: colors.sage,
-  fontSize: 16,
-  fontWeight: '700',
-},
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(212,214,212,0.3)',
+    marginVertical: 16,
+  },
 });

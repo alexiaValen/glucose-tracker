@@ -1,4 +1,5 @@
 // mobile-app/src/screens/AddSymptomScreen.tsx
+// PREMIUM CLINICAL-CALM REDESIGN
 import React, { useState } from 'react';
 import {
   View,
@@ -17,60 +18,65 @@ import { colors } from '../theme/colors';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 
 const SYMPTOM_TYPES = [
-  { id: 'headache', label: 'Headache', icon: '🌫️' },
-  { id: 'fatigue', label: 'Fatigue', icon: '🍂' },
-  { id: 'dizziness', label: 'Dizziness', icon: '🌀' },
-  { id: 'hunger', label: 'Hunger', icon: '🌾' },
-  { id: 'irritability', label: 'Irritability', icon: '⚡' },
-  { id: 'nausea', label: 'Nausea', icon: '🌊' },
-  { id: 'shaking', label: 'Shaking', icon: '🍃' },
-  { id: 'sweating', label: 'Sweating', icon: '💧' },
-  { id: 'brain_fog', label: 'Brain Fog', icon: '☁️' },
-  { id: 'anxiety', label: 'Anxiety', icon: '🌪️' },
-  { id: 'cramps', label: 'Cramps', icon: '🌿' },
-  { id: 'bloating', label: 'Bloating', icon: '🎈' },
-  { id: 'mood_swings', label: 'Mood Swings', icon: '🎭' },
-  { id: 'other', label: 'Other', icon: '✨' },
+  { id: 'headache', label: 'Headache' },
+  { id: 'fatigue', label: 'Fatigue' },
+  { id: 'dizziness', label: 'Dizziness' },
+  { id: 'hunger', label: 'Hunger' },
+  { id: 'irritability', label: 'Irritability' },
+  { id: 'nausea', label: 'Nausea' },
+  { id: 'shaking', label: 'Shaking' },
+  { id: 'sweating', label: 'Sweating' },
+  { id: 'brain_fog', label: 'Brain fog' },
+  { id: 'anxiety', label: 'Anxiety' },
+  { id: 'cramps', label: 'Cramps' },
+  { id: 'bloating', label: 'Bloating' },
+  { id: 'mood_swings', label: 'Mood swings' },
+  { id: 'other', label: 'Other' },
 ];
 
 export default function AddSymptomScreen() {
   const navigation = useNavigation();
 
-  const [selectedType, setSelectedType] = useState<string>('');
+  const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [severity, setSeverity] = useState(5);
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const toggleSymptom = (symptomId: string) => {
+    setSelectedSymptoms(prev => 
+      prev.includes(symptomId)
+        ? prev.filter(id => id !== symptomId)
+        : [...prev, symptomId]
+    );
+  };
+
   const handleSubmit = async () => {
-    if (!selectedType) {
-      Alert.alert('Error', 'Please select a symptom');
+    if (selectedSymptoms.length === 0) {
+      Alert.alert('Missing Information', 'Please select at least one symptom');
       return;
     }
 
     try {
       setIsLoading(true);
 
-      await symptomService.createSymptom({
-        symptomType: selectedType,
-        severity,
-        notes: notes.trim() || undefined,
-      });
+      // Log each symptom separately with the same severity and notes
+      await Promise.all(
+        selectedSymptoms.map(symptomType =>
+          symptomService.createSymptom({
+            symptomType,
+            severity,
+            notes: notes.trim() || undefined,
+          })
+        )
+      );
 
-      Alert.alert('Success', 'Symptom logged', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
+      navigation.goBack();
     } catch (error: any) {
-      Alert.alert('Error', error?.response?.data?.error || 'Failed to log symptom');
+      Alert.alert('Error', error?.response?.data?.error || 'Failed to log symptoms');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const getSeverityColor = (value: number) => {
-    if (value <= 3) return colors.sage;
-    if (value <= 6) return colors.goldLeaf;
-    return colors.warmBrown;
   };
 
   const getSeverityLabel = (value: number) => {
@@ -79,18 +85,21 @@ export default function AddSymptomScreen() {
     return 'Severe';
   };
 
-  const selectedSymptom = SYMPTOM_TYPES.find(s => s.id === selectedType);
+  const getSeverityColor = (value: number) => {
+    if (value <= 3) return 'rgba(107,127,110,0.5)';
+    if (value <= 6) return 'rgba(184,164,95,0.7)';
+    return 'rgba(139,111,71,0.8)';
+  };
 
   return (
     <BotanicalBackground variant="green" intensity="light">
       <View style={styles.container}>
-        {/* Header */}
+        {/* Minimal Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Text style={styles.backButtonText}>← Back</Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
-          <Text style={styles.title}>Log Symptoms</Text>
-          <Text style={styles.subtitle}>Track how you're feeling today</Text>
+          <Text style={styles.headerTitle}>Log Symptoms</Text>
         </View>
 
         <KeyboardAvoidingView
@@ -101,157 +110,175 @@ export default function AddSymptomScreen() {
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
           >
-            {/* Symptom Selector */}
+            {/* Symptom Multi-Select Dropdown */}
             <View style={styles.section}>
-              <Text style={styles.label}>How are you feeling?</Text>
+              <Text style={styles.sectionLabel}>SYMPTOMS</Text>
 
+              {/* Dropdown Trigger */}
               <TouchableOpacity
                 style={styles.dropdownTrigger}
                 onPress={() => setShowDropdown(!showDropdown)}
               >
-                {selectedSymptom ? (
-                  <View style={styles.selectedSymptom}>
-                    <Text style={styles.selectedIcon}>{selectedSymptom.icon}</Text>
-                    <Text style={styles.selectedText}>{selectedSymptom.label}</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.placeholder}>Select a symptom...</Text>
-                )}
-                <Text style={styles.chevron}>{showDropdown ? '▴' : '▾'}</Text>
+                <View style={styles.dropdownTriggerContent}>
+                  {selectedSymptoms.length === 0 ? (
+                    <Text style={styles.placeholderText}>Select symptoms</Text>
+                  ) : (
+                    <Text style={styles.selectedCountText}>
+                      {selectedSymptoms.length} {selectedSymptoms.length === 1 ? 'symptom' : 'symptoms'} selected
+                    </Text>
+                  )}
+                </View>
+                <Text style={styles.dropdownChevron}>{showDropdown ? '▴' : '▾'}</Text>
               </TouchableOpacity>
 
+              {/* Selected Symptoms Pills */}
+              {selectedSymptoms.length > 0 && (
+                <View style={styles.selectedPills}>
+                  {selectedSymptoms.map(symptomId => {
+                    const symptom = SYMPTOM_TYPES.find(s => s.id === symptomId);
+                    return (
+                      <View key={symptomId} style={styles.pill}>
+                        <Text style={styles.pillText}>{symptom?.label}</Text>
+                        <TouchableOpacity
+                          onPress={() => toggleSymptom(symptomId)}
+                          style={styles.pillRemove}
+                        >
+                          <Text style={styles.pillRemoveText}>×</Text>
+                        </TouchableOpacity>
+                      </View>
+                    );
+                  })}
+                </View>
+              )}
+
+              {/* Dropdown List */}
               {showDropdown && (
-                <View style={styles.dropdown}>
-                  <ScrollView 
+                <View style={styles.dropdownList}>
+                  <ScrollView
                     style={styles.dropdownScroll}
                     nestedScrollEnabled
                     showsVerticalScrollIndicator={false}
                   >
-                    {SYMPTOM_TYPES.map((symptom) => (
-                      <TouchableOpacity
-                        key={symptom.id}
-                        style={[
-                          styles.dropdownItem,
-                          selectedType === symptom.id && styles.dropdownItemSelected
-                        ]}
-                        onPress={() => {
-                          setSelectedType(symptom.id);
-                          setShowDropdown(false);
-                        }}
-                      >
-                        <Text style={styles.dropdownIcon}>{symptom.icon}</Text>
-                        <Text style={[
-                          styles.dropdownText,
-                          selectedType === symptom.id && styles.dropdownTextSelected
-                        ]}>
-                          {symptom.label}
-                        </Text>
-                        {selectedType === symptom.id && (
-                          <Text style={styles.checkmark}>✓</Text>
-                        )}
-                      </TouchableOpacity>
-                    ))}
+                    {SYMPTOM_TYPES.map((symptom) => {
+                      const isSelected = selectedSymptoms.includes(symptom.id);
+                      return (
+                        <TouchableOpacity
+                          key={symptom.id}
+                          style={[
+                            styles.dropdownItem,
+                            isSelected && styles.dropdownItemSelected
+                          ]}
+                          onPress={() => toggleSymptom(symptom.id)}
+                        >
+                          {/* Checkbox */}
+                          <View style={styles.checkbox}>
+                            {isSelected && (
+                              <View style={styles.checkboxInner} />
+                            )}
+                          </View>
+                          <Text style={[
+                            styles.dropdownItemText,
+                            isSelected && styles.dropdownItemTextSelected
+                          ]}>
+                            {symptom.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
                   </ScrollView>
                 </View>
               )}
             </View>
 
-            {/* Severity Slider */}
+            {/* Severity Scale - Horizontal Selector */}
             <View style={styles.section}>
               <View style={styles.severityHeader}>
-                <Text style={styles.label}>Severity</Text>
-                <View style={styles.severityBadge}>
-                  <Text style={[
-                    styles.severityValue,
-                    { color: getSeverityColor(severity) }
-                  ]}>
-                    {severity}/10
-                  </Text>
-                  <Text style={styles.severityLabelText}>
-                    {getSeverityLabel(severity)}
-                  </Text>
+                <Text style={styles.sectionLabel}>SEVERITY</Text>
+                <Text style={styles.severityValue}>
+                  {severity} / 10 · {getSeverityLabel(severity)}
+                </Text>
+              </View>
+
+              {/* Horizontal Scale with Tap Points */}
+              <View style={styles.scaleContainer}>
+                {/* Progress Bar */}
+                <View style={styles.scaleTrack}>
+                  <View 
+                    style={[
+                      styles.scaleProgress,
+                      { 
+                        width: `${severity * 10}%`,
+                        backgroundColor: getSeverityColor(severity),
+                      }
+                    ]} 
+                  />
+                </View>
+
+                {/* Tap Points */}
+                <View style={styles.scalePoints}>
+                  {Array.from({ length: 10 }).map((_, i) => {
+                    const value = i + 1;
+                    const isSelected = severity === value;
+                    return (
+                      <TouchableOpacity
+                        key={value}
+                        style={styles.scalePoint}
+                        onPress={() => setSeverity(value)}
+                        activeOpacity={0.7}
+                      >
+                        <View style={[
+                          styles.scalePointDot,
+                          isSelected && { 
+                            backgroundColor: getSeverityColor(value),
+                            transform: [{ scale: 1.5 }]
+                          }
+                        ]} />
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
-              <ScrollView 
-                horizontal 
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.severitySlider}
-              >
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const value = i + 1;
-                  const isSelected = severity === value;
-                  const color = getSeverityColor(value);
-                  
-                  return (
-                    <TouchableOpacity
-                      key={value}
-                      style={[
-                        styles.severityButton,
-                        isSelected && { 
-                          backgroundColor: color,
-                          borderColor: color,
-                          transform: [{ scale: 1.1 }]
-                        }
-                      ]}
-                      onPress={() => setSeverity(value)}
-                    >
-                      <Text style={[
-                        styles.severityButtonText,
-                        isSelected && styles.severityButtonTextActive
-                      ]}>
-                        {value}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
+              {/* Anchor Labels */}
+              <View style={styles.anchorLabels}>
+                <Text style={styles.anchorLabel}>Mild</Text>
+                <Text style={styles.anchorLabel}>Severe</Text>
+              </View>
+            </View>
 
-              {/* Visual severity indicator */}
-              <View style={styles.severityBar}>
-                <View 
-                  style={[
-                    styles.severityBarFill,
-                    { 
-                      width: `${severity * 10}%`,
-                      backgroundColor: getSeverityColor(severity)
-                    }
-                  ]} 
+            {/* Reflective Notes */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>ADDITIONAL CONTEXT</Text>
+              <Text style={styles.promptText}>
+                What changed today?
+              </Text>
+              <View style={styles.notesInset}>
+                <TextInput
+                  style={styles.notesInput}
+                  placeholder="Activity, meals, stressors..."
+                  placeholderTextColor="rgba(42,45,42,0.35)"
+                  value={notes}
+                  onChangeText={setNotes}
+                  multiline
+                  maxLength={500}
+                  textAlignVertical="top"
                 />
               </View>
             </View>
 
-            {/* Notes */}
-            <View style={styles.section}>
-              <Text style={styles.label}>Notes (Optional)</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Any additional details about how you're feeling..."
-                placeholderTextColor={colors.textLight}
-                multiline
-                value={notes}
-                onChangeText={setNotes}
-                maxLength={500}
-              />
-            </View>
-
-            {/* Submit */}
+            {/* Primary Action */}
             <TouchableOpacity
-              style={[styles.submitButton, isLoading && { opacity: 0.6 }]}
+              style={[styles.primaryButton, (isLoading || selectedSymptoms.length === 0) && styles.primaryButtonDisabled]}
               onPress={handleSubmit}
-              disabled={isLoading || !selectedType}
+              disabled={isLoading || selectedSymptoms.length === 0}
+              activeOpacity={0.85}
             >
-              {!isLoading && (
-                <View style={styles.buttonIconContainer}>
-                  <Text style={styles.buttonIcon}>✓</Text>
-                </View>
-              )}
-              <Text style={styles.submitText}>
-                {isLoading ? 'Saving…' : 'Log Symptom'}
+              <Text style={styles.primaryButtonText}>
+                {isLoading ? 'Saving…' : 'Add entry'}
               </Text>
             </TouchableOpacity>
 
-            <View style={{ height: 40 }} />
+            <View style={{ height: 60 }} />
           </ScrollView>
         </KeyboardAvoidingView>
       </View>
@@ -263,103 +290,138 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+
+  // Header - Minimal
   header: {
-    backgroundColor: colors.white,
-    padding: 20,
     paddingTop: 60,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
+    backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
+    borderBottomColor: 'rgba(212,214,212,0.25)',
   },
   backButton: {
-    marginBottom: 16,
+    marginBottom: 20,
+    alignSelf: 'flex-start',
   },
-  backButtonText: {
-    fontSize: 16,
-    color: colors.sage,
-    fontWeight: '600',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: colors.charcoal,
-    marginBottom: 8,
+  backText: {
+    fontSize: 15,
+    color: '#6B7F6E',
+    fontWeight: '500',
     letterSpacing: 0.2,
   },
-  subtitle: {
-    fontSize: 14,
-    color: colors.textLight,
-    lineHeight: 20,
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '600',
+    color: '#2A2D2A',
+    letterSpacing: -0.3,
   },
+
   content: {
-    padding: 20,
+    paddingHorizontal: 24,
+    paddingTop: 32,
     paddingBottom: 40,
   },
+
+  // Section Layout
   section: {
-    marginBottom: 28,
+    marginBottom: 40,
   },
-  label: {
-    fontSize: 15,
+  sectionLabel: {
+    fontSize: 11,
     fontWeight: '600',
-    marginBottom: 12,
-    color: colors.textDark,
-    letterSpacing: 0.2,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: 'rgba(42,45,42,0.5)',
+    marginBottom: 16,
   },
 
   // Dropdown Trigger
   dropdownTrigger: {
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 16,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.4)',
   },
-  selectedSymptom: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  dropdownTriggerContent: {
     flex: 1,
   },
-  selectedIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  selectedText: {
-    fontSize: 16,
-    color: colors.textDark,
-    fontWeight: '500',
-  },
-  placeholder: {
+  placeholderText: {
     fontSize: 15,
-    color: colors.textLight,
-    flex: 1,
+    color: 'rgba(42,45,42,0.4)',
+    fontWeight: '400',
   },
-  chevron: {
-    fontSize: 18,
-    color: colors.textLight,
-    marginLeft: 8,
+  selectedCountText: {
+    fontSize: 15,
+    color: '#2A2D2A',
+    fontWeight: '500',
+    letterSpacing: 0.1,
+  },
+  dropdownChevron: {
+    fontSize: 14,
+    color: 'rgba(42,45,42,0.5)',
+    fontWeight: '600',
+    marginLeft: 12,
   },
 
-  // Inline Dropdown
-  dropdown: {
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.sage,
-    borderRadius: 16,
+  // Selected Pills
+  selectedPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingLeft: 12,
+    paddingRight: 8,
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(107,127,110,0.2)',
+  },
+  pillText: {
+    fontSize: 13,
+    color: '#6B7F6E',
+    fontWeight: '500',
+    letterSpacing: 0.1,
+  },
+  pillRemove: {
+    marginLeft: 6,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: 'rgba(107,127,110,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pillRemoveText: {
+    fontSize: 16,
+    color: '#6B7F6E',
+    fontWeight: '600',
+    lineHeight: 16,
+  },
+
+  // Dropdown List
+  dropdownList: {
     marginTop: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(107,127,110,0.3)',
     maxHeight: 280,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
     shadowRadius: 12,
-    elevation: 5,
+    elevation: 4,
   },
   dropdownScroll: {
     maxHeight: 280,
@@ -367,148 +429,141 @@ const styles = StyleSheet.create({
   dropdownItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: colors.borderLight,
+    borderBottomColor: 'rgba(212,214,212,0.2)',
   },
   dropdownItemSelected: {
-    backgroundColor: colors.paleGreen,
+    backgroundColor: 'rgba(107,127,110,0.04)',
   },
-  dropdownIcon: {
-    fontSize: 24,
-    marginRight: 12,
+  dropdownItemText: {
+    fontSize: 15,
+    color: 'rgba(42,45,42,0.7)',
+    fontWeight: '400',
+    letterSpacing: 0.1,
   },
-  dropdownText: {
-    fontSize: 16,
-    color: colors.textDark,
-    flex: 1,
-  },
-  dropdownTextSelected: {
-    fontWeight: '600',
-    color: colors.sage,
-  },
-  checkmark: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.sage,
+  dropdownItemTextSelected: {
+    color: '#2A2D2A',
+    fontWeight: '500',
   },
 
-  // Severity Header
+  // Checkbox
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: 'rgba(42,45,42,0.25)',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 3,
+    backgroundColor: '#6B7F6E',
+  },
+
+  // Severity Scale
   severityHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  severityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: colors.paleGreen,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
+    marginBottom: 24,
   },
   severityValue: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  severityLabelText: {
     fontSize: 14,
-    color: colors.textLight,
     fontWeight: '500',
+    color: '#2A2D2A',
+    letterSpacing: 0.2,
   },
 
-  // Horizontal Severity Slider
-  severitySlider: {
-    flexDirection: 'row',
-    gap: 12,
-    paddingVertical: 8,
+  // Custom Scale Selector
+  scaleContainer: {
+    marginBottom: 12,
   },
-  severityButton: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    borderWidth: 2,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.white,
-  },
-  severityButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textDark,
-  },
-  severityButtonTextActive: {
-    color: colors.white,
-    fontWeight: '700',
-  },
-
-  // Severity Bar
-  severityBar: {
-    height: 6,
-    backgroundColor: colors.borderLight,
-    borderRadius: 3,
-    marginTop: 16,
+  scaleTrack: {
+    height: 4,
+    backgroundColor: 'rgba(212,214,212,0.3)',
+    borderRadius: 2,
+    marginBottom: 8,
     overflow: 'hidden',
   },
-  severityBarFill: {
+  scaleProgress: {
     height: '100%',
-    borderRadius: 3,
+    borderRadius: 2,
   },
-
-  // Notes
-  textInput: {
-    backgroundColor: colors.white,
-    borderWidth: 2,
-    borderColor: colors.border,
-    borderRadius: 16,
-    padding: 16,
-    minHeight: 120,
-    textAlignVertical: 'top',
-    color: colors.textDark,
-    fontSize: 15,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
-  },
-
-  // Submit
-  submitButton: {
-    backgroundColor: colors.sage,
-    paddingVertical: 18,
-    borderRadius: 16,
-    alignItems: 'center',
-    marginTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+  scalePoints: {
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
   },
-  buttonIconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
+  scalePoint: {
+    padding: 8,
     alignItems: 'center',
-    marginRight: 8,
+    justifyContent: 'center',
   },
-  buttonIcon: {
-    color: colors.white,
+  scalePointDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(42,45,42,0.25)',
+  },
+
+  // Anchor Labels
+  anchorLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    marginTop: 8,
+  },
+  anchorLabel: {
+    fontSize: 12,
+    color: 'rgba(42,45,42,0.5)',
+    fontWeight: '500',
+    letterSpacing: 0.5,
+  },
+
+  // Reflective Notes
+  promptText: {
+    fontSize: 14,
+    color: 'rgba(42,45,42,0.6)',
+    marginBottom: 14,
+    lineHeight: 20,
+    fontWeight: '400',
+  },
+  notesInset: {
+    backgroundColor: 'rgba(255,255,255,0.5)',
+    borderRadius: 12,
+    padding: 16,
+  },
+  notesInput: {
+    fontSize: 15,
+    color: '#2A2D2A',
+    lineHeight: 22,
+    minHeight: 100,
+    padding: 0,
+    margin: 0,
+    fontWeight: '400',
+  },
+
+  // Primary Action - Flat & Calm
+  primaryButton: {
+    backgroundColor: '#6B7F6E',
+    paddingVertical: 17,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  primaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  primaryButtonText: {
     fontSize: 16,
-    fontWeight: '700',
-  },
-  submitText: {
-    color: colors.white,
-    fontSize: 17,
     fontWeight: '600',
+    color: '#FFFFFF',
     letterSpacing: 0.3,
   },
 });

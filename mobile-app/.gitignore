@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+# Keep documentation in git
+!/docs/
+
+# Keep icon components
+!/src/components/icons/

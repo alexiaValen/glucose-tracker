@@ -1,12 +1,12 @@
 // mobile-app/src/components/BotanicalBackground.tsx
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, ImageBackground } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '../theme/colors';
 
 interface BotanicalBackgroundProps {
   children: React.ReactNode;
-  variant?: 'green' | '3d' | 'none';
+  variant?: 'green' | '3d' | 'subtle' | 'none';
   intensity?: 'light' | 'medium' | 'strong';
 }
 
@@ -17,7 +17,37 @@ export const BotanicalBackground: React.FC<BotanicalBackgroundProps> = ({
 }) => {
   // Choose gradient colors based on variant and intensity
   const getGradientColors = (): readonly [string, string, string] => {
-    // Base gradients for different variants
+    // Subtle variant - for clinical-calm with texture
+    if (variant === 'subtle') {
+      switch (intensity) {
+        case 'light':
+          return [
+            'rgba(255,255,255,0.97)',  // Almost white - very opaque
+            'rgba(250,248,244,0.95)',  // Cream
+            'rgba(245,244,240,0.93)',  // Cream
+          ] as const;
+        case 'medium':
+          return [
+            'rgba(255,255,255,0.92)',  // White
+            'rgba(250,248,244,0.88)',  // Cream
+            'rgba(240,245,241,0.85)',  // Very pale green
+          ] as const;
+        case 'strong':
+          return [
+            'rgba(250,248,244,0.85)',  // Cream
+            'rgba(240,245,241,0.80)',  // Pale green
+            'rgba(232,237,233,0.75)',  // Light green
+          ] as const;
+        default:
+          return [
+            'rgba(255,255,255,0.97)',
+            'rgba(250,248,244,0.95)',
+            'rgba(245,244,240,0.93)',
+          ] as const;
+      }
+    }
+
+    // 3D variant
     if (variant === '3d') {
       switch (intensity) {
         case 'light':
@@ -85,7 +115,32 @@ export const BotanicalBackground: React.FC<BotanicalBackgroundProps> = ({
     );
   }
 
-  // Use gradient with subtle botanical feel
+  // Use image background with subtle overlay for clinical-calm aesthetic
+  if (variant === 'subtle' || variant === '3d') {
+    return (
+      <View style={styles.container}>
+        {/* Botanical image background */}
+        <ImageBackground
+          source={require('../assets/bg/botanical-3d.png')}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        >
+          {/* Gradient overlay to maintain clinical-calm aesthetic */}
+          <LinearGradient
+            colors={getGradientColors()}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={StyleSheet.absoluteFill}
+          />
+        </ImageBackground>
+        
+        {/* Content */}
+        {children}
+      </View>
+    );
+  }
+
+  // Default green gradient (no image)
   return (
     <View style={styles.container}>
       {/* Base botanical color */}

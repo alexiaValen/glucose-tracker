@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+  <symbol id="SignalRingThin" viewBox="0 0 100 100">
+    <path d="M 50 10 A 40 40 0 1 1 78.28 78.28" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="SignalRingActive" viewBox="0 0 100 100">
+    <path d="M 50 10 A 40 40 0 1 1 78.28 78.28" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 25 22 A 40 40 0 0 1 39 14" stroke="var(--ui-accent)" stroke-width="var(--stroke-2)" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="AxisMarker" viewBox="0 0 100 100">
+    <line x1="50" y1="20" x2="50" y2="80" stroke="var(--ui-ink)" stroke-width="var(--stroke-1)" stroke-linecap="round"/>
+    <g id="pos-top">
+      <circle cx="50" cy="25" r="3" fill="var(--ui-accent)"/>
+    </g>
+    <g id="pos-mid">
+      <circle cx="50" cy="50" r="3" fill="var(--ui-accent)"/>
+    </g>
+    <g id="pos-bot">
+      <circle cx="50" cy="75" r="3" fill="var(--ui-accent)"/>
+    </g>
+  </symbol>
+
+  <symbol id="VeinDivider" viewBox="0 0 100 100">
+    <path d="M 30 50 Q 40 48 50 50 Q 60 52 70 50" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 50 50 Q 52 42 54 35" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="FlowConnectorSingle" viewBox="0 0 100 100">
+    <path d="M 20 20 Q 35 35 50 50" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 50 50 Q 65 65 80 80" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 50 50 Q 60 45 68 42" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <circle cx="80" cy="80" r="2.5" fill="var(--ui-accent)"/>
+  </symbol>
+
+  <symbol id="InsightUnderline" viewBox="0 0 100 100">
+    <path d="M 20 60 L 55 60" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 55 60 L 80 60" stroke="var(--ui-accent)" stroke-width="var(--stroke-2)" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="RangeBracket" viewBox="0 0 100 100">
+    <path d="M 30 35 L 30 50 Q 30 55 32 58 L 32 65" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 70 35 L 70 50 Q 70 55 68 58 L 68 65" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="SeverityContinuum" viewBox="0 0 100 100">
+    <line x1="20" y1="50" x2="80" y2="50" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" stroke-linecap="round"/>
+    <line x1="20" y1="45" x2="20" y2="55" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" stroke-linecap="round"/>
+    <line x1="80" y1="45" x2="80" y2="55" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" stroke-linecap="round"/>
+    <circle cx="56" cy="50" r="4" fill="var(--ui-accent)"/>
+  </symbol>
+
+  <symbol id="EmptyStateSprout" viewBox="0 0 100 100">
+    <path d="M 50 20 A 30 30 0 1 1 68 68" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round" opacity="0.4"/>
+    <line x1="50" y1="35" x2="50" y2="70" stroke="var(--ui-ink)" stroke-width="var(--stroke-1)" stroke-linecap="round"/>
+    <path d="M 50 48 Q 42 45 38 42" stroke="var(--ui-ink)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 50 55 Q 58 52 62 49" stroke="var(--ui-ink)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+    <path d="M 50 62 Q 56 60 60 58" stroke="var(--ui-accent)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round"/>
+  </symbol>
+
+  <symbol id="ChipIndicatorTick" viewBox="0 0 100 100">
+    <g id="unselected">
+      <path d="M 35 50 L 45 60 L 65 40" stroke="var(--ui-muted)" stroke-width="var(--stroke-1)" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="selected">
+      <path d="M 35 50 L 45 60 L 65 40" stroke="var(--ui-ink)" stroke-width="var(--stroke-2)" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="62" cy="32" r="3" fill="var(--ui-accent)"/>
+    </g>
+  </symbol>
+</svg>
