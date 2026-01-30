@@ -98,7 +98,7 @@ export default function DashboardScreen({ navigation }: Props) {
   };
 
   return (
-    <BotanicalBackground variant="green" intensity="light">
+    <BotanicalBackground variant="3d" intensity="medium">
       <View style={styles.container}>
         {/* Minimal Header */}
         <View style={styles.header}>

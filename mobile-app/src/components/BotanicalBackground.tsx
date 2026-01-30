@@ -121,7 +121,7 @@ export const BotanicalBackground: React.FC<BotanicalBackgroundProps> = ({
       <View style={styles.container}>
         {/* Botanical image background */}
         <ImageBackground
-          source={require('../assets/bg/botanical-3d.png')}
+          source={require('../components/bg/botanical-green.png')}
           style={StyleSheet.absoluteFill}
           resizeMode="cover"
         >
