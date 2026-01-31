@@ -91,10 +91,16 @@ api.interceptors.response.use(
 );
 
 // Helper functions
-export const setAuthToken = async (token: string) => {
+export const setAuthToken = async (token: string | null) => {
   try {
-    await AsyncStorage.setItem('accessToken', token);
-    console.log('✅ Auth token saved');
+    if (token) {
+      await AsyncStorage.setItem('accessToken', token);
+      console.log('✅ Auth token saved');
+    } else {
+      // If token is null, remove it instead of saving null
+      await AsyncStorage.removeItem('accessToken');
+      console.log('🗑️ Auth token removed');
+    }
   } catch (error) {
     console.error('Error saving auth token:', error);
   }
