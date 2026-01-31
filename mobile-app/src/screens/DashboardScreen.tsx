@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/icons';
 
+
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
 interface Props {
@@ -156,6 +157,21 @@ export default function DashboardScreen({ navigation }: Props) {
               <Text style={styles.secondaryButtonText}>Log symptoms</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Join Group Button */}
+<TouchableOpacity
+  style={styles.joinGroupButton}
+  onPress={() => navigation.navigate('JoinGroup')}
+>
+  <View style={styles.joinGroupIcon}>
+    <Text style={styles.joinGroupEmoji}>👥</Text>
+  </View>
+  <View style={styles.joinGroupContent}>
+    <Text style={styles.joinGroupTitle}>Join a Group Program</Text>
+    <Text style={styles.joinGroupSubtitle}>Enter your access code</Text>
+  </View>
+  <Text style={styles.joinGroupArrow}>→</Text>
+</TouchableOpacity>
 
           {/* Glucose Overview Card */}
           <View style={styles.card}>
@@ -694,4 +710,50 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: 'rgba(42,45,42,0.65)',
   },
+
+  joinGroupButton: {
+  backgroundColor: 'rgba(255,255,255,0.95)',
+  borderRadius: 20,
+  padding: 20,
+  marginTop: 16,
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: 'rgba(212,214,212,0.25)',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 2,
+},
+joinGroupIcon: {
+  width: 48,
+  height: 48,
+  borderRadius: 24,
+  backgroundColor: 'rgba(107,127,110,0.1)',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 16,
+},
+joinGroupEmoji: {
+  fontSize: 24,
+},
+joinGroupContent: {
+  flex: 1,
+},
+joinGroupTitle: {
+  fontSize: 16,
+  fontWeight: '600',
+  color: '#2B2B2B',
+  marginBottom: 4,
+},
+joinGroupSubtitle: {
+  fontSize: 13,
+  color: 'rgba(42,45,42,0.6)',
+},
+joinGroupArrow: {
+  fontSize: 20,
+  color: '#6B7F6E',
+  fontWeight: '600',
+},
 });

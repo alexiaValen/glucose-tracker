@@ -18,15 +18,27 @@ export type RootStackParamList = {
   // Coach screens
   CoachDashboard: undefined;
   ClientDetail: { clientId: string };
+
   
   // Common screens navigated to from both user and coach
   Settings: undefined;
   Profile: undefined;
 
+
   // Messaging screens 
   Conversations: undefined;  // NEW: Inbox/conversations list
   Messaging: { userId: string; userName: string };
   HealthSync: undefined;
+
+  // ========================================
+  // GROUP COACHING SCREENS (NEW - ADD THESE)
+  // ========================================
+  JoinGroup: undefined;
+  GroupDashboard: { groupId: string };
+  GroupSessions: { groupId: string };
+  SessionDetail: { groupId: string; sessionId: string };
+  GroupChat: { groupId: string };
+  GroupMembers: { groupId: string };
 };
 
 export type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
