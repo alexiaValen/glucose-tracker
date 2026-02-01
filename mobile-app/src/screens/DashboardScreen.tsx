@@ -1,4 +1,5 @@
 // mobile-app/src/screens/DashboardScreen.tsx
+// FIXED VERSION - Using simple icons instead of SVG to avoid topSvgLayout error
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -17,8 +18,9 @@ import { useSymptomStore } from '../stores/symptomStore';
 import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BotanicalBackground } from '../components/BotanicalBackground';
-import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/icons';
-import { MessageCircle, Settings, Users, ChevronRight } from 'lucide-react-native';
+// CHANGE THIS LINE - use SimpleIcons instead of the SVG icons
+import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/SimpleIcons';
+
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
@@ -35,11 +37,13 @@ export default function DashboardScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
   const [myCoach, setMyCoach] = useState<any>(null);
+  const [groupMembership, setGroupMembership] = useState<any>(null);
 
   useEffect(() => {
     loadData();
     loadSettings();
     loadMyCoach();
+    loadGroupMembership();
   }, []);
 
   const loadData = async () => {
@@ -79,9 +83,28 @@ export default function DashboardScreen({ navigation }: Props) {
     }
   };
 
+  const loadGroupMembership = async () => {
+    try {
+      const token = await AsyncStorage.getItem('accessToken');
+      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/groups/my-membership`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      const data = await response.json();
+      if (data.membership) {
+        setGroupMembership(data.membership);
+      }
+    } catch (error) {
+      console.log('No group membership');
+      setGroupMembership(null);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
     await loadData();
+    await loadGroupMembership();
     setRefreshing(false);
   };
 
@@ -117,16 +140,14 @@ export default function DashboardScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('Conversations')}
-              activeOpacity={0.85}
             >
-              <MessageCircle size={18} color={colors.sage[700]} />
+              <Text style={styles.iconGlyph}>💬</Text>
             </TouchableOpacity>
-
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Settings size={18} color={colors.sage[700]} />
+              <Text style={styles.iconGlyph}>⚙️</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -146,7 +167,7 @@ export default function DashboardScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('AddGlucose')}
               activeOpacity={0.85}
             >
-              <AxisMarker size={20} color="#FFFFFF" position="mid" />
+              <AxisMarker size={20} color="#FFFFFF" />
               <Text style={styles.primaryButtonText}>Log glucose</Text>
             </TouchableOpacity>
 
@@ -155,31 +176,69 @@ export default function DashboardScreen({ navigation }: Props) {
               onPress={() => navigation.navigate('AddSymptom')}
               activeOpacity={0.85}
             >
-              <SeverityContinuum size={20} color="#2B2B2B" muted="#CFC9BF" accent="#B89A5A" />
+              <SeverityContinuum size={20} color="#2B2B2B" muted="#CFC9BF" />
               <Text style={styles.secondaryButtonText}>Log symptoms</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Join Group Button */}
-<TouchableOpacity
-  style={styles.joinGroupButton}
-  onPress={() => navigation.navigate('JoinGroup')}
->
+          {/* Group Program Card - Conditional based on membership */}
+          {!groupMembership ? (
+            // Not enrolled - show join card
+            <TouchableOpacity
+              style={styles.joinGroupButton}
+              onPress={() => navigation.navigate('JoinGroup')}
+            >
+              <View style={styles.joinGroupIcon}>
+                <Text style={styles.joinGroupEmoji}>👥</Text>
+              </View>
+              <View style={styles.joinGroupContent}>
+                <Text style={styles.joinGroupTitle}>Join a Group Program</Text>
+                <Text style={styles.joinGroupSubtitle}>Enter your access code</Text>
+              </View>
+              <Text style={styles.joinGroupArrow}>→</Text>
+            </TouchableOpacity>
+          ) : (
+            // Enrolled - show program card with Session 1
+            <View style={styles.enrolledSection}>
+              <TouchableOpacity
+                style={styles.enrolledCard}
+                onPress={() => navigation.navigate('GroupDashboard', { 
+                  groupId: groupMembership.group_id 
+                })}
+                activeOpacity={0.85}
+              >
+                <View style={styles.enrolledBadge}>
+                  <Text style={styles.enrolledBadgeText}>ENROLLED</Text>
+                </View>
+                <Text style={styles.enrolledTitle}>
+                  {groupMembership.group_name || 'Group Program'}
+                </Text>
+                <Text style={styles.enrolledSubtitle}>Tap to view all sessions →</Text>
+              </TouchableOpacity>
 
-  <View style={styles.joinGroupIcon}>
-    <Users size={18} color={colors.sage[700]} />
-
-  </View>
-
-  
-  <View style={styles.joinGroupContent}>
-    <Text style={styles.joinGroupTitle}>Join a Group Program</Text>
-    <Text style={styles.joinGroupSubtitle}>Enter your access code</Text>
-  </View>
-  
-  <ChevronRight size={20} color={colors.sage[500]} />
-
-</TouchableOpacity>
+              {/* Session 1 Quick Access */}
+              <View style={styles.sessionQuickAccess}>
+                <Text style={styles.sessionQuickLabel}>CONTINUE LEARNING</Text>
+                <TouchableOpacity
+                  style={styles.sessionQuickCard}
+                  onPress={() => navigation.navigate('SessionDetail', { 
+                    groupId: groupMembership.group_id,
+                    sessionId: '1' 
+                  })}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.sessionQuickIcon}>
+                    <Text style={styles.sessionQuickIconText}>✨</Text>
+                  </View>
+                  <View style={styles.sessionQuickInfo}>
+                    <Text style={styles.sessionQuickNumber}>WEEK 1</Text>
+                    <Text style={styles.sessionQuickTitle}>Holy - Set Apart by Christ</Text>
+                  </View>
+                  <Text style={styles.sessionQuickArrow}>→</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {/* Glucose Overview Card */}
           <View style={styles.card}>
@@ -355,8 +414,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 54,
-    paddingBottom: 18,
+    paddingTop: 60,
+    paddingBottom: 24,
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212,214,212,0.25)',
@@ -386,32 +445,19 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconButton: {
-    // width: 40,
-    // height: 40,
-    // borderRadius: 12,
-    // backgroundColor: 'rgba(255,255,255,0.4)',
-    // borderWidth: 1.5,
-    // borderColor: 'rgba(42,45,42,0.15)',
-    // alignItems: 'center',
-    // justifyContent: 'center',
-    // shadowColor: '#000',
-    // shadowOffset: { width: 0, height: 2 },
-    // shadowOpacity: 0.04,
-    // shadowRadius: 8,
-    // elevation: 1,
     width: 40,
-  height: 40,
-  borderRadius: 14,
-  backgroundColor: 'rgba(255,255,255,0.92)',
-  borderWidth: 1,
-  borderColor: 'rgba(107,127,110,0.18)',
-  alignItems: 'center',
-  justifyContent: 'center',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 3 },
-  shadowOpacity: 0.06,
-  shadowRadius: 10,
-  elevation: 2,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.4)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(42,45,42,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   iconGlyph: {
     fontSize: 18,
@@ -678,35 +724,35 @@ const styles = StyleSheet.create({
 
   // Coach Card
   coachCard: {
-     backgroundColor: 'rgba(255,255,255,0.96)',
-  borderRadius: 20,
-  padding: 20,
-  marginBottom: 16,
-  borderWidth: 1,
-  borderColor: 'rgba(212,214,212,0.25)',
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: 16,
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 6 },
-  shadowOpacity: 0.06,
-  shadowRadius: 12,
-  elevation: 3,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    elevation: 3,
   },
   coachAvatar: {
     width: 56,
-  height: 56,
-  borderRadius: 28,
-  backgroundColor: 'rgba(107,127,110,0.10)',
-  borderWidth: 1,
-  borderColor: 'rgba(107,127,110,0.18)',
-  justifyContent: 'center',
-  alignItems: 'center',
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(107,127,110,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   coachAvatarText: {
     fontSize: 22,
-  fontWeight: '700',
-  color: colors.sage[700],
+    fontWeight: '700',
+    color: '#6B7F6E',
   },
   coachInfo: {
     flex: 1,
@@ -732,50 +778,156 @@ const styles = StyleSheet.create({
     color: 'rgba(42,45,42,0.65)',
   },
 
+  // Join Group Button
   joinGroupButton: {
-  backgroundColor: 'rgba(255,255,255,0.95)',
-  borderRadius: 20,
-  padding: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  joinGroupIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  joinGroupEmoji: {
+    fontSize: 24,
+  },
+  joinGroupContent: {
+    flex: 1,
+  },
+  joinGroupTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#2B2B2B',
+    marginBottom: 4,
+  },
+  joinGroupSubtitle: {
+    fontSize: 13,
+    color: 'rgba(42,45,42,0.6)',
+  },
+  joinGroupArrow: {
+    fontSize: 20,
+    color: '#6B7F6E',
+    fontWeight: '600',
+  },
 
-  marginTop: 16,
-  flexDirection: 'row',
-  alignItems: 'center',
-  borderWidth: 1,
-  borderColor: 'rgba(212,214,212,0.25)',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.06,
-  shadowRadius: 8,
-  elevation: 2,
-},
-joinGroupIcon: {
-  width: 48,
-  height: 48,
-  borderRadius: 24,
-  backgroundColor: 'rgba(107,127,110,0.1)',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginRight: 16,
-},
-joinGroupEmoji: {
-  fontSize: 24,
-},
-joinGroupContent: {
-  flex: 1,
-},
-joinGroupTitle: {
-  fontSize: 16,
-  fontWeight: '600',
-  color: '#2B2B2B',
-  marginBottom: 4,
-},
-joinGroupSubtitle: {
-  fontSize: 13,
-  color: 'rgba(42,45,42,0.6)',
-},
-joinGroupArrow: {
-  fontSize: 20,
-  color: '#6B7F6E',
-  fontWeight: '600',
-},
+  // Enrolled Section
+  enrolledSection: {
+    marginBottom: 16,
+  },
+  enrolledCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  enrolledBadge: {
+    backgroundColor: 'rgba(107,127,110,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginBottom: 12,
+  },
+  enrolledBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1,
+    color: '#6B7F6E',
+  },
+  enrolledTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#2B2B2B',
+    marginBottom: 6,
+    letterSpacing: 0.2,
+  },
+  enrolledSubtitle: {
+    fontSize: 13,
+    color: 'rgba(42,45,42,0.6)',
+  },
+
+  // Session Quick Access
+  sessionQuickAccess: {
+    marginTop: 0,
+  },
+  sessionQuickLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: 'rgba(42,45,42,0.5)',
+    marginBottom: 12,
+    paddingLeft: 4,
+  },
+  sessionQuickCard: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    padding: 18,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  sessionQuickIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  sessionQuickIconText: {
+    fontSize: 24,
+  },
+  sessionQuickInfo: {
+    flex: 1,
+  },
+  sessionQuickNumber: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: 'rgba(107,127,110,0.7)',
+    marginBottom: 4,
+  },
+  sessionQuickTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#2B2B2B',
+    letterSpacing: 0.2,
+  },
+  sessionQuickArrow: {
+    fontSize: 20,
+    color: '#6B7F6E',
+    fontWeight: '600',
+    marginLeft: 8,
+  },
 });
