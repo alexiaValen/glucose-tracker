@@ -9,7 +9,15 @@ interface AuthState {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName?: string, lastName?: string) => Promise<void>;
+  register: (
+    email: string, 
+    password: string, 
+    firstName?: string, 
+    lastName?: string,
+    phone?: string,
+    dateOfBirth?: Date | null,
+    role?: 'user' | 'coach'
+  ) => Promise<void>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
 }
@@ -31,10 +39,26 @@ export const useAuthStore = create<AuthState>((set) => ({
     }
   },
 
-  register: async (email: string, password: string, firstName?: string, lastName?: string) => {
+  register: async (
+    email: string, 
+    password: string, 
+    firstName?: string, 
+    lastName?: string,
+    phone?: string,
+    dateOfBirth?: Date | null,
+    role: 'user' | 'coach' = 'user'
+  ) => {
     set({ isLoading: true });
     try {
-      const response = await authService.register({ email, password, firstName, lastName });
+      const response = await authService.register({ 
+        email, 
+        password, 
+        firstName, 
+        lastName,
+        phone,
+        dateOfBirth: dateOfBirth?.toISOString(),
+        role
+      });
       // authService.register already calls setAuthToken via saveTokens()
       set({ user: response.user, isAuthenticated: true, isLoading: false });
     } catch (error) {

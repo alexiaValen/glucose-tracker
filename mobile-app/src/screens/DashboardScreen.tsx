@@ -18,7 +18,7 @@ import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/icons';
-
+import { MessageCircle, Settings, Users, ChevronRight } from 'lucide-react-native';
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
@@ -117,14 +117,16 @@ export default function DashboardScreen({ navigation }: Props) {
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('Conversations')}
+              activeOpacity={0.85}
             >
-              <Text style={styles.iconGlyph}>💬</Text>
+              <MessageCircle size={18} color={colors.sage[700]} />
             </TouchableOpacity>
+
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Text style={styles.iconGlyph}>⚙️</Text>
+              <Settings size={18} color={colors.sage[700]} />
             </TouchableOpacity>
           </View>
         </View>
@@ -163,14 +165,20 @@ export default function DashboardScreen({ navigation }: Props) {
   style={styles.joinGroupButton}
   onPress={() => navigation.navigate('JoinGroup')}
 >
+
   <View style={styles.joinGroupIcon}>
-    <Text style={styles.joinGroupEmoji}>👥</Text>
+    <Users size={18} color={colors.sage[700]} />
+
   </View>
+
+  
   <View style={styles.joinGroupContent}>
     <Text style={styles.joinGroupTitle}>Join a Group Program</Text>
     <Text style={styles.joinGroupSubtitle}>Enter your access code</Text>
   </View>
-  <Text style={styles.joinGroupArrow}>→</Text>
+  
+  <ChevronRight size={20} color={colors.sage[500]} />
+
 </TouchableOpacity>
 
           {/* Glucose Overview Card */}
@@ -347,8 +355,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 24,
+    paddingTop: 54,
+    paddingBottom: 18,
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212,214,212,0.25)',
@@ -378,19 +386,32 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   iconButton: {
+    // width: 40,
+    // height: 40,
+    // borderRadius: 12,
+    // backgroundColor: 'rgba(255,255,255,0.4)',
+    // borderWidth: 1.5,
+    // borderColor: 'rgba(42,45,42,0.15)',
+    // alignItems: 'center',
+    // justifyContent: 'center',
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 2 },
+    // shadowOpacity: 0.04,
+    // shadowRadius: 8,
+    // elevation: 1,
     width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(42,45,42,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 1,
+  height: 40,
+  borderRadius: 14,
+  backgroundColor: 'rgba(255,255,255,0.92)',
+  borderWidth: 1,
+  borderColor: 'rgba(107,127,110,0.18)',
+  alignItems: 'center',
+  justifyContent: 'center',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 3 },
+  shadowOpacity: 0.06,
+  shadowRadius: 10,
+  elevation: 2,
   },
   iconGlyph: {
     fontSize: 18,
@@ -657,35 +678,35 @@ const styles = StyleSheet.create({
 
   // Coach Card
   coachCard: {
-    backgroundColor: 'rgba(184,164,95,0.06)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(184,164,95,0.15)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+     backgroundColor: 'rgba(255,255,255,0.96)',
+  borderRadius: 20,
+  padding: 20,
+  marginBottom: 16,
+  borderWidth: 1,
+  borderColor: 'rgba(212,214,212,0.25)',
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 16,
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 6 },
+  shadowOpacity: 0.06,
+  shadowRadius: 12,
+  elevation: 3,
   },
   coachAvatar: {
     width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(184,164,95,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(184,164,95,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  height: 56,
+  borderRadius: 28,
+  backgroundColor: 'rgba(107,127,110,0.10)',
+  borderWidth: 1,
+  borderColor: 'rgba(107,127,110,0.18)',
+  justifyContent: 'center',
+  alignItems: 'center',
   },
   coachAvatarText: {
     fontSize: 22,
-    fontWeight: '700',
-    color: '#B89A5A',
+  fontWeight: '700',
+  color: colors.sage[700],
   },
   coachInfo: {
     flex: 1,
@@ -715,6 +736,7 @@ const styles = StyleSheet.create({
   backgroundColor: 'rgba(255,255,255,0.95)',
   borderRadius: 20,
   padding: 20,
+
   marginTop: 16,
   flexDirection: 'row',
   alignItems: 'center',

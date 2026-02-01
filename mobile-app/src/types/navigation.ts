@@ -36,7 +36,7 @@ export type RootStackParamList = {
   JoinGroup: undefined;
   GroupDashboard: { groupId: string };
   GroupSessions: { groupId: string };
-  SessionDetail: { groupId: string; sessionId: string };
+  SessionDetail: { groupId?: string; sessionId: string }; // groupId optional for standalone sessions
   GroupChat: { groupId: string };
   GroupMembers: { groupId: string };
 };

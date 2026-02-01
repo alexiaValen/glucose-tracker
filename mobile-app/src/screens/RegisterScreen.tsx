@@ -441,7 +441,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
   const handleRegister = async () => {
     try {
-      await register(email, password, firstName, lastName);
+      await register(email, password, firstName, lastName, phone, dateOfBirth, role);
       // Navigation handled by authStore
     } catch (error: any) {
       Alert.alert(

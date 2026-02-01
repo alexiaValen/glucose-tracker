@@ -1,3 +1,4 @@
+// mobile-app/src/services/auth.service.ts
 import { api, setAuthToken } from '../config/api';
 import { AuthResponse, LoginRequest, RegisterRequest } from '../types/auth';
 import * as SecureStore from 'expo-secure-store';

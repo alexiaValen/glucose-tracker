@@ -1,9 +1,14 @@
+// mobile-app/src/types/auth.ts
+
 export interface User {
   id: string;
   email: string;
-  role: 'user' | 'coach' | 'admin';
   firstName?: string;
   lastName?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  role: 'user' | 'coach';
+  createdAt: string;
 }
 
 export interface AuthResponse {
@@ -22,4 +27,7 @@ export interface RegisterRequest {
   password: string;
   firstName?: string;
   lastName?: string;
+  phone?: string;
+  dateOfBirth?: string; // ISO string
+  role?: 'user' | 'coach';
 }
