@@ -81,6 +81,8 @@ router.post(
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 8 }),
     body('role').optional().isIn(['user', 'coach']),
+    body('phone').optional(), // ADD validation
+    body('dateOfBirth').optional().isISO8601(),
   ],
   async (req: Request, res: Response) => {
     try {
@@ -89,8 +91,23 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { email, password, role, firstName, lastName } = req.body;
-      const result = await authService.register(email, password, role, firstName, lastName);
+      const { 
+        email, 
+        password, 
+        role = 'user', 
+        firstName, 
+        lastName,
+        phone,
+        dateOfBirth
+       } = req.body;
+      const result = await authService.register(
+        email,
+        password,
+        role,
+        firstName,
+        lastName,
+        phone,
+        dateOfBirth);
 
       res.status(201).json(result);
     } catch (error: any) {

@@ -139,7 +139,9 @@ export class AuthService {
     password: string,
     role: 'user' | 'coach' = 'user',
     firstName?: string,
-    lastName?: string
+    lastName?: string,
+    phone?: string,
+    dateOfBirth?: string,
   ) {
     const existing = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
     if (existing.rows.length > 0) {
