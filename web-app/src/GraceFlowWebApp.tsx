@@ -16,10 +16,13 @@ interface User {
 
 interface GlucoseReading {
   id?: number;
-  glucose_value: number;
-  timestamp: string;
+  value: number;
+  measured_at: string;
+  unit?: string;
+  source?: string;
+  source_device?: string;
   notes?: string;
-  created_at: string;
+  created_at?: string;
 }
 
 interface Symptom {
@@ -87,11 +90,21 @@ class ApiService {
     return response.json();
   }
 
-  async createGlucoseReading(reading: Omit<GlucoseReading, 'id' | 'created_at'>): Promise<GlucoseReading> {
+  async createGlucoseReading(reading: {
+    value: number;
+    measured_at: string;
+    notes?: string;
+  }): Promise<GlucoseReading> {
     const response = await fetch(`${API_URL}/glucose`, {
       method: 'POST',
       headers: this.getHeaders(),
-      body: JSON.stringify(reading),
+      body: JSON.stringify({
+        value: reading.value,
+        measured_at: reading.measured_at,
+        unit: 'mg/dL',
+        source: 'manual',
+        notes: reading.notes,
+      }),
     });
     if (!response.ok) throw new Error('Failed to create reading');
     return response.json();
@@ -206,7 +219,11 @@ function AppProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addGlucoseReading = async (reading: Omit<GlucoseReading, 'id' | 'created_at'>) => {
+  const addGlucoseReading = async (reading: {
+    value: number;
+    measured_at: string;
+    notes?: string;
+  }) => {
     const newReading = await api.createGlucoseReading(reading);
     setReadings(prev => [newReading, ...prev]);
   };
@@ -850,8 +867,8 @@ function GlucoseView() {
     setLoading(true);
     try {
       await addGlucoseReading({
-        glucose_value: parseFloat(glucoseValue),
-        timestamp: new Date().toISOString(),
+        value: parseFloat(glucoseValue),
+        measured_at: new Date().toISOString(),
         notes: notes || undefined,
       });
       setGlucoseValue('');
@@ -920,10 +937,10 @@ function GlucoseView() {
               <li key={reading.id || idx} style={styles.listItem}>
                 <div>
                   <div style={{ fontSize: '18px', fontWeight: '700', color: '#2A2D2A' }}>
-                    {reading.glucose_value} mg/dL
+                    {reading.value} {reading.unit || 'mg/dL'}
                   </div>
                   <div style={{ fontSize: '13px', color: '#6B6B6B', marginTop: '4px' }}>
-                    {new Date(reading.created_at).toLocaleString()}
+                    {new Date(reading.measured_at || reading.created_at || '').toLocaleString()}
                   </div>
                   {reading.notes && (
                     <div style={{ fontSize: '14px', color: '#4A4D4A', marginTop: '8px' }}>
