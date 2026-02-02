@@ -40,7 +40,10 @@ interface Cycle {
 }
 
 // ==================== API SERVICE ====================
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
+const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000/api/v1';
+
 
 class ApiService {
   private getHeaders(): HeadersInit {
@@ -735,11 +738,11 @@ function Dashboard() {
   const [view, setView] = useState<'dashboard' | 'glucose' | 'symptoms' | 'cycle'>('dashboard');
 
   const avgGlucose = readings.length > 0
-    ? Math.round(readings.reduce((sum, r) => sum + r.glucose_value, 0) / readings.length)
+    ? Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
     : 0;
 
   const todayReadings = readings.filter(r => {
-    const date = new Date(r.created_at);
+    const date = new Date(r.measured_at);
     const today = new Date();
     return date.toDateString() === today.toDateString();
   });
