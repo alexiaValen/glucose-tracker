@@ -737,8 +737,10 @@ function Dashboard() {
   const { user, readings, symptoms, currentCycle, logout } = useApp();
   const [view, setView] = useState<'dashboard' | 'glucose' | 'symptoms' | 'cycle'>('dashboard');
 
-  const avgGlucose = Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
-
+ const avgGlucose = readings.length > 0
+  ? Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
+  : 0;
+  
   const todayReadings = readings.filter(r => {
     const date = new Date(r.measured_at);
     const today = new Date();
