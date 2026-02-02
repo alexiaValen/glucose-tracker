@@ -9,6 +9,17 @@ mobile-app/node_modules/
 mobile-app/.expo/
 mobile-app/.env
 
+web-app/node_modules/
+web-app/.env
+web-app/build/  
+web-app/dist/
+web-app/.vite/
+
+mobile-app/.expo-shared/
+backend/.expo-shared/   
+backend/dist/
+
+
 # Coach Dashboard
 coach-dashboard/node_modules/
 coach-dashboard/dist/
@@ -16,4 +27,55 @@ coach-dashboard/dist/
 # General
 .DS_Store
 *.log
+
+# Environment variables (IMPORTANT!)
+.env
+.env.local
+.env.*.local
+*/.env
+*/.env.local
+
+# Dependencies
+node_modules/
+*/node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+*/dist/
+build/
+*/build/
+.expo/
+.expo-shared/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+*.pem
+.vercel
 
