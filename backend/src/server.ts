@@ -72,29 +72,29 @@
 
 // // // Start server
 // // // const server = app.listen(PORT, () => {
-// // //   console.log(`🚀 Server running on http://localhost:${PORT}`);
-// // //   console.log(`📊 Health check: http://localhost:${PORT}/health`);
+// // //   console.log(`ðŸš€ Server running on http://localhost:${PORT}`);
+// // //   console.log(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
 // // // });
 
 // // //bind express to network with 0.0.0.0 LAN on all interfaces
 // // const server = app.listen(Number(PORT), '0.0.0.0', () => {
-// //   console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
-// //   console.log(`📊 Health check: http://localhost:${PORT}/health`);
+// //   console.log(`ðŸš€ Server running on http://0.0.0.0:${PORT}`);
+// //   console.log(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
 // // });
 
 // // // Error handlers
 // // server.on('error', (err) => {
-// //   console.error('❌ Server error:', err);
+// //   console.error('âŒ Server error:', err);
 // //   process.exit(1);
 // // });
 
 // // process.on('uncaughtException', (err) => {
-// //   console.error('❌ Uncaught exception:', err);
+// //   console.error('âŒ Uncaught exception:', err);
 // //   process.exit(1);
 // // });
 
 // // process.on('unhandledRejection', (err) => {
-// //   console.error('❌ Unhandled rejection:', err);
+// //   console.error('âŒ Unhandled rejection:', err);
 // //   process.exit(1);
 // // });
 
@@ -164,7 +164,7 @@
 //     if (isAllowed) {
 //       callback(null, true);
 //     } else {
-//       console.warn(`⚠️  CORS blocked for origin: ${origin}`);
+//       console.warn(`âš ï¸  CORS blocked for origin: ${origin}`);
 //       callback(new Error(`CORS policy: Origin ${origin} is not allowed`));
 //     }
 //   },
@@ -223,7 +223,7 @@
 
 // // Global error handler
 // app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-//   console.error('❌ Error:', err);
+//   console.error('âŒ Error:', err);
   
 //   // CORS errors
 //   if (err.message.includes('CORS')) {
@@ -245,23 +245,23 @@
 // // Bind to all network interfaces (0.0.0.0) for LAN access
 // const server = app.listen(Number(PORT), '0.0.0.0', () => {
 //   console.log('');
-//   console.log('🌿 ====================================');
+//   console.log('ðŸŒ¿ ====================================');
 //   console.log('   GraceFlow Backend Server Started');
-//   console.log('🌿 ====================================');
+//   console.log('ðŸŒ¿ ====================================');
 //   console.log('');
-//   console.log(`🚀 Server:       http://0.0.0.0:${PORT}`);
-//   console.log(`🏠 Localhost:    http://localhost:${PORT}`);
-//   console.log(`📊 Health Check: http://localhost:${PORT}/health`);
-//   console.log(`🌐 API Base:     http://localhost:${PORT}/api/v1`);
+//   console.log(`ðŸš€ Server:       http://0.0.0.0:${PORT}`);
+//   console.log(`ðŸ  Localhost:    http://localhost:${PORT}`);
+//   console.log(`ðŸ“Š Health Check: http://localhost:${PORT}/health`);
+//   console.log(`ðŸŒ API Base:     http://localhost:${PORT}/api/v1`);
 //   console.log('');
-//   console.log('📱 Allowed Origins:');
+//   console.log('ðŸ“± Allowed Origins:');
 //   allowedOrigins.forEach(origin => {
-//     console.log(`   ✓ ${origin}`);
+//     console.log(`   âœ“ ${origin}`);
 //   });
 //   console.log('');
-//   console.log('🔧 Environment:  ' + (process.env.NODE_ENV || 'development'));
+//   console.log('ðŸ”§ Environment:  ' + (process.env.NODE_ENV || 'development'));
 //   console.log('');
-//   console.log('Ready to accept requests! 🎉');
+//   console.log('Ready to accept requests! ðŸŽ‰');
 //   console.log('');
 // });
 
@@ -269,22 +269,22 @@
 
 // server.on('error', (err: any) => {
 //   if (err.code === 'EADDRINUSE') {
-//     console.error(`❌ Port ${PORT} is already in use!`);
+//     console.error(`âŒ Port ${PORT} is already in use!`);
 //     console.error(`   Try: lsof -ti:${PORT} | xargs kill -9`);
 //   } else {
-//     console.error('❌ Server error:', err);
+//     console.error('âŒ Server error:', err);
 //   }
 //   process.exit(1);
 // });
 
 // process.on('uncaughtException', (err) => {
-//   console.error('❌ Uncaught exception:', err);
+//   console.error('âŒ Uncaught exception:', err);
 //   console.error('Stack:', err.stack);
 //   process.exit(1);
 // });
 
 // process.on('unhandledRejection', (reason, promise) => {
-//   console.error('❌ Unhandled rejection at:', promise);
+//   console.error('âŒ Unhandled rejection at:', promise);
 //   console.error('Reason:', reason);
 //   process.exit(1);
 // });
@@ -292,18 +292,18 @@
 // // Graceful shutdown
 // process.on('SIGTERM', () => {
 //   console.log('');
-//   console.log('📴 SIGTERM received. Shutting down gracefully...');
+//   console.log('ðŸ“´ SIGTERM received. Shutting down gracefully...');
 //   server.close(() => {
-//     console.log('✅ Server closed');
+//     console.log('âœ… Server closed');
 //     process.exit(0);
 //   });
 // });
 
 // process.on('SIGINT', () => {
 //   console.log('');
-//   console.log('📴 SIGINT received. Shutting down gracefully...');
+//   console.log('ðŸ“´ SIGINT received. Shutting down gracefully...');
 //   server.close(() => {
-//     console.log('✅ Server closed');
+//     console.log('âœ… Server closed');
 //     process.exit(0);
 //   });
 // });
@@ -349,7 +349,7 @@ const corsOptions: cors.CorsOptions = {
     if (origin.endsWith(".vercel.app")) return cb(null, true);
 
     // Otherwise block
-    console.warn(`⚠️ CORS blocked for origin: ${origin}`);
+    console.warn(`âš ï¸ CORS blocked for origin: ${origin}`);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
@@ -401,7 +401,7 @@ app.use((_req, res) => {
 });
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("❌ Error:", err?.message || err);
+  console.error("âŒ Error:", err?.message || err);
 
   // CORS errors
   if (String(err?.message || "").toLowerCase().includes("cors")) {
@@ -415,25 +415,25 @@ app.use((err: any, _req: express.Request, res: express.Response, _next: express.
 
 // ==================== START SERVER ====================
 const server = app.listen(Number(PORT), "0.0.0.0", () => {
-  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/health`);
-  console.log(`🌐 Allowed origins from env: ${allowedList.length ? allowedList.join(", ") : "(none)"}`);
-  console.log(`✅ Also allowing: *.vercel.app`);
+  console.log(`ðŸš€ Server running on http://0.0.0.0:${PORT}`);
+  console.log(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
+  console.log(`ðŸŒ Allowed origins from env: ${allowedList.length ? allowedList.join(", ") : "(none)"}`);
+  console.log(`âœ… Also allowing: *.vercel.app`);
 });
 
 // Process error handlers
 server.on("error", (err) => {
-  console.error("❌ Server error:", err);
+  console.error("âŒ Server error:", err);
   process.exit(1);
 });
 
 process.on("uncaughtException", (err) => {
-  console.error("❌ Uncaught exception:", err);
+  console.error("âŒ Uncaught exception:", err);
   process.exit(1);
 });
 
 process.on("unhandledRejection", (err) => {
-  console.error("❌ Unhandled rejection:", err);
+  console.error("âŒ Unhandled rejection:", err);
   process.exit(1);
 });
 

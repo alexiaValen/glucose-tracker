@@ -87,6 +87,38 @@ interface Group {
     time: string;
     timezone: string;
   };
+  access_code?: string;
+  max_members?: number;
+  pricing?: {
+    founding: number;
+    paymentPlan: number;
+  };
+  status?: string;
+  coach_id?: string;
+}
+
+interface GroupMessage {
+  id?: number;
+  group_id: string;
+  sender_id: number;
+  message: string;
+  message_type?: string;
+  created_at: string;
+  sender?: {
+    id: number;
+    first_name: string;
+    last_name: string;
+    role: string;
+  };
+}
+
+interface GroupMember {
+  id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  role: string;
+  joined_at?: string;
 }
 
 interface Client {
@@ -318,6 +350,70 @@ class ApiService {
   async getMyGroups(): Promise<Group[]> {
     try {
       const res = await fetch(`${API_URL}/groups/my-groups`, { headers: this.getHeaders() });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.groups || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async getGroupMessages(groupId: string): Promise<GroupMessage[]> {
+    try {
+      const res = await fetch(`${API_URL}/groups/${groupId}/messages`, { headers: this.getHeaders() });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.messages || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  async sendGroupMessage(groupId: string, message: string): Promise<GroupMessage> {
+    const res = await fetch(`${API_URL}/groups/${groupId}/messages`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ message }),
+    });
+    if (!res.ok) throw new Error("Failed to send group message");
+    const data = await res.json();
+    return data.message;
+  }
+
+  async getGroupMembers(groupId: string): Promise<GroupMember[]> {
+    try {
+      const res = await fetch(`${API_URL}/groups/${groupId}/members`, { headers: this.getHeaders() });
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.members?.map((m: any) => m.user) || [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  // Coach: Create group
+  async createGroup(groupData: {
+    name: string;
+    description: string;
+    startDate: string;
+    durationWeeks: number;
+    maxMembers: number;
+    pricing: { founding: number; paymentPlan: number };
+    meetingSchedule: { day: string; time: string; timezone: string };
+  }): Promise<{ group: Group; accessCode: string }> {
+    const res = await fetch(`${API_URL}/groups`, {
+      method: "POST",
+      headers: this.getHeaders(),
+      body: JSON.stringify(groupData),
+    });
+    if (!res.ok) throw new Error("Failed to create group");
+    return res.json();
+  }
+
+  // Coach: Get coach's groups
+  async getCoachGroups(): Promise<Group[]> {
+    try {
+      const res = await fetch(`${API_URL}/groups/coach/my-groups`, { headers: this.getHeaders() });
       if (!res.ok) return [];
       const data = await res.json();
       return data.groups || [];
@@ -1618,19 +1714,39 @@ function MessagesTab() {
 
 // ==================== GROUPS TAB ====================
 function GroupsTab() {
-  const { myGroups, joinGroup } = useApp();
+  const { myGroups, joinGroup, user } = useApp();
   const [availableGroups, setAvailableGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
+  const [newMessage, setNewMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [view, setView] = useState<"list" | "chat">("list");
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadAvailableGroups();
   }, []);
+
+  useEffect(() => {
+    if (selectedGroup) {
+      loadGroupMessages(selectedGroup.id);
+    }
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [groupMessages]);
 
   const loadAvailableGroups = async () => {
     setLoading(true);
     const groups = await api.getAvailableGroups();
     setAvailableGroups(groups);
     setLoading(false);
+  };
+
+  const loadGroupMessages = async (groupId: string) => {
+    const messages = await api.getGroupMessages(groupId);
+    setGroupMessages(messages.reverse()); // Reverse to show oldest first
   };
 
   const handleJoin = async (groupId: string) => {
@@ -1642,6 +1758,125 @@ function GroupsTab() {
     }
   };
 
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedGroup) return;
+
+    try {
+      await api.sendGroupMessage(selectedGroup.id, newMessage);
+      setNewMessage("");
+      await loadGroupMessages(selectedGroup.id);
+    } catch (error) {
+      alert("Failed to send message");
+    }
+  };
+
+  const handleGroupSelect = (group: Group) => {
+    setSelectedGroup(group);
+    setView("chat");
+  };
+
+  if (view === "chat" && selectedGroup) {
+    return (
+      <>
+        <div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "24px" }}>
+          <button
+            style={{ ...styles.navButton, padding: "8px 16px" }}
+            onClick={() => {
+              setView("list");
+              setSelectedGroup(null);
+            }}
+          >
+            ← Back
+          </button>
+          <h2 style={{ fontSize: "28px", fontWeight: "700", color: colors.darkText }}>
+            {selectedGroup.name}
+          </h2>
+        </div>
+
+        <div style={styles.card}>
+          <div style={{ marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+            <p style={{ fontSize: "14px", color: colors.lightText }}>
+              {selectedGroup.description}
+            </p>
+            <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "8px" }}>
+              📅 Starts: {new Date(selectedGroup.start_date).toLocaleDateString()} • 
+              ⏱️ {selectedGroup.duration_weeks} weeks • 
+              🗓️ {selectedGroup.meeting_schedule.day}s at {selectedGroup.meeting_schedule.time}
+            </div>
+          </div>
+
+          <div style={{ height: "500px", overflowY: "auto", marginBottom: "16px", padding: "16px", background: "rgba(0,0,0,0.02)", borderRadius: "12px" }}>
+            {groupMessages.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "48px", color: colors.lightText }}>
+                <div style={{ fontSize: "48px", marginBottom: "16px" }}>💬</div>
+                <p>No messages yet. Start the conversation!</p>
+              </div>
+            ) : (
+              groupMessages.map((msg) => {
+                const isMe = msg.sender_id === user?.id;
+                return (
+                  <div
+                    key={msg.id}
+                    style={{
+                      marginBottom: "16px",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: isMe ? "flex-end" : "flex-start",
+                    }}
+                  >
+                    {!isMe && msg.sender && (
+                      <div style={{ fontSize: "12px", fontWeight: "600", color: colors.lightText, marginBottom: "4px" }}>
+                        {msg.sender.first_name} {msg.sender.last_name}
+                        {msg.sender.role === "coach" && (
+                          <span style={{ marginLeft: "6px", fontSize: "11px", color: colors.sage }}>• Coach</span>
+                        )}
+                      </div>
+                    )}
+                    <div
+                      style={{
+                        maxWidth: "70%",
+                        padding: "12px 16px",
+                        borderRadius: "16px",
+                        background: isMe ? colors.sage : colors.white,
+                        color: isMe ? colors.white : colors.darkText,
+                        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                      }}
+                    >
+                      <div>{msg.message}</div>
+                      <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
+                        {new Date(msg.created_at).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          <form onSubmit={handleSendMessage} style={{ display: "flex", gap: "8px" }}>
+            <input
+              type="text"
+              style={{ ...styles.input, flex: 1 }}
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Type a message to the group..."
+            />
+            <button
+              type="submit"
+              style={{ ...styles.button, width: "auto", padding: "0 24px" }}
+              disabled={!newMessage.trim()}
+            >
+              Send
+            </button>
+          </form>
+        </div>
+      </>
+    );
+  }
+
+  // List view
   return (
     <>
       <h2 style={{ fontSize: "28px", fontWeight: "700", color: colors.darkText, marginBottom: "24px" }}>
@@ -1659,16 +1894,22 @@ function GroupsTab() {
                 <h4 style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText, marginBottom: "8px" }}>
                   {group.name}
                 </h4>
-                <p style={{ fontSize: "14px", color: colors.lightText, marginBottom: "12px" }}>
+                <p style={{ fontSize: "14px", color: colors.lightText, marginBottom: "12px", lineHeight: "1.5" }}>
                   {group.description}
                 </p>
-                <div style={{ fontSize: "13px", color: colors.lightText }}>
+                <div style={{ fontSize: "13px", color: colors.lightText, marginBottom: "16px" }}>
                   <div>📅 Starts: {new Date(group.start_date).toLocaleDateString()}</div>
                   <div>⏱️ Duration: {group.duration_weeks} weeks</div>
                   <div>
                     🗓️ Meets: {group.meeting_schedule.day}s at {group.meeting_schedule.time}
                   </div>
                 </div>
+                <button
+                  style={styles.button}
+                  onClick={() => handleGroupSelect(group)}
+                >
+                  💬 Open Group Chat
+                </button>
               </div>
             ))}
           </div>
@@ -1698,7 +1939,7 @@ function GroupsTab() {
                 <h4 style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText, marginBottom: "8px" }}>
                   {group.name}
                 </h4>
-                <p style={{ fontSize: "14px", color: colors.lightText, marginBottom: "12px" }}>
+                <p style={{ fontSize: "14px", color: colors.lightText, marginBottom: "12px", lineHeight: "1.5" }}>
                   {group.description}
                 </p>
                 <div style={{ fontSize: "13px", color: colors.lightText, marginBottom: "16px" }}>
@@ -1841,14 +2082,39 @@ function SettingsTab() {
 // ==================== COACH DASHBOARD ====================
 function CoachDashboard() {
   const { user, logout } = useApp();
+  const [activeTab, setActiveTab] = useState<"clients" | "groups">("clients");
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientGlucose, setClientGlucose] = useState<GlucoseReading[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // Group management
+  const [coachGroups, setCoachGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [groupMessages, setGroupMessages] = useState<GroupMessage[]>([]);
+  const [groupMembers, setGroupMembers] = useState<GroupMember[]>([]);
+  const [newGroupMessage, setNewGroupMessage] = useState("");
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    loadClients();
-  }, []);
+    if (activeTab === "clients") {
+      loadClients();
+    } else {
+      loadCoachGroups();
+    }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (selectedGroup) {
+      loadGroupMessages(selectedGroup.id);
+      loadGroupMembers(selectedGroup.id);
+    }
+  }, [selectedGroup]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [groupMessages]);
 
   const loadClients = async () => {
     setLoading(true);
@@ -1857,11 +2123,46 @@ function CoachDashboard() {
     setLoading(false);
   };
 
+  const loadCoachGroups = async () => {
+    setLoading(true);
+    const groups = await api.getCoachGroups();
+    setCoachGroups(groups);
+    setLoading(false);
+  };
+
+  const loadGroupMessages = async (groupId: string) => {
+    const messages = await api.getGroupMessages(groupId);
+    setGroupMessages(messages.reverse());
+  };
+
+  const loadGroupMembers = async (groupId: string) => {
+    const members = await api.getGroupMembers(groupId);
+    setGroupMembers(members);
+  };
+
   const handleClientSelect = async (client: Client) => {
     setSelectedClient(client);
     const glucose = await api.getClientGlucose(client.id);
     setClientGlucose(glucose);
   };
+
+  const handleSendGroupMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupMessage.trim() || !selectedGroup) return;
+
+    try {
+      await api.sendGroupMessage(selectedGroup.id, newGroupMessage);
+      setNewGroupMessage("");
+      await loadGroupMessages(selectedGroup.id);
+    } catch (error) {
+      alert("Failed to send message");
+    }
+  };
+
+  const tabs = [
+    { id: "clients", label: "Clients" },
+    { id: "groups", label: "Groups" },
+  ];
 
   return (
     <div style={styles.container}>
@@ -1869,9 +2170,18 @@ function CoachDashboard() {
         <div style={{ fontSize: "20px", fontWeight: "700", color: colors.sage, marginRight: "24px" }}>
           GraceFlow Coach
         </div>
-        <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
-          Dashboard
-        </button>
+        {tabs.map((tab) => (
+          <button
+            key={tab.id}
+            style={{
+              ...styles.navButton,
+              ...(activeTab === tab.id ? styles.navButtonActive : {}),
+            }}
+            onClick={() => setActiveTab(tab.id as any)}
+          >
+            {tab.label}
+          </button>
+        ))}
         <div style={{ marginLeft: "auto" }}>
           <span style={{ marginRight: "16px", color: colors.lightText }}>
             {user?.first_name} {user?.last_name}
@@ -1889,98 +2199,471 @@ function CoachDashboard() {
         <div style={styles.header}>
           <h1 style={styles.greeting}>Welcome, Coach {user?.first_name}!</h1>
           <p style={{ color: colors.lightText, fontSize: "15px" }}>
-            Your client management dashboard
+            {activeTab === "clients" ? "Manage your clients" : "Manage your coaching groups"}
           </p>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "24px" }}>
-          {/* Clients List */}
-          <div style={styles.card}>
-            <h3 style={styles.cardTitle}>My Clients ({clients.length})</h3>
-            {loading ? (
-              <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-                Loading clients...
-              </div>
-            ) : clients.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-                No clients assigned yet
-              </div>
-            ) : (
-              <ul style={styles.list}>
-                {clients.map((client) => (
-                  <li
-                    key={client.id}
-                    style={{
-                      ...styles.listItem,
-                      cursor: "pointer",
-                      background: selectedClient?.id === client.id ? "rgba(107,127,110,0.08)" : "transparent",
-                    }}
-                    onClick={() => handleClientSelect(client)}
-                  >
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: "16px", fontWeight: "600", color: colors.darkText }}>
-                        {client.first_name} {client.last_name}
-                      </div>
-                      <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
-                        {client.email}
-                      </div>
-                      {client.latest_glucose && (
-                        <div style={{ fontSize: "13px", color: colors.sage, marginTop: "4px", fontWeight: "600" }}>
-                          Latest: {client.latest_glucose} mg/dL
+        {activeTab === "clients" ? (
+          <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "24px" }}>
+            {/* Clients List */}
+            <div style={styles.card}>
+              <h3 style={styles.cardTitle}>My Clients ({clients.length})</h3>
+              {loading ? (
+                <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+                  Loading clients...
+                </div>
+              ) : clients.length === 0 ? (
+                <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+                  No clients assigned yet
+                </div>
+              ) : (
+                <ul style={styles.list}>
+                  {clients.map((client) => (
+                    <li
+                      key={client.id}
+                      style={{
+                        ...styles.listItem,
+                        cursor: "pointer",
+                        background: selectedClient?.id === client.id ? "rgba(107,127,110,0.08)" : "transparent",
+                      }}
+                      onClick={() => handleClientSelect(client)}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: "16px", fontWeight: "600", color: colors.darkText }}>
+                          {client.first_name} {client.last_name}
                         </div>
-                      )}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+                        <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
+                          {client.email}
+                        </div>
+                        {client.latest_glucose && (
+                          <div style={{ fontSize: "13px", color: colors.sage, marginTop: "4px", fontWeight: "600" }}>
+                            Latest: {client.latest_glucose} mg/dL
+                          </div>
+                        )}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
 
-          {/* Client Detail */}
-          <div style={styles.card}>
-            {!selectedClient ? (
-              <div style={{ textAlign: "center", padding: "48px", color: colors.lightText }}>
-                Select a client to view their details
+            {/* Client Detail */}
+            <div style={styles.card}>
+              {!selectedClient ? (
+                <div style={{ textAlign: "center", padding: "48px", color: colors.lightText }}>
+                  Select a client to view their details
+                </div>
+              ) : (
+                <>
+                  <h3 style={styles.cardTitle}>
+                    {selectedClient.first_name} {selectedClient.last_name}
+                  </h3>
+                  <div style={{ marginBottom: "24px" }}>
+                    <div style={{ fontSize: "14px", color: colors.lightText }}>
+                      {selectedClient.email}
+                    </div>
+                  </div>
+
+                  <h4 style={{ fontSize: "16px", fontWeight: "700", color: colors.darkText, marginBottom: "12px" }}>
+                    Recent Glucose Readings
+                  </h4>
+                  {clientGlucose.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+                      No glucose readings yet
+                    </div>
+                  ) : (
+                    <ul style={styles.list}>
+                      {clientGlucose.slice(0, 10).map((reading, idx) => (
+                        <li key={reading.id || idx} style={styles.listItem}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
+                              {reading.value || reading.glucose_level} mg/dL
+                            </div>
+                            <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
+                              {new Date(reading.measured_at || reading.timestamp || "").toLocaleString()}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        ) : (
+          // Groups Tab
+          <>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+              <div>
+                {selectedGroup ? (
+                  <button
+                    style={{ ...styles.navButton, padding: "8px 16px" }}
+                    onClick={() => setSelectedGroup(null)}
+                  >
+                    ← Back to Groups
+                  </button>
+                ) : (
+                  <div />
+                )}
               </div>
-            ) : (
-              <>
-                <h3 style={styles.cardTitle}>
-                  {selectedClient.first_name} {selectedClient.last_name}
-                </h3>
-                <div style={{ marginBottom: "24px" }}>
-                  <div style={{ fontSize: "14px", color: colors.lightText }}>
-                    {selectedClient.email}
+              {!selectedGroup && (
+                <button
+                  style={{ ...styles.button, width: "auto", padding: "0 24px", height: "48px" }}
+                  onClick={() => setShowCreateGroup(true)}
+                >
+                  + Create Group
+                </button>
+              )}
+            </div>
+
+            {showCreateGroup && <CreateGroupForm onClose={() => setShowCreateGroup(false)} onCreated={loadCoachGroups} />}
+
+            {selectedGroup ? (
+              // Group Chat View
+              <div style={styles.card}>
+                <div style={{ marginBottom: "16px", paddingBottom: "16px", borderBottom: "1px solid rgba(0,0,0,0.08)" }}>
+                  <h3 style={{ fontSize: "20px", fontWeight: "700", color: colors.darkText }}>
+                    {selectedGroup.name}
+                  </h3>
+                  <p style={{ fontSize: "14px", color: colors.lightText, marginTop: "4px" }}>
+                    {selectedGroup.description}
+                  </p>
+                  <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "8px" }}>
+                    👥 {groupMembers.length} members • 
+                    {selectedGroup.access_code && ` 🔑 Code: ${selectedGroup.access_code}`}
                   </div>
                 </div>
 
-                <h4 style={{ fontSize: "16px", fontWeight: "700", color: colors.darkText, marginBottom: "12px" }}>
-                  Recent Glucose Readings
-                </h4>
-                {clientGlucose.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-                    No glucose readings yet
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 250px", gap: "24px" }}>
+                  {/* Messages */}
+                  <div>
+                    <div style={{ height: "500px", overflowY: "auto", marginBottom: "16px", padding: "16px", background: "rgba(0,0,0,0.02)", borderRadius: "12px" }}>
+                      {groupMessages.length === 0 ? (
+                        <div style={{ textAlign: "center", padding: "48px", color: colors.lightText }}>
+                          <div style={{ fontSize: "48px", marginBottom: "16px" }}>💬</div>
+                          <p>No messages yet. Start the conversation!</p>
+                        </div>
+                      ) : (
+                        groupMessages.map((msg) => {
+                          const isMe = msg.sender_id === user?.id;
+                          return (
+                            <div
+                              key={msg.id}
+                              style={{
+                                marginBottom: "16px",
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: isMe ? "flex-end" : "flex-start",
+                              }}
+                            >
+                              {!isMe && msg.sender && (
+                                <div style={{ fontSize: "12px", fontWeight: "600", color: colors.lightText, marginBottom: "4px" }}>
+                                  {msg.sender.first_name} {msg.sender.last_name}
+                                </div>
+                              )}
+                              <div
+                                style={{
+                                  maxWidth: "70%",
+                                  padding: "12px 16px",
+                                  borderRadius: "16px",
+                                  background: isMe ? colors.sage : colors.white,
+                                  color: isMe ? colors.white : colors.darkText,
+                                  boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+                                }}
+                              >
+                                <div>{msg.message}</div>
+                                <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
+                                  {new Date(msg.created_at).toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                      <div ref={messagesEndRef} />
+                    </div>
+
+                    <form onSubmit={handleSendGroupMessage} style={{ display: "flex", gap: "8px" }}>
+                      <input
+                        type="text"
+                        style={{ ...styles.input, flex: 1 }}
+                        value={newGroupMessage}
+                        onChange={(e) => setNewGroupMessage(e.target.value)}
+                        placeholder="Send a message to the group..."
+                      />
+                      <button
+                        type="submit"
+                        style={{ ...styles.button, width: "auto", padding: "0 24px" }}
+                        disabled={!newGroupMessage.trim()}
+                      >
+                        Send
+                      </button>
+                    </form>
+                  </div>
+
+                  {/* Members Sidebar */}
+                  <div style={{ background: "rgba(0,0,0,0.02)", padding: "16px", borderRadius: "12px" }}>
+                    <h4 style={{ fontSize: "14px", fontWeight: "700", color: colors.darkText, marginBottom: "12px" }}>
+                      Members ({groupMembers.length})
+                    </h4>
+                    <ul style={{ ...styles.list, maxHeight: "500px", overflowY: "auto" }}>
+                      {groupMembers.map((member) => (
+                        <li key={member.id} style={{ ...styles.listItem, padding: "8px 0" }}>
+                          <div style={{ fontSize: "14px", color: colors.darkText }}>
+                            {member.first_name} {member.last_name}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              // Groups List
+              <>
+                {loading ? (
+                  <div style={{ textAlign: "center", padding: "32px", color: colors.lightText }}>
+                    Loading groups...
+                  </div>
+                ) : coachGroups.length === 0 ? (
+                  <div style={styles.card}>
+                    <div style={{ textAlign: "center", padding: "48px" }}>
+                      <div style={{ fontSize: "48px", marginBottom: "16px" }}>👥</div>
+                      <h3 style={{ fontSize: "24px", fontWeight: "600", color: colors.darkText, marginBottom: "12px" }}>
+                        No groups yet
+                      </h3>
+                      <p style={{ color: colors.lightText, fontSize: "15px", lineHeight: "22px", maxWidth: "400px", margin: "0 auto" }}>
+                        Create your first coaching group to start building community and supporting multiple clients together.
+                      </p>
+                    </div>
                   </div>
                 ) : (
-                  <ul style={styles.list}>
-                    {clientGlucose.slice(0, 10).map((reading, idx) => (
-                      <li key={reading.id || idx} style={styles.listItem}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
-                            {reading.value || reading.glucose_level} mg/dL
-                          </div>
-                          <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
-                            {new Date(reading.measured_at || reading.timestamp || "").toLocaleString()}
-                          </div>
+                  <div style={styles.grid}>
+                    {coachGroups.map((group) => (
+                      <div key={group.id} style={styles.card}>
+                        <h4 style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText, marginBottom: "8px" }}>
+                          {group.name}
+                        </h4>
+                        <p style={{ fontSize: "14px", color: colors.lightText, marginBottom: "12px", lineHeight: "1.5" }}>
+                          {group.description}
+                        </p>
+                        <div style={{ fontSize: "13px", color: colors.lightText, marginBottom: "12px" }}>
+                          <div>📅 Starts: {new Date(group.start_date).toLocaleDateString()}</div>
+                          <div>⏱️ Duration: {group.duration_weeks} weeks</div>
+                          {group.access_code && (
+                            <div style={{ marginTop: "8px", padding: "8px", background: "rgba(107,127,110,0.1)", borderRadius: "8px", fontFamily: "monospace", fontWeight: "700", color: colors.sage }}>
+                              🔑 {group.access_code}
+                            </div>
+                          )}
                         </div>
-                      </li>
+                        <button
+                          style={styles.button}
+                          onClick={() => setSelectedGroup(group)}
+                        >
+                          💬 Open Group Chat
+                        </button>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 )}
               </>
             )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ==================== CREATE GROUP FORM ====================
+function CreateGroupForm({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    startDate: new Date().toISOString().split("T")[0],
+    durationWeeks: 8,
+    maxMembers: 12,
+    foundingPrice: 297,
+    paymentPlanPrice: 397,
+    meetingDay: "Tuesday",
+    meetingTime: "19:00",
+    timezone: "EST",
+  });
+  const [loading, setLoading] = useState(false);
+  const [accessCode, setAccessCode] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const result = await api.createGroup({
+        name: formData.name,
+        description: formData.description,
+        startDate: formData.startDate,
+        durationWeeks: formData.durationWeeks,
+        maxMembers: formData.maxMembers,
+        pricing: {
+          founding: formData.foundingPrice,
+          paymentPlan: formData.paymentPlanPrice,
+        },
+        meetingSchedule: {
+          day: formData.meetingDay,
+          time: formData.meetingTime,
+          timezone: formData.timezone,
+        },
+      });
+
+      setAccessCode(result.accessCode);
+      await onCreated();
+      
+      // Show success message with code
+      setTimeout(() => {
+        onClose();
+      }, 5000);
+    } catch (error) {
+      alert("Failed to create group");
+      setLoading(false);
+    }
+  };
+
+  if (accessCode) {
+    return (
+      <div style={{ ...styles.card, marginBottom: "24px", background: "#E8F5E9" }}>
+        <h3 style={{ fontSize: "20px", fontWeight: "700", color: colors.darkText, marginBottom: "12px" }}>
+          ✅ Group Created Successfully!
+        </h3>
+        <p style={{ fontSize: "15px", color: colors.darkText, marginBottom: "16px" }}>
+          Share this access code with your clients:
+        </p>
+        <div style={{
+          padding: "16px",
+          background: colors.white,
+          borderRadius: "12px",
+          fontFamily: "monospace",
+          fontSize: "24px",
+          fontWeight: "700",
+          color: colors.sage,
+          textAlign: "center",
+          marginBottom: "16px",
+        }}>
+          {accessCode}
+        </div>
+        <button style={{ ...styles.button, background: colors.sage }} onClick={onClose}>
+          Done
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ ...styles.card, marginBottom: "24px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+        <h3 style={styles.cardTitle}>Create New Group</h3>
+        <button style={{ ...styles.navButton, color: colors.errorRed }} onClick={onClose}>
+          Cancel
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px" }}>
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Group Name *</label>
+            <input
+              type="text"
+              style={styles.input}
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+              disabled={loading}
+              placeholder="e.g., Spring Wellness Circle"
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Start Date *</label>
+            <input
+              type="date"
+              style={styles.input}
+              value={formData.startDate}
+              onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Duration (weeks) *</label>
+            <input
+              type="number"
+              style={styles.input}
+              value={formData.durationWeeks}
+              onChange={(e) => setFormData({ ...formData, durationWeeks: parseInt(e.target.value) })}
+              required
+              disabled={loading}
+              min="4"
+              max="52"
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Max Members *</label>
+            <input
+              type="number"
+              style={styles.input}
+              value={formData.maxMembers}
+              onChange={(e) => setFormData({ ...formData, maxMembers: parseInt(e.target.value) })}
+              required
+              disabled={loading}
+              min="4"
+              max="50"
+            />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Meeting Day *</label>
+            <select
+              style={styles.input}
+              value={formData.meetingDay}
+              onChange={(e) => setFormData({ ...formData, meetingDay: e.target.value })}
+              disabled={loading}
+            >
+              {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"].map(day => (
+                <option key={day} value={day}>{day}</option>
+              ))}
+            </select>
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Meeting Time *</label>
+            <input
+              type="time"
+              style={styles.input}
+              value={formData.meetingTime}
+              onChange={(e) => setFormData({ ...formData, meetingTime: e.target.value })}
+              required
+              disabled={loading}
+            />
+          </div>
+
+          <div style={{ gridColumn: "1 / -1", ...styles.formGroup }}>
+            <label style={styles.label}>Description *</label>
+            <textarea
+              style={{ ...styles.input, minHeight: "80px" }}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              required
+              disabled={loading}
+              placeholder="Describe what participants will learn and experience..."
+            />
           </div>
         </div>
-      </div>
+
+        <button type="submit" style={{ ...styles.button, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+          {loading ? "Creating..." : "Create Group"}
+        </button>
+      </form>
     </div>
   );
 }

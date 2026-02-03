@@ -8,7 +8,7 @@ const router = Router();
 // PUBLIC USER ROUTE - Must come BEFORE requireCoach middleware
 // GET /api/v1/coach/my-coach - Get the current user's assigned coach
 router.get('/my-coach', authMiddleware, async (req, res) => {
-  console.log('🔍 /my-coach route hit!');
+  console.log('ðŸ” /my-coach route hit!');
   console.log('User from token:', req.user);
   
   try {
@@ -43,7 +43,7 @@ router.get('/my-coach', authMiddleware, async (req, res) => {
 
     res.json({ coach });
   } catch (error) {
-    console.error('❌ Error in /my-coach:', error);
+    console.error('âŒ Error in /my-coach:', error);
     res.status(500).json({ error: 'Failed to fetch coach' });
   }
 });
@@ -105,16 +105,17 @@ router.get('/clients', async (req, res) => {
 
         return {
           id: client.id,
-          firstName: client.first_name,
-          lastName: client.last_name,
+          first_name: client.first_name,
+          last_name: client.last_name,
           email: client.email,
-          lastActive: readings && readings.length > 0 
+          latest_glucose: Math.round(lastReading),
+          last_reading_at: readings && readings.length > 0 
             ? readings[0].measured_at 
             : client.created_at,
-          recentStats: {
-            avgGlucose: Math.round(avgGlucose),
-            lastReading: Math.round(lastReading),
-            timeInRange: Math.round(timeInRange),
+          recent_stats: {
+            avg_glucose: Math.round(avgGlucose),
+            last_reading: Math.round(lastReading),
+            time_in_range: Math.round(timeInRange),
           },
         };
       })
