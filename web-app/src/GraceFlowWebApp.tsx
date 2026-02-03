@@ -803,9 +803,16 @@ function Dashboard() {
     return <CoachDashboard />;
   }
 
+  // const avgGlucose = readings.length > 0
+  //   ? Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
+  //   : 0;
+
   const avgGlucose = readings.length > 0
-    ? Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
-    : 0;
+  ? Math.round(
+      readings.reduce((sum, r) => sum + Number(r.value || 0), 0) 
+      / readings.length
+    )
+  : 0;
   
   const todayReadings = readings.filter(r => {
     const date = new Date(r.measured_at);
