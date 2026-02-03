@@ -132,44 +132,74 @@ class ApiService {
   }
 
   async createSymptom(symptom: Omit<Symptom, "id" | "created_at">): Promise<Symptom> {
-    const res = await fetch(`${API_URL}/symptoms`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify(symptom),
-    });
-     if (!res.ok) {
-    const msg = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
+  const res = await fetch(`${API_URL}/symptoms`, {
+    method: "POST",
+    headers: this.getHeaders(),
+    body: JSON.stringify(symptom),
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    throw new Error(`Failed to create symptom (${res.status}): ${JSON.stringify(data)}`);
   }
 
-  return res.json();
-  }
+  const item =
+    (data && typeof data === "object" && !Array.isArray(data) ? data : null) ??
+    data?.data ??
+    data?.symptom ??
+    data?.result ??
+    null;
+
+  if (!item) throw new Error("Create symptom: unexpected response shape");
+  return item as Symptom;
+}
 
   async getCurrentCycle(): Promise<Cycle | null> {
-    const res = await fetch(`${API_URL}/cycles/current`, { headers: this.getHeaders() });
-    if (res.status === 404) return null;
-     if (!res.ok) {
-    const msg = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
+  const res = await fetch(`${API_URL}/cycles/current`, { headers: this.getHeaders() });
+
+  if (res.status === 404) return null;
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    throw new Error(`Failed to fetch cycle (${res.status}): ${JSON.stringify(data)}`);
   }
 
-  return res.json();
+  const cycle =
+    (data && typeof data === "object" && !Array.isArray(data) ? data : null) ??
+    data?.data ??
+    data?.cycle ??
+    null;
+
+  if (!cycle) return null;
+  return cycle as Cycle;
+}
+
+  
+async createCycle(startDate: string): Promise<Cycle> {
+  const res = await fetch(`${API_URL}/cycles`, {
+    method: "POST",
+    headers: this.getHeaders(),
+    body: JSON.stringify({ start_date: startDate }),
+  });
+
+  const data = await res.json().catch(() => null);
+
+  if (!res.ok) {
+    throw new Error(`Failed to create cycle (${res.status}): ${JSON.stringify(data)}`);
   }
 
-  async createCycle(startDate: string): Promise<Cycle> {
-    const res = await fetch(`${API_URL}/cycles`, {
-      method: "POST",
-      headers: this.getHeaders(),
-      body: JSON.stringify({ start_date: startDate }),
-    });
-     if (!res.ok) {
-    const msg = await res.text().catch(() => '');
-    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
-  }
+  const cycle =
+    (data && typeof data === "object" && !Array.isArray(data) ? data : null) ??
+    data?.data ??
+    data?.cycle ??
+    data?.result ??
+    null;
 
-  return res.json();
-  }
-
+  if (!cycle) throw new Error("Create cycle: unexpected response shape");
+  return cycle as Cycle;
+}
   logout() {
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
