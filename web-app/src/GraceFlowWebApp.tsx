@@ -2,6 +2,7 @@
 // This file contains everything needed to run GraceFlow in the browser
 // Users can login, signup, log glucose, log symptoms - just like the mobile app
 
+import { motion } from "framer-motion";
 import React, { useEffect, useState, createContext, useContext } from "react";
 
 // ==================== TYPES ====================
@@ -29,7 +30,8 @@ interface Symptom {
   symptom_type: string;
   severity: number;
   notes?: string;
-  created_at: string;
+  created_at?: string;
+  logged_at?: string;  // Backend uses logged_at
 }
 
 interface Cycle {
@@ -113,7 +115,7 @@ class ApiService {
       headers: this.getHeaders(),
       body: JSON.stringify({
         value: reading.value,
-        measured_at: reading.measured_at,
+        measuredAt: reading.measured_at,  // Backend expects camelCase
         unit: "mg/dL",
         source: "manual",
         notes: reading.notes,
@@ -145,11 +147,15 @@ class ApiService {
     }
   }
 
-  async createSymptom(symptom: Omit<Symptom, "id" | "created_at">): Promise<Symptom> {
+  async createSymptom(symptom: Omit<Symptom, "id" | "created_at" | "logged_at">): Promise<Symptom> {
     const res = await fetch(`${API_URL}/symptoms`, {
       method: "POST",
       headers: this.getHeaders(),
-      body: JSON.stringify(symptom),
+      body: JSON.stringify({
+        symptomType: symptom.symptom_type,  // Backend expects camelCase
+        severity: symptom.severity,
+        notes: symptom.notes,
+      }),
     });
 
     const data = await res.json().catch(() => null);
@@ -541,7 +547,7 @@ function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void })
   };
 
   return (
-    <div style={styles.authContainer}>
+    <motion.div style={styles.authContainer}>
       <div style={styles.authCard}>
         <div style={styles.authHeader}>
           <div style={{ marginBottom: '16px' }}>
@@ -606,7 +612,7 @@ function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void })
           </div>
         </form>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -809,7 +815,9 @@ function Dashboard() {
   });
 
   const todaySymptoms = symptoms.filter(s => {
-    const date = new Date(s.created_at);
+    const dateStr = s.created_at || s.logged_at;
+    if (!dateStr) return false;
+    const date = new Date(dateStr);
     const today = new Date();
     return date.toDateString() === today.toDateString();
   });
@@ -1121,7 +1129,7 @@ function SymptomsView() {
                     {symptom.symptom_type}
                   </div>
                   <div style={{ fontSize: '13px', color: '#6B6B6B', marginTop: '4px' }}>
-                    {new Date(symptom.created_at).toLocaleString()}
+                    {new Date(symptom.created_at || symptom.logged_at || '').toLocaleString()}
                   </div>
                   {symptom.notes && (
                     <div style={{ fontSize: '14px', color: '#4A4D4A', marginTop: '8px' }}>
@@ -1261,7 +1269,7 @@ function CoachDashboard() {
 
       <div style={styles.dashboard}>
         <div style={styles.header}>
-          <h1 style={styles.greeting}>Welcome, Coach {user?.first_name || 'Coach' }!</h1>
+          <h1 style={styles.greeting}>Welcome, Coach {user?.first_name || 'Unknown'}!</h1>
           <p style={{ color: '#6B6B6B', fontSize: '15px' }}>
             Your client management dashboard
           </p>
