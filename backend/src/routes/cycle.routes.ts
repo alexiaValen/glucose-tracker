@@ -17,7 +17,7 @@ function calculatePhase(day: number): string {
   return 'follicular'; // Default
 }
 
-// GET /api/v1/cycle - List cycles
+// GET /api/v1/cycles - List cycles
 router.get('/', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
@@ -37,7 +37,7 @@ router.get('/', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/v1/cycle/current - Get current active cycle
+// GET /api/v1/cycles/current - Get current active cycle (FIXED: added 's')
 router.get('/current', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
@@ -51,6 +51,7 @@ router.get('/current', async (req: Request, res: Response) => {
     );
 
     if (result.rows.length === 0) {
+      // Return null instead of 404 to match frontend expectations
       return res.json({ cycle: null });
     }
 
@@ -75,11 +76,12 @@ router.get('/current', async (req: Request, res: Response) => {
 
     res.json({ cycle });
   } catch (error: any) {
+    console.error('Error fetching current cycle:', error);
     res.status(500).json({ error: error.message });
   }
 });
 
-// POST /api/v1/cycle - Start new cycle
+// POST /api/v1/cycles - Start new cycle (FIXED: added 's')
 router.post(
   '/',
   async (req: Request, res: Response) => {
@@ -146,7 +148,7 @@ router.post(
   }
 );
 
-// PATCH /api/v1/cycle/:id - Update cycle (end it)
+// PATCH /api/v1/cycles/:id - Update cycle (end it) (FIXED: added 's')
 router.patch('/:id', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
@@ -178,7 +180,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
   }
 });
 
-// GET /api/v1/cycle/predict - Predict next cycle
+// GET /api/v1/cycles/predict - Predict next cycle (FIXED: added 's')
 router.get('/predict', async (req: Request, res: Response) => {
   try {
     const userId = req.user!.userId;
