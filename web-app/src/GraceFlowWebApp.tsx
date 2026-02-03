@@ -2,7 +2,7 @@
 // This file contains everything needed to run GraceFlow in the browser
 // Users can login, signup, log glucose, log symptoms - just like the mobile app
 
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useEffect, useState, createContext, useContext } from "react";
 
 // ==================== TYPES ====================
 interface User {
@@ -10,7 +10,7 @@ interface User {
   email: string;
   first_name: string;
   last_name: string;
-  role: 'user' | 'coach';
+  role: "user" | "coach";
 }
 
 interface GlucoseReading {
@@ -38,131 +38,147 @@ interface Cycle {
   current_phase?: string;
 }
 
-// ==================== API SERVICE ====================
-// const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
-// const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:3000/api/v1';
-
-const API_HOST =
-  (import.meta as any).env.VITE_API_URL || 'http://localhost:3000';
-
-const API_URL = `${API_HOST.replace(/\/$/, '')}/api/v1`;
-
+// ==================== API BASE ====================
+// VITE_API_URL should be ONLY the host, like:
+// - http://localhost:3000
+// - https://glucose-tracker-production.up.railway.app
+const API_HOST = ((import.meta as any).env.VITE_API_URL as string) || "http://localhost:3000";
+const API_URL = `${API_HOST.replace(/\/$/, "")}/api/v1`;
 
 class ApiService {
   private getHeaders(): HeadersInit {
-    const token = localStorage.getItem('accessToken');
+    const token = localStorage.getItem("accessToken");
     return {
-      'Content-Type': 'application/json',
-      ...(token && { 'Authorization': `Bearer ${token}` }),
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   }
 
+  private saveTokens(data: any) {
+    // Support both backend styles:
+    // { access_token, refresh_token } OR { accessToken, refreshToken }
+    const access = data.access_token ?? data.accessToken;
+    const refresh = data.refresh_token ?? data.refreshToken;
+
+    if (access) localStorage.setItem("accessToken", access);
+    if (refresh) localStorage.setItem("refreshToken", refresh);
+  }
+
   async login(email: string, password: string) {
-    const response = await fetch(`${API_URL}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-    
-    if (!response.ok) throw new Error('Login failed');
-    const data = await response.json();
-    localStorage.setItem('accessToken', data.access_token);
-    localStorage.setItem('refreshToken', data.refresh_token);
-    return data.user;
+
+    if (!res.ok) throw new Error("Login failed");
+    const data = await res.json();
+    this.saveTokens(data);
+    return data.user ?? data.data?.user ?? data;
   }
 
   async register(userData: any) {
-    const response = await fetch(`${API_URL}/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+    const res = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
     });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Registration failed');
-    }
-    const data = await response.json();
-    localStorage.setItem('accessToken', data.access_token);
-    localStorage.setItem('refreshToken', data.refresh_token);
-    return data.user;
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "Registration failed");
+
+    this.saveTokens(data);
+    return data.user ?? data.data?.user ?? data;
   }
 
   async getGlucoseReadings(): Promise<GlucoseReading[]> {
-    const response = await fetch(`${API_URL}/glucose`, {
-      headers: this.getHeaders(),
-    });
-    if (!response.ok) throw new Error('Failed to fetch readings');
-    return response.json();
+    const res = await fetch(`${API_URL}/glucose`, { headers: this.getHeaders() });
+     if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
   }
 
-  async createGlucoseReading(reading: {
-    value: number;
-    measured_at: string;
-    notes?: string;
-  }): Promise<GlucoseReading> {
-    const response = await fetch(`${API_URL}/glucose`, {
-      method: 'POST',
+  return res.json();
+  }
+
+  async createGlucoseReading(reading: { value: number; measured_at: string; notes?: string }): Promise<GlucoseReading> {
+    const res = await fetch(`${API_URL}/glucose`, {
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({
         value: reading.value,
         measured_at: reading.measured_at,
-        unit: 'mg/dL',
-        source: 'manual',
+        unit: "mg/dL",
+        source: "manual",
         notes: reading.notes,
       }),
     });
-    if (!response.ok) throw new Error('Failed to create reading');
-    return response.json();
+     if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
+  }
+
+  return res.json();
   }
 
   async getSymptoms(): Promise<Symptom[]> {
-    const response = await fetch(`${API_URL}/symptoms`, {
-      headers: this.getHeaders(),
-    });
-    if (!response.ok) throw new Error('Failed to fetch symptoms');
-    return response.json();
+    const res = await fetch(`${API_URL}/symptoms`, { headers: this.getHeaders() });
+     if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
   }
 
-  async createSymptom(symptom: Omit<Symptom, 'id' | 'created_at'>): Promise<Symptom> {
-    const response = await fetch(`${API_URL}/symptoms`, {
-      method: 'POST',
+  return res.json();
+  }
+
+  async createSymptom(symptom: Omit<Symptom, "id" | "created_at">): Promise<Symptom> {
+    const res = await fetch(`${API_URL}/symptoms`, {
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify(symptom),
     });
-    if (!response.ok) throw new Error('Failed to create symptom');
-    return response.json();
+     if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
+  }
+
+  return res.json();
   }
 
   async getCurrentCycle(): Promise<Cycle | null> {
-    const response = await fetch(`${API_URL}/cycles/current`, {
-      headers: this.getHeaders(),
-    });
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error('Failed to fetch cycle');
-    return response.json();
+    const res = await fetch(`${API_URL}/cycles/current`, { headers: this.getHeaders() });
+    if (res.status === 404) return null;
+     if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
+  }
+
+  return res.json();
   }
 
   async createCycle(startDate: string): Promise<Cycle> {
-    const response = await fetch(`${API_URL}/cycles`, {
-      method: 'POST',
+    const res = await fetch(`${API_URL}/cycles`, {
+      method: "POST",
       headers: this.getHeaders(),
       body: JSON.stringify({ start_date: startDate }),
     });
-    if (!response.ok) throw new Error('Failed to create cycle');
-    return response.json();
+     if (!res.ok) {
+    const msg = await res.text().catch(() => '');
+    throw new Error(`Failed to fetch readings (${res.status}): ${msg}`);
+  }
+
+  return res.json();
   }
 
   logout() {
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('refreshToken');
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
   }
 }
 
 const api = new ApiService();
 
-// ==================== STATE MANAGEMENT ====================
+// ==================== STATE ====================
 interface AppState {
   user: User | null;
   isAuthenticated: boolean;
@@ -173,20 +189,19 @@ interface AppState {
   register: (userData: any) => Promise<void>;
   logout: () => void;
   loadData: () => Promise<void>;
-  addGlucoseReading: (reading: Omit<GlucoseReading, 'id' | 'created_at'>) => Promise<void>;
-  addSymptom: (symptom: Omit<Symptom, 'id' | 'created_at'>) => Promise<void>;
+  addGlucoseReading: (reading: Omit<GlucoseReading, "id" | "created_at">) => Promise<void>;
+  addSymptom: (symptom: Omit<Symptom, "id" | "created_at">) => Promise<void>;
   startCycle: (startDate: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
 
 const useApp = () => {
-  const context = useContext(AppContext);
-  if (!context) throw new Error('useApp must be used within AppProvider');
-  return context;
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
 };
 
-// ==================== APP PROVIDER ====================
 function AppProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [readings, setReadings] = useState<GlucoseReading[]>([]);
@@ -194,13 +209,13 @@ function AppProvider({ children }: { children: React.ReactNode }) {
   const [currentCycle, setCurrentCycle] = useState<Cycle | null>(null);
 
   const login = async (email: string, password: string) => {
-    const userData = await api.login(email, password);
-    setUser(userData);
+    const u = await api.login(email, password);
+    setUser(u);
   };
 
   const register = async (userData: any) => {
-    const user = await api.register(userData);
-    setUser(user);
+    const u = await api.register(userData);
+    setUser(u);
   };
 
   const logout = () => {
@@ -213,31 +228,27 @@ function AppProvider({ children }: { children: React.ReactNode }) {
 
   const loadData = async () => {
     try {
-      const [readingsData, symptomsData, cycleData] = await Promise.all([
+      const [r, s, c] = await Promise.all([
         api.getGlucoseReadings(),
         api.getSymptoms(),
         api.getCurrentCycle(),
       ]);
-      setReadings(readingsData);
-      setSymptoms(symptomsData);
-      setCurrentCycle(cycleData);
-    } catch (error) {
-      console.error('Failed to load data:', error);
+      setReadings(r);
+      setSymptoms(s);
+      setCurrentCycle(c);
+    } catch (e) {
+      console.error("Failed to load data:", e);
     }
   };
 
-  const addGlucoseReading = async (reading: {
-    value: number;
-    measured_at: string;
-    notes?: string;
-  }) => {
+  const addGlucoseReading = async (reading: { value: number; measured_at: string; notes?: string }) => {
     const newReading = await api.createGlucoseReading(reading);
-    setReadings(prev => [newReading, ...prev]);
+    setReadings((prev) => [newReading, ...prev]);
   };
 
-  const addSymptom = async (symptom: Omit<Symptom, 'id' | 'created_at'>) => {
+  const addSymptom = async (symptom: Omit<Symptom, "id" | "created_at">) => {
     const newSymptom = await api.createSymptom(symptom);
-    setSymptoms(prev => [newSymptom, ...prev]);
+    setSymptoms((prev) => [newSymptom, ...prev]);
   };
 
   const startCycle = async (startDate: string) => {
@@ -246,9 +257,7 @@ function AppProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (user) {
-      loadData();
-    }
+    if (user) loadData();
   }, [user]);
 
   const value: AppState = {
@@ -268,6 +277,8 @@ function AppProvider({ children }: { children: React.ReactNode }) {
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
+
+// Just make sure they use useApp() like before.
 
 // ==================== STYLES ====================
 const styles = {
@@ -1189,6 +1200,8 @@ function CycleView() {
   );
 }
 
+
+// (no ReactDOM usage in this file)
 // Main App Component
 function App() {
   const { isAuthenticated } = useApp();
