@@ -782,6 +782,15 @@ function Dashboard() {
   const { user, readings, symptoms, currentCycle, logout } = useApp();
   const [view, setView] = useState<'dashboard' | 'glucose' | 'symptoms' | 'cycle'>('dashboard');
 
+  if (!user) {
+    return (
+      <div style={{ minHeight: '100vh', padding: 24, background: '#F5F4F0' }}>
+        Loading...
+      </div>
+    );
+  }
+
+
  const avgGlucose = readings.length > 0
   ? Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
   : 0;
@@ -842,7 +851,7 @@ function Dashboard() {
 
       {/* Content */}
       <div style={styles.dashboard}>
-        {view === 'dashboard' && <DashboardView user={user!} avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay} />}
+        {view === 'dashboard' && <DashboardView user={user} avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay} />}
         {view === 'glucose' && <GlucoseView />}
         {view === 'symptoms' && <SymptomsView />}
         {view === 'cycle' && <CycleView />}
