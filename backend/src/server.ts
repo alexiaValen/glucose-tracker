@@ -310,6 +310,8 @@
 
 // export default app;
 
+
+//backend/src/server.ts
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -389,7 +391,7 @@ app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/glucose", glucoseRoutes);
 app.use("/api/v1/coach", coachRoutes);
 app.use("/api/v1/symptoms", symptomRoutes);
-app.use("/api/v1/cycle", cycleRoutes);
+app.use("/api/v1/cycles", cycleRoutes);
 app.use("/api/v1/messages", messagesRoutes);
 app.use("/api/v1/groups", groupRoutes);
 

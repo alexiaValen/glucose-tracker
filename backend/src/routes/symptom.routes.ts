@@ -28,8 +28,12 @@ router.get(
         [userId, limit || 50, offset || 0]
       );
 
-      res.json({ symptoms: result.rows });
+      console.log(`✅ Found ${result.rows.length} symptoms`);
+      
+      // Return as array for web app compatibility
+      res.json(result.rows);
     } catch (error: any) {
+      console.error('❌ Error fetching symptoms:', error);
       res.status(500).json({ error: error.message });
     }
   }
@@ -38,23 +42,34 @@ router.get(
 // POST /api/v1/symptoms
 router.post(
   '/',
-  [
-    body('symptomType').notEmpty().isString(),
-    body('severity').isInt({ min: 1, max: 10 }),
-    body('loggedAt').optional().isISO8601(),
-    body('notes').optional().isString(),
-    body('glucoseReadingId').optional().isUUID(),
-  ],
   async (req: Request, res: Response) => {
     try {
       const userId = req.user!.userId;
-      const errors = validationResult(req);
       
-      if (!errors.isEmpty()) {
-        return res.status(400).json({ errors: errors.array() });
+      // Accept BOTH formats:
+      // Web app: { symptomType, severity, notes }
+      // Mobile app: { symptom_type, severity, notes, loggedAt }
+      const symptomType = req.body.symptomType || req.body.symptom_type;
+      const severity = req.body.severity;
+      const loggedAt = req.body.loggedAt || req.body.logged_at || new Date().toISOString();
+      const notes = req.body.notes;
+      const glucoseReadingId = req.body.glucoseReadingId || req.body.glucose_reading_id;
+
+      console.log('📝 Creating symptom:', { userId, symptomType, severity });
+
+      if (!symptomType || severity === undefined) {
+        return res.status(400).json({ 
+          error: 'Missing required fields: symptomType and severity' 
+        });
       }
 
-      const { symptomType, severity, loggedAt, notes, glucoseReadingId } = req.body;
+      // Validate severity range
+      const severityNum = parseInt(severity);
+      if (isNaN(severityNum) || severityNum < 1 || severityNum > 10) {
+        return res.status(400).json({ 
+          error: 'Severity must be between 1 and 10' 
+        });
+      }
 
       const result = await pool.query(
         `INSERT INTO symptoms 
@@ -64,15 +79,17 @@ router.post(
         [
           userId,
           symptomType,
-          severity,
-          loggedAt || new Date().toISOString(),
+          severityNum,
+          loggedAt,
           notes,
           glucoseReadingId,
         ]
       );
 
+      console.log('✅ Symptom created:', result.rows[0].id);
       res.status(201).json(result.rows[0]);
     } catch (error: any) {
+      console.error('❌ Error creating symptom:', error);
       res.status(400).json({ error: error.message });
     }
   }
@@ -92,8 +109,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Symptom not found' });
     }
 
+    console.log('✅ Symptom deleted');
     res.json({ message: 'Symptom deleted' });
   } catch (error: any) {
+    console.error('❌ Error deleting symptom:', error);
     res.status(500).json({ error: error.message });
   }
 });
