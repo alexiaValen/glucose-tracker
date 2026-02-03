@@ -3,7 +3,6 @@
 // Users can login, signup, log glucose, log symptoms - just like the mobile app
 
 import React, { useState, useEffect, createContext, useContext } from 'react';
-import ReactDOM from 'react-dom/client';
 
 // ==================== TYPES ====================
 interface User {
@@ -1215,8 +1214,6 @@ function Root() {
   );
 }
 
-// Initialize App
-const root = ReactDOM.createRoot(document.getElementById('root')!);
-root.render(<Root />);
+
 
 export default Root;
