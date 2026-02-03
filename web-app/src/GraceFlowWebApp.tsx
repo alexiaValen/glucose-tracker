@@ -2,7 +2,6 @@
 // This file contains everything needed to run GraceFlow in the browser
 // Users can login, signup, log glucose, log symptoms - just like the mobile app
 
-import { motion } from "framer-motion";
 import React, { useEffect, useState, createContext, useContext } from "react";
 
 // ==================== TYPES ====================
@@ -547,7 +546,7 @@ function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void })
   };
 
   return (
-    <motion.div style={styles.authContainer}>
+    <div style={styles.authContainer}>
       <div style={styles.authCard}>
         <div style={styles.authHeader}>
           <div style={{ marginBottom: '16px' }}>
@@ -612,7 +611,7 @@ function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void })
           </div>
         </form>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -1269,7 +1268,7 @@ function CoachDashboard() {
 
       <div style={styles.dashboard}>
         <div style={styles.header}>
-          <h1 style={styles.greeting}>Welcome, Coach {user?.first_name || 'Unknown'}!</h1>
+          <h1 style={styles.greeting}>Welcome, Coach {user?.first_name || 'Coach'}!</h1>
           <p style={{ color: '#6B6B6B', fontSize: '15px' }}>
             Your client management dashboard
           </p>
