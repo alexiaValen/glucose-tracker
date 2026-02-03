@@ -1,4 +1,4 @@
-// GraceFlowWebApp.tsx - Complete Single-File Web Application (FIXED)
+// GraceFlowWebApp.tsx - Complete Single-File Web Application
 // This file contains everything needed to run GraceFlow in the browser
 // Users can login, signup, log glucose, log symptoms - just like the mobile app
 
@@ -34,7 +34,7 @@ interface Symptom {
 
 interface Cycle {
   id?: number;
-  cycle_start_date: string;  // Backend uses snake_case
+  cycle_start_date: string;
   current_day?: number;
   phase?: string;
 }
@@ -184,8 +184,6 @@ class ApiService {
       }
 
       const data = await res.json();
-      
-      // Backend returns { cycle: {...} } or null
       const cycle = data?.cycle ?? data;
       
       if (!cycle || cycle === null) return null;
@@ -269,7 +267,6 @@ function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentCycle(null);
   };
 
-  // FIXED: Use Promise.allSettled to prevent one failure from breaking everything
   const loadData = async () => {
     try {
       console.log('📊 Loading user data...');
@@ -347,7 +344,7 @@ function AppProvider({ children }: { children: React.ReactNode }) {
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-// ==================== STYLES (unchanged) ====================
+// ==================== STYLES ====================
 const styles = {
   container: {
     minHeight: '100vh',
@@ -480,6 +477,8 @@ const styles = {
   },
   list: {
     listStyle: 'none',
+    padding: 0,
+    margin: 0,
   },
   listItem: {
     display: 'flex',
@@ -514,7 +513,7 @@ const styles = {
   } as React.CSSProperties,
 };
 
-// ==================== COMPONENTS (keeping only Login, Register, Dashboard structure - rest unchanged) ====================
+// ==================== COMPONENTS ====================
 
 function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
   const { login } = useApp();
@@ -794,6 +793,11 @@ function Dashboard() {
     );
   }
 
+  // Coach sees a different dashboard
+  if (user.role === 'coach') {
+    return <CoachDashboard />;
+  }
+
   const avgGlucose = readings.length > 0
     ? Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
     : 0;
@@ -810,7 +814,6 @@ function Dashboard() {
     return date.toDateString() === today.toDateString();
   });
 
-  // FIXED: Use cycle_start_date from backend
   const cycleDay = currentCycle
     ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
     : 0;
@@ -853,47 +856,431 @@ function Dashboard() {
       </nav>
 
       <div style={styles.dashboard}>
+        {view === 'dashboard' && <DashboardView user={user} avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay} />}
+        {view === 'glucose' && <GlucoseView />}
+        {view === 'symptoms' && <SymptomsView />}
+        {view === 'cycle' && <CycleView />}
+      </div>
+    </div>
+  );
+}
+
+function DashboardView({ user, avgGlucose, todayReadings, todaySymptoms, cycleDay }: any) {
+  return (
+    <>
+      <div style={styles.header}>
+        <h1 style={styles.greeting}>Welcome back, {user.first_name}!</h1>
+        <p style={{ color: '#6B6B6B', fontSize: '15px' }}>
+          {cycleDay > 0 ? `Day ${cycleDay} of your cycle` : 'Start tracking your cycle'}
+        </p>
+      </div>
+
+      <div style={styles.grid}>
+        <div style={styles.card}>
+          <div style={styles.stat}>
+            <div style={styles.statValue}>{avgGlucose || '—'}</div>
+            <div style={styles.statLabel}>Average Glucose (mg/dL)</div>
+          </div>
+        </div>
+
+        <div style={styles.card}>
+          <div style={styles.stat}>
+            <div style={styles.statValue}>{todayReadings.length}</div>
+            <div style={styles.statLabel}>Readings Today</div>
+          </div>
+        </div>
+
+        <div style={styles.card}>
+          <div style={styles.stat}>
+            <div style={styles.statValue}>{todaySymptoms.length}</div>
+            <div style={styles.statLabel}>Symptoms Today</div>
+          </div>
+        </div>
+      </div>
+
+      {todayReadings.length === 0 && todaySymptoms.length === 0 && (
+        <div style={{ ...styles.card, textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌱</div>
+          <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#2A2D2A', marginBottom: '12px' }}>
+            Your wellness journey begins
+          </h3>
+          <p style={{ color: '#6B6B6B', fontSize: '15px', lineHeight: '22px', maxWidth: '400px', margin: '0 auto' }}>
+            Start by logging your first glucose reading or symptom to see patterns emerge.
+          </p>
+        </div>
+      )}
+    </>
+  );
+}
+
+function GlucoseView() {
+  const { readings, addGlucoseReading } = useApp();
+  const [showForm, setShowForm] = useState(false);
+  const [glucoseValue, setGlucoseValue] = useState('');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!glucoseValue) return;
+
+    setLoading(true);
+    try {
+      await addGlucoseReading({
+        value: parseFloat(glucoseValue),
+        measured_at: new Date().toISOString(),
+        notes: notes || undefined,
+      });
+      setGlucoseValue('');
+      setNotes('');
+      setShowForm(false);
+    } catch (error) {
+      alert('Failed to add reading');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#2A2D2A' }}>Glucose Readings</h2>
+        <button
+          style={{ ...styles.button, width: 'auto', padding: '0 24px', height: '48px' }}
+          onClick={() => setShowForm(!showForm)}
+        >
+          {showForm ? 'Cancel' : '+ Add Reading'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div style={{ ...styles.card, marginBottom: '24px' }}>
+          <h3 style={styles.cardTitle}>New Glucose Reading</h3>
+          <form onSubmit={handleSubmit}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Glucose Value (mg/dL) *</label>
+              <input
+                type="number"
+                style={styles.input}
+                value={glucoseValue}
+                onChange={(e) => setGlucoseValue(e.target.value)}
+                placeholder="e.g., 95"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Notes (optional)</label>
+              <textarea
+                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any notes about this reading..."
+                disabled={loading}
+              />
+            </div>
+            <button type="submit" style={{ ...styles.button, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+              {loading ? 'Saving...' : 'Save Reading'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      <div style={styles.card}>
+        {readings.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '32px', color: '#6B6B6B' }}>
+            <p>No readings yet. Add your first reading to get started!</p>
+          </div>
+        ) : (
+          <ul style={styles.list}>
+            {readings.slice(0, 20).map((reading, idx) => (
+              <li key={reading.id || idx} style={styles.listItem}>
+                <div>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#2A2D2A' }}>
+                    {reading.value} {reading.unit || 'mg/dL'}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#6B6B6B', marginTop: '4px' }}>
+                    {new Date(reading.measured_at || reading.created_at || '').toLocaleString()}
+                  </div>
+                  {reading.notes && (
+                    <div style={{ fontSize: '14px', color: '#4A4D4A', marginTop: '8px' }}>
+                      {reading.notes}
+                    </div>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+}
+
+function SymptomsView() {
+  const { symptoms, addSymptom } = useApp();
+  const [showForm, setShowForm] = useState(false);
+  const [symptomType, setSymptomType] = useState('');
+  const [severity, setSeverity] = useState('5');
+  const [notes, setNotes] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!symptomType) return;
+
+    setLoading(true);
+    try {
+      await addSymptom({
+        symptom_type: symptomType,
+        severity: parseInt(severity),
+        notes: notes || undefined,
+      });
+      setSymptomType('');
+      setSeverity('5');
+      setNotes('');
+      setShowForm(false);
+    } catch (error) {
+      alert('Failed to add symptom');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#2A2D2A' }}>Symptoms</h2>
+        <button
+          style={{ ...styles.button, width: 'auto', padding: '0 24px', height: '48px' }}
+          onClick={() => setShowForm(!showForm)}
+        >
+          {showForm ? 'Cancel' : '+ Log Symptom'}
+        </button>
+      </div>
+
+      {showForm && (
+        <div style={{ ...styles.card, marginBottom: '24px' }}>
+          <h3 style={styles.cardTitle}>New Symptom</h3>
+          <form onSubmit={handleSubmit}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Symptom Type *</label>
+              <input
+                type="text"
+                style={styles.input}
+                value={symptomType}
+                onChange={(e) => setSymptomType(e.target.value)}
+                placeholder="e.g., Headache, Fatigue, Cramps"
+                required
+                disabled={loading}
+              />
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Severity (1-10) *</label>
+              <input
+                type="range"
+                min="1"
+                max="10"
+                value={severity}
+                onChange={(e) => setSeverity(e.target.value)}
+                style={{ width: '100%' }}
+                disabled={loading}
+              />
+              <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '24px', fontWeight: '700', color: '#6B7F6E' }}>
+                {severity}
+              </div>
+            </div>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Notes (optional)</label>
+              <textarea
+                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Any additional details..."
+                disabled={loading}
+              />
+            </div>
+            <button type="submit" style={{ ...styles.button, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+              {loading ? 'Saving...' : 'Save Symptom'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      <div style={styles.card}>
+        {symptoms.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '32px', color: '#6B6B6B' }}>
+            <p>No symptoms logged yet. Start tracking to see patterns!</p>
+          </div>
+        ) : (
+          <ul style={styles.list}>
+            {symptoms.slice(0, 20).map((symptom, idx) => (
+              <li key={symptom.id || idx} style={styles.listItem}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#2A2D2A' }}>
+                    {symptom.symptom_type}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#6B6B6B', marginTop: '4px' }}>
+                    {new Date(symptom.created_at).toLocaleString()}
+                  </div>
+                  {symptom.notes && (
+                    <div style={{ fontSize: '14px', color: '#4A4D4A', marginTop: '8px' }}>
+                      {symptom.notes}
+                    </div>
+                  )}
+                </div>
+                <div style={{
+                  padding: '8px 16px',
+                  borderRadius: '12px',
+                  background: 'rgba(107,127,110,0.12)',
+                  color: '#6B7F6E',
+                  fontWeight: '700',
+                  fontSize: '16px'
+                }}>
+                  {symptom.severity}/10
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CycleView() {
+  const { currentCycle, startCycle } = useApp();
+  const [showForm, setShowForm] = useState(false);
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await startCycle(startDate);
+      setShowForm(false);
+    } catch (error) {
+      alert('Failed to start cycle');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cycleDay = currentCycle
+    ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
+    : 0;
+
+  return (
+    <>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#2A2D2A' }}>Cycle Tracking</h2>
+        {!currentCycle && (
+          <button
+            style={{ ...styles.button, width: 'auto', padding: '0 24px', height: '48px' }}
+            onClick={() => setShowForm(!showForm)}
+          >
+            {showForm ? 'Cancel' : '+ Start Cycle'}
+          </button>
+        )}
+      </div>
+
+      {showForm && !currentCycle && (
+        <div style={{ ...styles.card, marginBottom: '24px' }}>
+          <h3 style={styles.cardTitle}>Start New Cycle</h3>
+          <form onSubmit={handleSubmit}>
+            <div style={styles.formGroup}>
+              <label style={styles.label}>Cycle Start Date *</label>
+              <input
+                type="date"
+                style={styles.input}
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+                disabled={loading}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <button type="submit" style={{ ...styles.button, opacity: loading ? 0.6 : 1 }} disabled={loading}>
+              {loading ? 'Starting...' : 'Start Cycle'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      <div style={styles.card}>
+        {!currentCycle ? (
+          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌸</div>
+            <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#2A2D2A', marginBottom: '12px' }}>
+              Track your natural rhythm
+            </h3>
+            <p style={{ color: '#6B6B6B', fontSize: '15px', lineHeight: '22px', maxWidth: '400px', margin: '0 auto' }}>
+              Start logging your cycle to see how hormones affect your wellness.
+            </p>
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '32px' }}>
+            <div style={styles.stat}>
+              <div style={styles.statValue}>{cycleDay}</div>
+              <div style={styles.statLabel}>Day of Cycle</div>
+            </div>
+            <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(107,127,110,0.08)', borderRadius: '16px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', color: '#6B7F6E', marginBottom: '4px' }}>
+                {currentCycle.phase || 'Tracking'}
+              </div>
+              <div style={{ fontSize: '13px', color: '#6B6B6B' }}>
+                Started {new Date(currentCycle.cycle_start_date).toLocaleDateString()}
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  );
+}
+
+function CoachDashboard() {
+  const { user, logout } = useApp();
+
+  return (
+    <div style={styles.container}>
+      <nav style={styles.nav}>
+        <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
+          Dashboard
+        </button>
+        <div style={{ marginLeft: 'auto' }}>
+          <button
+            style={{ ...styles.navButton, color: '#C85A54' }}
+            onClick={logout}
+          >
+            Logout
+          </button>
+        </div>
+      </nav>
+
+      <div style={styles.dashboard}>
         <div style={styles.header}>
-          <h1 style={styles.greeting}>Welcome back, {user.first_name}!</h1>
+          <h1 style={styles.greeting}>Welcome, Coach {user?.first_name || 'Coach' }!</h1>
           <p style={{ color: '#6B6B6B', fontSize: '15px' }}>
-            {cycleDay > 0 ? `Day ${cycleDay} of your cycle` : 'Start tracking your cycle'}
+            Your client management dashboard
           </p>
         </div>
 
-        <div style={styles.grid}>
-          <div style={styles.card}>
-            <div style={styles.stat}>
-              <div style={styles.statValue}>{avgGlucose || '—'}</div>
-              <div style={styles.statLabel}>Average Glucose (mg/dL)</div>
-            </div>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.stat}>
-              <div style={styles.statValue}>{todayReadings.length}</div>
-              <div style={styles.statLabel}>Readings Today</div>
-            </div>
-          </div>
-
-          <div style={styles.card}>
-            <div style={styles.stat}>
-              <div style={styles.statValue}>{todaySymptoms.length}</div>
-              <div style={styles.statLabel}>Symptoms Today</div>
-            </div>
-          </div>
-        </div>
-
-        {todayReadings.length === 0 && todaySymptoms.length === 0 && (
-          <div style={{ ...styles.card, textAlign: 'center', padding: '48px 24px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🌱</div>
-            <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#2A2D2A', marginBottom: '12px' }}>
-              Your wellness journey begins
-            </h3>
-            <p style={{ color: '#6B6B6B', fontSize: '15px', lineHeight: '22px', maxWidth: '400px', margin: '0 auto' }}>
-              Start by logging your first glucose reading or symptom to see patterns emerge.
+        <div style={{ ...styles.card, textAlign: 'center', padding: '48px 24px' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>👩‍⚕️</div>
+          <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#2A2D2A', marginBottom: '12px' }}>
+            Coach Dashboard Coming Soon
+          </h3>
+          <p style={{ color: '#6B6B6B', fontSize: '15px', lineHeight: '22px', maxWidth: '500px', margin: '0 auto' }}>
+            Your client management dashboard is under development. You'll soon be able to view client data, send messages, and provide personalized coaching.
+          </p>
+          <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(107,127,110,0.08)', borderRadius: '16px', maxWidth: '400px', margin: '24px auto 0' }}>
+            <p style={{ fontSize: '14px', color: '#6B7F6E', fontWeight: '600' }}>
+              For now, please use the mobile app for full coach features.
             </p>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
