@@ -325,6 +325,7 @@ import groupRoutes from "./routes/group.routes";
 
 dotenv.config();
 
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -356,7 +357,6 @@ const corsOptions: cors.CorsOptions = {
 
 app.use(cors(corsOptions));
 // Handle OPTIONS preflight for all routes
-app.options("*", cors(corsOptions));
 
 // ==================== MIDDLEWARE ====================
 app.use(express.json());
