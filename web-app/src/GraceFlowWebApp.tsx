@@ -617,25 +617,24 @@ function AppProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// ==================== STYLES ====================
+// ==================== STYLES (UPDATED) ====================
 const colors = {
   // Design System v1 — Light Botanical • Grounded • Professional
-  // Avoid pure white/black in surfaces; depth comes from layering.
-  sage: "#6B7F6E", // Living Sage (primary actions)
-  ink: "#2F3E34", // Soft Forest Ink (headings)
-  night: "#243128", // Deep botanical background (lux base)
-  night2: "#1F2A23", // Deeper edge for gradients
-  renewal: "#7FAF8B", // Progress / success accent
-  parchment: "#FAF8F4", // App background
-  linen: "#EFE9DF", // Primary surface
-  warmStone: "#E6E2DC", // Section separators
-  rootTaupe: "#B8B1A9", // Borders, subtle labels
-  text: "#2A2D2A", // Body text
-  muted: "#6B6B6B", // Secondary text
+  sage: "#6B7F6E",
+  ink: "#2F3E34",
+  night: "#243128",
+  night2: "#1F2A23",
+  renewal: "#7FAF8B",
+  parchment: "#FAF8F4",
+  linen: "#EFE9DF",
+  warmStone: "#E6E2DC",
+  rootTaupe: "#B8B1A9",
+  text: "#2A2D2A",
+  muted: "#6B6B6B",
   errorRed: "#C85A54",
-  white: "#FFFFFF", // Reserved (inputs, overlays)
+  white: "#FFFFFF",
 
-  // Legacy aliases (keep the app stable as we refactor screens)
+  // Legacy aliases
   cream: "#FAF8F4",
   darkText: "#2A2D2A",
   lightText: "#6B6B6B",
@@ -644,46 +643,50 @@ const colors = {
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
-    // Lux botanical canvas (darker background, lighter surfaces)
     background: `radial-gradient(1200px 700px at 20% 0%, rgba(107,127,110,0.22) 0%, transparent 55%),
       radial-gradient(900px 600px at 90% 10%, rgba(127,175,139,0.14) 0%, transparent 60%),
       linear-gradient(180deg, ${colors.night} 0%, ${colors.night2} 100%)`,
     fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   },
+
+  // ✅ slightly less dark / more “glass”
   nav: {
     display: "flex",
     alignItems: "center",
     padding: "16px 24px",
-    background: "rgba(36,49,40,0.68)",
-    backdropFilter: "blur(10px)",
-    borderBottom: "1px solid rgba(250,248,244,0.10)",
+    background: "rgba(36,49,40,0.46)",
+    backdropFilter: "blur(12px)",
+    borderBottom: "1px solid rgba(250,248,244,0.12)",
     gap: "12px",
   },
+
   navButton: {
     padding: "12px 18px",
-    border: "none",
+    border: "1px solid transparent",
     background: "transparent",
-    color: "rgba(250,248,244,0.78)",
+    color: "rgba(250,248,244,0.80)",
     fontSize: "15px",
     fontWeight: "600",
     cursor: "pointer",
-    borderRadius: "10px",
+    borderRadius: "12px",
     transition: "all 0.2s",
   },
+
   navButtonActive: {
-    background: "rgba(239,233,223,0.92)",
+    background:
+      "linear-gradient(180deg, rgba(250,248,244,0.92) 0%, rgba(239,233,223,0.90) 100%)",
     color: colors.ink,
+    border: "1px solid rgba(47,62,52,0.10)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.16)",
   },
+
   dashboard: {
     maxWidth: "1200px",
     margin: "0 auto",
     padding: "30px 24px 44px",
   },
 
-  // Generic header (used in non-overview screens)
-  header: {
-    marginBottom: "18px",
-  },
+  header: { marginBottom: "18px" },
   greeting: {
     fontSize: "28px",
     fontWeight: "700",
@@ -693,8 +696,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   hero: {
-    position: 
-      "relative" as const,
+    position: "relative" as const,
     background:
       "linear-gradient(135deg, rgba(239,233,223,0.94) 0%, rgba(250,248,244,0.96) 55%, rgba(232,237,233,0.92) 100%)",
     border: "1px solid rgba(250,248,244,0.16)",
@@ -705,12 +707,7 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "hidden" as const,
   },
 
-  
-
-  // Section rhythm
-  section: {
-    marginBottom: "28px",
-  },
+  section: { marginBottom: "28px" },
   sectionTitle: {
     fontSize: "20px",
     fontWeight: "600",
@@ -719,80 +716,75 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "-0.2px",
   },
 
-sectionHeader: {
-  margin: "6px 2px 14px",
-},
-sectionSub: {
-  fontSize: "13.5px",
-  color: "rgba(250,248,244,0.70)",
-  lineHeight: 1.7,
-  marginTop: "6px",
-  marginBottom: 0,
-},
-emptyState: {
-  textAlign: "center" as const,
-  padding: "18px 10px",
-  color: "rgba(47,62,52,0.72)",
-  fontSize: "13.5px",
-  lineHeight: 1.6,
-  background: "rgba(239,233,223,0.92)",
-  border: "1px dashed rgba(47,62,52,0.10)",
-  borderRadius: "14px",
-},
-chip: {
-  display: "inline-flex",
-  alignItems: "center",
-  gap: "6px",
-  padding: "6px 10px",
-  fontSize: "12px",
-  fontWeight: "650",
-  color: colors.ink,
-  background: "rgba(239,233,223,0.9)",
-  border: "1px solid rgba(47,62,52,0.08)",
-  borderRadius: "999px",
-  whiteSpace: "nowrap" as const,
-},
+  sectionHeader: { margin: "6px 2px 14px" },
+  sectionSub: {
+    fontSize: "13.5px",
+    color: "rgba(250,248,244,0.70)",
+    lineHeight: 1.7,
+    marginTop: "6px",
+    marginBottom: 0,
+  },
 
-  // Identity Layer (dashboard hero)
- identityShell: {
-  borderRadius: "24px",
-  padding: "22px 22px 20px",
-  marginBottom: "26px",
-  background:
-    "linear-gradient(135deg, rgba(239,233,223,0.94) 0%, rgba(250,248,244,0.96) 55%, rgba(232,237,233,0.92) 100%)",
-  border: "1px solid rgba(250,248,244,0.16)",
-  position: "relative" as const,
-  overflow: "hidden",
-  boxShadow: "0 18px 44px rgba(0,0,0,0.20)",
-},
+  emptyState: {
+    textAlign: "center" as const,
+    padding: "18px 10px",
+    color: "rgba(47,62,52,0.72)",
+    fontSize: "13.5px",
+    lineHeight: 1.6,
+    background: "rgba(239,233,223,0.92)",
+    border: "1px dashed rgba(47,62,52,0.10)",
+    borderRadius: "14px",
+  },
 
-identityTexture: {
-  position: "absolute" as const,
-  inset: 0,
-  backgroundImage: "url('/textures/linen.png')", // ✅ if using /public
-  // OR if importing: backgroundImage: `url(${linenTexture})`,
-  backgroundSize: "360px 360px",
-  backgroundRepeat: "repeat",
-  opacity: 0.035,               // ✅ subtle lux range: 0.02–0.05
-  pointerEvents: "none" as const,
-  mixBlendMode: "multiply" as any, // TS sometimes complains; "soft-light" also works
-},
+  chip: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    padding: "6px 10px",
+    fontSize: "12px",
+    fontWeight: "650",
+    color: colors.ink,
+    background: "rgba(239,233,223,0.9)",
+    border: "1px solid rgba(47,62,52,0.08)",
+    borderRadius: "999px",
+    whiteSpace: "nowrap" as const,
+  },
 
+  // Identity Layer
+  identityShell: {
+    borderRadius: "24px",
+    padding: "22px 22px 20px",
+    marginBottom: "26px",
+    background:
+      "linear-gradient(135deg, rgba(239,233,223,0.94) 0%, rgba(250,248,244,0.96) 55%, rgba(232,237,233,0.92) 100%)",
+    border: "1px solid rgba(250,248,244,0.16)",
+    position: "relative" as const,
+    overflow: "hidden",
+    boxShadow: "0 18px 44px rgba(0,0,0,0.20)",
+  },
 
+  identityTexture: {
+    position: "absolute" as const,
+    inset: 0,
+    backgroundImage: "url('/textures/linen.png')",
+    backgroundSize: "360px 360px",
+    backgroundRepeat: "repeat",
+    opacity: 0.035,
+    pointerEvents: "none" as const,
+    mixBlendMode: "multiply" as any,
+  },
 
   identityGrain: {
     position: "absolute" as const,
     inset: 0,
-    // Lightweight linen grain (no external assets): layered radial gradients.
     background:
       "radial-gradient(circle at 20% 10%, rgba(47,62,52,0.04) 0 1px, transparent 2px) 0 0/18px 18px, radial-gradient(circle at 70% 60%, rgba(47,62,52,0.03) 0 1px, transparent 2px) 0 0/22px 22px",
     opacity: 0.28,
     pointerEvents: "none" as const,
   },
-  identityContent: {
-  position: "relative" as const,
-  zIndex: 1,
-},
+
+  identityContent: { position: "relative" as const, zIndex: 1 },
+
   identityDivider: {
     height: "1px",
     width: "120px",
@@ -800,6 +792,7 @@ identityTexture: {
     margin: "12px 0 10px",
     borderRadius: "999px",
   },
+
   identityTitle: {
     fontSize: "30px",
     fontWeight: "700",
@@ -807,12 +800,14 @@ identityTexture: {
     marginBottom: "6px",
     letterSpacing: "-0.4px",
   },
+
   identitySubtext: {
     fontSize: "14px",
     lineHeight: 1.7,
     color: colors.muted,
     marginBottom: "10px",
   },
+
   identityWhisper: {
     fontSize: "12.5px",
     lineHeight: 1.8,
@@ -820,58 +815,53 @@ identityTexture: {
     letterSpacing: "0.3px",
   },
 
-  // Core surface container (replaces “vanilla cards”)
+  // ✅ UPDATED “LUX CARD”
   card: {
-    background: "rgba(250,248,244,0.96)",
-    borderRadius: "18px",
-    padding: "22px",
-    border: "1px solid rgba(250,248,244,0.18)",
-    boxShadow: "0 18px 44px rgba(0,0,0,0.20)",
+    borderRadius: "20px",
+    padding: "20px",
+    background:
+      "linear-gradient(180deg, rgba(250,248,244,0.98) 0%, rgba(239,233,223,0.96) 100%)",
+    border: "1px solid rgba(47,62,52,0.10)",
+    boxShadow: "0 20px 44px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.6)",
     marginBottom: "0px",
   },
+
   cardTitle: {
     fontSize: "18px",
-    fontWeight: "600",
-    color: colors.ink,
-    marginBottom: "16px",
-  },
-  stat: {
-    textAlign: "center" as const,
-    padding: "16px",
-  },
-  statValue: {
-    fontSize: "48px",
     fontWeight: "700",
-    color: colors.sage,
+    color: colors.ink,
+    marginBottom: "14px",
+    letterSpacing: "-0.01em",
   },
-  statLabel: {
-    fontSize: "14px",
-    fontWeight: "600",
-    color: colors.muted,
-    marginTop: "4px",
-  },
+
+  stat: { textAlign: "center" as const, padding: "16px" },
+  statValue: { fontSize: "48px", fontWeight: "800", color: colors.sage },
+  statLabel: { fontSize: "14px", fontWeight: "650", color: colors.muted, marginTop: "4px" },
+
   button: {
     width: "100%",
     padding: "16px",
     background: colors.sage,
     color: colors.white,
-    border: "none",
-    borderRadius: "12px",
+    border: "1px solid rgba(250,248,244,0.20)",
+    borderRadius: "14px",
     fontSize: "16px",
-    fontWeight: "600",
+    fontWeight: "700",
     cursor: "pointer",
     transition: "all 0.2s",
+    boxShadow: "0 16px 34px rgba(0,0,0,0.18)",
   },
-  formGroup: {
-    marginBottom: "20px",
-  },
+
+  formGroup: { marginBottom: "20px" },
+
   label: {
     display: "block",
     fontSize: "14px",
-    fontWeight: "600",
+    fontWeight: "650",
     color: colors.ink,
     marginBottom: "8px",
   },
+
   input: {
     width: "100%",
     padding: "14px",
@@ -882,11 +872,9 @@ identityTexture: {
     background: "rgba(255,255,255,0.86)",
     boxSizing: "border-box" as const,
   },
-  list: {
-    listStyle: "none",
-    padding: 0,
-    margin: 0,
-  },
+
+  list: { listStyle: "none", padding: 0, margin: 0 },
+
   listItem: {
     padding: "16px",
     borderBottom: "1px solid rgba(47,62,52,0.06)",
@@ -894,231 +882,296 @@ identityTexture: {
     alignItems: "center",
     gap: "16px",
   },
+
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
     gap: "18px",
     marginBottom: "22px",
   },
+
   // --- Conversations (Sanctuary UI) ---
-convoGrid: {
-  display: "grid",
-  gridTemplateColumns: "320px 1fr",
-  gap: "22px",
-  height: "calc(100vh - 220px)",
-},
+  convoGrid: {
+    display: "grid",
+    gridTemplateColumns: "320px 1fr",
+    gap: "22px",
+    height: "calc(100vh - 220px)",
+  },
 
-convoPanel: {
-  borderRadius: "18px",
-  border: "1px solid rgba(250,248,244,0.10)",
-  background: "rgba(250,248,244,0.06)", // subtle glass over dark canvas
-  backdropFilter: "blur(10px)",
-  overflow: "hidden",
-},
+  convoPanel: {
+    borderRadius: "18px",
+    border: "1px solid rgba(250,248,244,0.10)",
+    background: "rgba(250,248,244,0.06)",
+    backdropFilter: "blur(10px)",
+    overflow: "hidden",
+  },
 
-convoPanelHeader: {
-  padding: "16px 16px 12px",
-  borderBottom: "1px solid rgba(250,248,244,0.10)",
-  display: "flex",
-  alignItems: "flex-end",
-  justifyContent: "space-between",
-  gap: "12px",
-},
+  convoPanelHeader: {
+    padding: "16px 16px 12px",
+    borderBottom: "1px solid rgba(250,248,244,0.10)",
+    display: "flex",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    gap: "12px",
+  },
 
-convoPanelTitle: {
-  fontSize: "14px",
-  fontWeight: 700,
-  letterSpacing: "0.12em",
-  textTransform: "uppercase" as const,
-  color: "rgba(250,248,244,0.82)",
-},
+  convoPanelTitle: {
+    fontSize: "14px",
+    fontWeight: 700,
+    letterSpacing: "0.12em",
+    textTransform: "uppercase" as const,
+    color: "rgba(250,248,244,0.82)",
+  },
 
-convoPanelHint: {
-  fontSize: "12px",
-  color: "rgba(250,248,244,0.58)",
-},
+  convoPanelHint: { fontSize: "12px", color: "rgba(250,248,244,0.58)" },
 
-convoList: {
-  listStyle: "none",
-  margin: 0,
-  padding: "10px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "8px",
-},
+  convoList: {
+    listStyle: "none",
+    margin: 0,
+    padding: "10px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
 
-convoRow: {
-  display: "flex",
-  alignItems: "center",
-  gap: "12px",
-  padding: "12px 12px",
-  borderRadius: "14px",
-  cursor: "pointer",
-  border: "1px solid rgba(250,248,244,0.08)",
-  background: "rgba(250,248,244,0.06)",
-  transition: "transform 120ms ease, background 120ms ease, border 120ms ease",
-},
+  convoRow: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "12px 12px",
+    borderRadius: "14px",
+    cursor: "pointer",
+    border: "1px solid rgba(250,248,244,0.08)",
+    background: "rgba(250,248,244,0.06)",
+    transition: "transform 120ms ease, background 120ms ease, border 120ms ease",
+  },
 
-convoRowActive: {
-  background: "rgba(239,233,223,0.92)", // parchment highlight
-  border: "1px solid rgba(47,62,52,0.10)",
-  transform: "translateY(-1px)",
-},
+  convoRowActive: {
+    background: "rgba(239,233,223,0.92)",
+    border: "1px solid rgba(47,62,52,0.10)",
+    transform: "translateY(-1px)",
+  },
 
-convoRowBody: {
-  flex: 1,
-  minWidth: 0,
-},
+  convoRowBody: { flex: 1, minWidth: 0 },
 
-convoName: {
-  fontSize: "15px",
-  fontWeight: 700,
-  color: "rgba(250,248,244,0.92)",
-},
+  convoName: { fontSize: "15px", fontWeight: 700, color: "rgba(250,248,244,0.92)" },
+  convoNameActive: { color: "#2F3E34" },
 
-convoNameActive: {
-  color: "#2F3E34",
-},
+  convoPreview: {
+    marginTop: "4px",
+    fontSize: "12.5px",
+    color: "rgba(250,248,244,0.62)",
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap" as const,
+  },
+  convoPreviewActive: { color: "rgba(47,62,52,0.70)" },
 
-convoPreview: {
-  marginTop: "4px",
-  fontSize: "12.5px",
-  color: "rgba(250,248,244,0.62)",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-  whiteSpace: "nowrap" as const,
-},
+  badge: {
+    minWidth: "22px",
+    height: "22px",
+    padding: "0 7px",
+    borderRadius: "999px",
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "12px",
+    fontWeight: 800,
+    background: "#6B7F6E",
+    color: "#FAF8F4",
+  },
 
-convoPreviewActive: {
-  color: "rgba(47,62,52,0.70)",
-},
+  threadPanel: {
+    borderRadius: "18px",
+    border: "1px solid rgba(250,248,244,0.10)",
+    background: "rgba(239,233,223,0.92)",
+    overflow: "hidden",
+  },
 
-badge: {
-  minWidth: "22px",
-  height: "22px",
-  padding: "0 7px",
-  borderRadius: "999px",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: "12px",
-  fontWeight: 800,
-  background: "#6B7F6E",
-  color: "#FAF8F4",
-},
+  threadHeader: {
+    padding: "16px 18px",
+    borderBottom: "1px solid rgba(47,62,52,0.10)",
+    background:
+      "linear-gradient(180deg, rgba(250,248,244,0.92) 0%, rgba(239,233,223,0.92) 100%)",
+  },
 
-threadPanel: {
-  borderRadius: "18px",
-  border: "1px solid rgba(250,248,244,0.10)",
-  background: "rgba(239,233,223,0.92)", // parchment thread surface
-  overflow: "hidden",
-},
+  threadTitle: { fontSize: "18px", fontWeight: 800, color: "#2F3E34" },
+  threadSub: { marginTop: "4px", fontSize: "12.5px", color: "rgba(47,62,52,0.65)" },
 
-threadHeader: {
-  padding: "16px 18px",
-  borderBottom: "1px solid rgba(47,62,52,0.10)",
-  background:
-    "linear-gradient(180deg, rgba(250,248,244,0.92) 0%, rgba(239,233,223,0.92) 100%)",
-},
+  threadBody: {
+    height: "460px",
+    overflowY: "auto" as const,
+    padding: "16px 16px 10px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    background: "rgba(250,248,244,0.55)",
+  },
 
-threadTitle: {
-  fontSize: "18px",
-  fontWeight: 800,
-  color: "#2F3E34",
-},
+  msgWrapMe: { display: "flex", justifyContent: "flex-end" },
+  msgWrapOther: { display: "flex", justifyContent: "flex-start" },
 
-threadSub: {
-  marginTop: "4px",
-  fontSize: "12.5px",
-  color: "rgba(47,62,52,0.65)",
-},
+  msgBlockMe: {
+    maxWidth: "72%",
+    padding: "12px 14px",
+    borderRadius: "16px",
+    background: "#6B7F6E",
+    color: "#FAF8F4",
+    border: "1px solid rgba(250,248,244,0.18)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.20)",
+  },
 
-threadBody: {
-  height: "460px",
-  overflowY: "auto" as const,
-  padding: "16px 16px 10px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "10px",
-  background: "rgba(250,248,244,0.55)",
-},
+  msgBlockOther: {
+    maxWidth: "72%",
+    padding: "12px 14px",
+    borderRadius: "16px",
+    background: "rgba(239,233,223,0.98)",
+    color: "#2F3E34",
+    border: "1px solid rgba(47,62,52,0.12)",
+    boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
+  },
 
-msgWrapMe: {
-  display: "flex",
-  justifyContent: "flex-end",
-},
+  msgText: { fontSize: "14px", lineHeight: 1.55, whiteSpace: "pre-wrap" as const },
+  msgMeta: { marginTop: "6px", fontSize: "11px", opacity: 0.7 },
 
-msgWrapOther: {
-  display: "flex",
-  justifyContent: "flex-start",
-},
+  composer: {
+    padding: "12px 12px 14px",
+    borderTop: "1px solid rgba(47,62,52,0.10)",
+    background: "rgba(239,233,223,0.92)",
+    display: "flex",
+    gap: "10px",
+    alignItems: "flex-end",
+  },
 
-msgBlockMe: {
-  maxWidth: "72%",
-  padding: "12px 14px",
-  borderRadius: "16px",
-  background: "#6B7F6E",
-  color: "#FAF8F4",
-  border: "1px solid rgba(250,248,244,0.18)",
-  boxShadow: "0 10px 24px rgba(0,0,0,0.20)",
-},
+  composerInput: {
+    flex: 1,
+    minHeight: "44px",
+    maxHeight: "120px",
+    resize: "none" as const,
+    borderRadius: "14px",
+    padding: "12px 12px",
+    border: "1px solid rgba(47,62,52,0.14)",
+    background: "rgba(250,248,244,0.92)",
+    color: "#2F3E34",
+    outline: "none",
+    lineHeight: 1.5,
+  },
 
-msgBlockOther: {
-  maxWidth: "72%",
-  padding: "12px 14px",
-  borderRadius: "16px",
-  background: "rgba(239,233,223,0.98)",
-  color: "#2F3E34",
-  border: "1px solid rgba(47,62,52,0.12)",
-  boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
-},
+  composerButton: {
+    borderRadius: "14px",
+    padding: "12px 16px",
+    border: "1px solid rgba(47,62,52,0.12)",
+    background: "#6B7F6E",
+    color: "#FAF8F4",
+    fontWeight: 800,
+    cursor: "pointer",
+    boxShadow: "0 12px 24px rgba(0,0,0,0.18)",
+  },
 
-msgText: {
-  fontSize: "14px",
-  lineHeight: 1.55,
-  whiteSpace: "pre-wrap" as const,
-},
+  // ✅ UPDATED PARCHMENT HEADER (more luxe)
+  pageHeaderShell: {
+    borderRadius: "20px",
+    padding: "18px 20px",
+    marginBottom: "20px",
+    background:
+      "linear-gradient(180deg, rgba(250,248,244,0.96) 0%, rgba(239,233,223,0.94) 100%)",
+    border: "1px solid rgba(47,62,52,0.10)",
+    boxShadow: "0 18px 42px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+  },
 
-msgMeta: {
-  marginTop: "6px",
-  fontSize: "11px",
-  opacity: 0.70,
-},
+  pageHeaderTitle: {
+    fontSize: "26px",
+    fontWeight: 850,
+    color: "#2F3E34",
+    margin: 0,
+    letterSpacing: "-0.01em",
+  },
 
-composer: {
-  padding: "12px 12px 14px",
-  borderTop: "1px solid rgba(47,62,52,0.10)",
-  background: "rgba(239,233,223,0.92)",
-  display: "flex",
-  gap: "10px",
-  alignItems: "flex-end",
-},
+  pageHeaderSub: {
+    marginTop: "6px",
+    fontSize: "13px",
+    color: "rgba(47,62,52,0.62)",
+    lineHeight: 1.55,
+    maxWidth: "520px",
+  },
 
-composerInput: {
-  flex: 1,
-  minHeight: "44px",
-  maxHeight: "120px",
-  resize: "none" as const,
-  borderRadius: "14px",
-  padding: "12px 12px",
-  border: "1px solid rgba(47,62,52,0.14)",
-  background: "rgba(250,248,244,0.92)",
-  color: "#2F3E34",
-  outline: "none",
-  lineHeight: 1.5,
-},
+  pageHeaderLeft: { display: "flex", flexDirection: "column" },
+  pageHeaderRight: { display: "flex", alignItems: "center", gap: "10px" },
 
-composerButton: {
-  borderRadius: "14px",
-  padding: "12px 16px",
-  border: "1px solid rgba(47,62,52,0.12)",
-  background: "#6B7F6E",
-  color: "#FAF8F4",
-  fontWeight: 800,
-  cursor: "pointer",
-  boxShadow: "0 12px 24px rgba(0,0,0,0.18)",
-},
+  // ✅ Settings / Preference rows (lux spacing + dividers)
+  settingRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: "14px 0",
+    borderTop: "1px solid rgba(47,62,52,0.08)",
+  },
+
+  settingLabel: {
+    fontSize: "16px",
+    fontWeight: 700,
+    color: colors.ink,
+    letterSpacing: "-0.01em",
+  },
+
+  settingHint: {
+    marginTop: "4px",
+    fontSize: "13px",
+    color: "rgba(47,62,52,0.62)",
+    lineHeight: 1.5,
+  },
+
+  // ✅ Toggle polish
+  toggleTrack: {
+    position: "absolute",
+    cursor: "pointer",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    transition: "0.25s",
+    borderRadius: "999px",
+    border: "1px solid rgba(47,62,52,0.10)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.55)",
+  },
+
+  toggleKnob: {
+    position: "absolute",
+    height: "26px",
+    width: "26px",
+    bottom: "4px",
+    background: "rgba(250,248,244,0.98)",
+    transition: "0.25s",
+    borderRadius: "50%",
+    border: "1px solid rgba(47,62,52,0.10)",
+    boxShadow: "0 10px 18px rgba(0,0,0,0.16)",
+  },
 };
+
+// ==================== PAGE HEADER COMPONENT ====================
+function PageHeader({
+  title,
+  sub,
+  right,
+}: {
+  title: string;
+  sub?: string;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div style={styles.pageHeaderShell}>
+      <div style={styles.pageHeaderLeft}>
+        <h2 style={styles.pageHeaderTitle}>{title}</h2>
+        {sub ? <p style={styles.pageHeaderSub}>{sub}</p> : null}
+      </div>
+      {right ? <div style={styles.pageHeaderRight}>{right}</div> : null}
+    </div>
+  );
+}
 
 // ==================== AUTH SCREENS ====================
 function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
@@ -1415,6 +1468,8 @@ function Navigation({ activeTab, onTabChange }: { activeTab: string; onTabChange
   );
 }
 
+
+
 // ==================== OVERVIEW TAB ====================
 function OverviewTab() {
   const { user, glucoseReadings, glucoseStats, symptoms, currentCycle, myCoach } = useApp();
@@ -1496,7 +1551,7 @@ function OverviewTab() {
               </div>
             </div>
           ) : (
-            <div style={styles.emptyState}>No active cycle yet. Start when you’re ready.</div>
+            <div style={styles.emptyState}>No active cycle yet. Start when you`re ready.</div>
           )}
         </div>
 
@@ -1770,15 +1825,23 @@ function SymptomsTab() {
 
   return (
     <>
+    
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
-        <h2 style={{ fontSize: "28px", fontWeight: "700", color: colors.darkText }}>Symptom Tracking</h2>
-        <button
-          style={{ ...styles.button, width: "auto", padding: "0 24px", height: "48px" }}
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? "Cancel" : "+ Log Symptom"}
-        </button>
+        
+       <PageHeader
+  title="Symptom Tracking"
+  sub="Log signals, patterns, and intensity—small insights that guide your next steps."
+  right={
+    <button
+      style={{ ...styles.button, width: "auto", padding: "0 18px", height: "44px" }}
+      onClick={() => setShowForm(!showForm)}
+    >
+      {showForm ? "Cancel" : "+ Log Symptom"}
+    </button>
+  }
+/>
       </div>
+
 
       {showForm && (
         <div style={{ ...styles.card, marginBottom: "24px" }}>
@@ -2401,7 +2464,7 @@ function GroupsTab() {
   );
 }
 
-// ==================== SETTINGS TAB ====================
+// ==================== SETTINGS TAB (UPDATED HEADER + LUX ROWS) ====================
 function SettingsTab() {
   const { user, logout } = useApp();
   const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
@@ -2418,49 +2481,55 @@ function SettingsTab() {
 
   return (
     <>
-      <h2 style={{ fontSize: "28px", fontWeight: "700", color: colors.darkText, marginBottom: "24px" }}>
-        Settings
-      </h2>
+      <PageHeader
+        title="Account"
+        sub="Manage your profile, preferences, and app settings."
+      />
 
       <div style={styles.card}>
         <h3 style={styles.cardTitle}>Account Information</h3>
-        <div style={{ marginBottom: "16px" }}>
-          <div style={{ fontSize: "14px", fontWeight: "600", color: colors.lightText, marginBottom: "4px" }}>
+
+        <div style={{ padding: "10px 0 14px" }}>
+          <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "rgba(47,62,52,0.55)" }}>
             Name
           </div>
-          <div style={{ fontSize: "16px", color: colors.darkText }}>
+          <div style={{ marginTop: "6px", fontSize: "16px", fontWeight: 750, color: colors.ink }}>
             {user?.first_name} {user?.last_name}
           </div>
         </div>
-        <div style={{ marginBottom: "16px" }}>
-          <div style={{ fontSize: "14px", fontWeight: "600", color: colors.lightText, marginBottom: "4px" }}>
-            Email
-          </div>
-          <div style={{ fontSize: "16px", color: colors.darkText }}>
-            {user?.email}
+
+        <div style={{ ...styles.settingRow, borderTop: "1px solid rgba(47,62,52,0.08)" }}>
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "rgba(47,62,52,0.55)" }}>
+              Email
+            </div>
+            <div style={{ marginTop: "6px", fontSize: "15px", color: colors.ink }}>
+              {user?.email}
+            </div>
           </div>
         </div>
-        <div>
-          <div style={{ fontSize: "14px", fontWeight: "600", color: colors.lightText, marginBottom: "4px" }}>
-            Role
-          </div>
-          <div style={{ fontSize: "16px", color: colors.darkText }}>
-            {user?.role === "coach" ? "Coach" : "User"}
+
+        <div style={styles.settingRow}>
+          <div>
+            <div style={{ fontSize: "12px", fontWeight: 800, letterSpacing: "0.12em", textTransform: "uppercase" as const, color: "rgba(47,62,52,0.55)" }}>
+              Role
+            </div>
+            <div style={{ marginTop: "6px", fontSize: "15px", color: colors.ink }}>
+              {user?.role === "coach" ? "Coach" : "User"}
+            </div>
           </div>
         </div>
       </div>
 
-      <div style={styles.card}>
+      <div style={{ ...styles.card, marginTop: "18px" }}>
         <h3 style={styles.cardTitle}>Preferences</h3>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
+
+        <div style={{ ...styles.settingRow, borderTop: "none" }}>
           <div>
-            <div style={{ fontSize: "16px", fontWeight: "600", color: colors.darkText }}>
-              Cycle Tracking
-            </div>
-            <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
-              Enable cycle tracking features
-            </div>
+            <div style={styles.settingLabel}>Cycle Tracking</div>
+            <div style={styles.settingHint}>Enable cycle tracking features</div>
           </div>
+
           <label style={{ position: "relative", display: "inline-block", width: "60px", height: "34px" }}>
             <input
               type="checkbox"
@@ -2468,30 +2537,17 @@ function SettingsTab() {
               onChange={(e) => handleCycleToggle(e.target.checked)}
               style={{ opacity: 0, width: 0, height: 0 }}
             />
+
             <span
               style={{
-                position: "absolute",
-                cursor: "pointer",
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: cycleTrackingEnabled ? colors.sage : "#ccc",
-                transition: "0.4s",
-                borderRadius: "34px",
+                ...styles.toggleTrack,
+                background: cycleTrackingEnabled ? "rgba(107,127,110,0.95)" : "rgba(184,177,169,0.55)",
               }}
             >
               <span
                 style={{
-                  position: "absolute",
-                  content: "",
-                  height: "26px",
-                  width: "26px",
+                  ...styles.toggleKnob,
                   left: cycleTrackingEnabled ? "30px" : "4px",
-                  bottom: "4px",
-                  background: "white",
-                  transition: "0.4s",
-                  borderRadius: "50%",
                 }}
               />
             </span>
@@ -2499,12 +2555,9 @@ function SettingsTab() {
         </div>
       </div>
 
-      <div style={styles.card}>
+      <div style={{ ...styles.card, marginTop: "18px" }}>
         <h3 style={styles.cardTitle}>Actions</h3>
-        <button
-          style={{ ...styles.button, background: colors.errorRed }}
-          onClick={logout}
-        >
+        <button style={{ ...styles.button, background: colors.errorRed }} onClick={logout}>
           Logout
         </button>
       </div>
