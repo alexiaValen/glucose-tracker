@@ -93,7 +93,7 @@ interface Group {
     founding: number;
     paymentPlan: number;
   };
-  status?: string;
+  status?: "draft" | "active" | "completed" | "archived";
   coach_id?: string;
 }
 
@@ -400,6 +400,7 @@ class ApiService {
     maxMembers: number;
     pricing: { founding: number; paymentPlan: number };
     meetingSchedule: { day: string; time: string; timezone: string };
+    status?: "draft" | "active";
   }): Promise<{ group: Group; accessCode: string }> {
     const res = await fetch(`${API_URL}/groups`, {
       method: "POST",
@@ -408,6 +409,26 @@ class ApiService {
     });
     if (!res.ok) throw new Error("Failed to create group");
     return res.json();
+  }
+
+  // Coach: Update group status
+  async updateGroupStatus(groupId: string, status: "draft" | "active" | "archived"): Promise<Group> {
+    const res = await fetch(`${API_URL}/groups/${groupId}/status`, {
+      method: "PATCH",
+      headers: this.getHeaders(),
+      body: JSON.stringify({ status }),
+    });
+    if (!res.ok) throw new Error("Failed to update group status");
+    return res.json();
+  }
+
+  // Coach: Delete group
+  async deleteGroup(groupId: string): Promise<void> {
+    const res = await fetch(`${API_URL}/groups/${groupId}`, {
+      method: "DELETE",
+      headers: this.getHeaders(),
+    });
+    if (!res.ok) throw new Error("Failed to delete group");
   }
 
   // Coach: Get coach's groups
@@ -2079,14 +2100,423 @@ function SettingsTab() {
   );
 }
 
+// ==================== CLIENT DATA TABS (FOR COACH) ====================
+function ClientDataTabs({ client, clientGlucose }: { client: Client; clientGlucose: GlucoseReading[] }) {
+  const [activeTab, setActiveTab] = useState<"glucose" | "symptoms">("glucose");
+  const [clientSymptoms, setClientSymptoms] = useState<Symptom[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (activeTab === "symptoms") {
+      loadClientSymptoms();
+    }
+  }, [activeTab, client.id]);
+
+  const loadClientSymptoms = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/coach/clients/${client.id}/symptoms`, {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setClientSymptoms(data.symptoms || []);
+      }
+    } catch (error) {
+      console.error("Failed to load symptoms:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Tab Buttons */}
+      <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "2px solid rgba(0,0,0,0.08)", paddingBottom: "8px" }}>
+        <button
+          style={{
+            padding: "8px 16px",
+            background: activeTab === "glucose" ? colors.sage : "transparent",
+            color: activeTab === "glucose" ? colors.white : colors.lightText,
+            border: "none",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+          }}
+          onClick={() => setActiveTab("glucose")}
+        >
+          Glucose
+        </button>
+        <button
+          style={{
+            padding: "8px 16px",
+            background: activeTab === "symptoms" ? colors.sage : "transparent",
+            color: activeTab === "symptoms" ? colors.white : colors.lightText,
+            border: "none",
+            borderRadius: "8px",
+            fontSize: "14px",
+            fontWeight: "600",
+            cursor: "pointer",
+          }}
+          onClick={() => setActiveTab("symptoms")}
+        >
+          Symptoms
+        </button>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === "glucose" ? (
+        <>
+          <h4 style={{ fontSize: "16px", fontWeight: "700", color: colors.darkText, marginBottom: "12px" }}>
+            Recent Glucose Readings
+          </h4>
+          {clientGlucose.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+              No glucose readings yet
+            </div>
+          ) : (
+            <ul style={styles.list}>
+              {clientGlucose.slice(0, 10).map((reading, idx) => (
+                <li key={reading.id || idx} style={styles.listItem}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
+                      {reading.value || reading.glucose_level} mg/dL
+                    </div>
+                    <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
+                      {new Date(reading.measured_at || reading.timestamp || "").toLocaleString()}
+                    </div>
+                    {reading.notes && (
+                      <div style={{ fontSize: "14px", color: colors.darkText, marginTop: "6px" }}>
+                        {reading.notes}
+                      </div>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      ) : (
+        <>
+          <h4 style={{ fontSize: "16px", fontWeight: "700", color: colors.darkText, marginBottom: "12px" }}>
+            Recent Symptoms
+          </h4>
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+              Loading symptoms...
+            </div>
+          ) : clientSymptoms.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+              No symptoms logged yet
+            </div>
+          ) : (
+            <ul style={styles.list}>
+              {clientSymptoms.slice(0, 10).map((symptom, idx) => (
+                <li key={symptom.id || idx} style={styles.listItem}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
+                      {symptom.symptom_type}
+                    </div>
+                    <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
+                      {new Date(symptom.created_at || symptom.logged_at || "").toLocaleString()}
+                    </div>
+                    {symptom.notes && (
+                      <div style={{ fontSize: "14px", color: colors.darkText, marginTop: "6px" }}>
+                        {symptom.notes}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{
+                    padding: "8px 16px",
+                    borderRadius: "12px",
+                    background: "rgba(107,127,110,0.12)",
+                    color: colors.sage,
+                    fontWeight: "700",
+                    fontSize: "16px",
+                  }}>
+                    {symptom.severity}/10
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </>
+  );
+}
+
+// ==================== COACH MESSAGES TAB ====================
+function CoachMessagesTab({ preSelectedClientId, clients }: { preSelectedClientId: number | null; clients: Client[] }) {
+  const { user } = useApp();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    loadConversations();
+  }, []);
+
+  useEffect(() => {
+    if (preSelectedClientId && clients.length > 0) {
+      const client = clients.find(c => c.id === preSelectedClientId);
+      if (client) {
+        const conv: Conversation = {
+          userId: client.id,
+          userName: `${client.first_name} ${client.last_name}`,
+          userEmail: client.email,
+          lastMessage: "Start a conversation",
+          lastMessageTime: new Date().toISOString(),
+          unreadCount: 0,
+        };
+        setSelectedConversation(conv);
+      }
+    }
+  }, [preSelectedClientId, clients]);
+
+  useEffect(() => {
+    if (selectedConversation) {
+      loadMessages(selectedConversation.userId);
+    }
+  }, [selectedConversation]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const loadConversations = async () => {
+    try {
+      const res = await fetch(`${API_URL}/messages/conversations`, {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data.conversations || []);
+      }
+    } catch (error) {
+      console.error("Failed to load conversations:", error);
+    }
+  };
+
+  const loadMessages = async (userId: number) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_URL}/messages/${userId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(data.messages || []);
+      }
+    } catch (error) {
+      console.error("Failed to load messages:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSend = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newMessage.trim() || !selectedConversation) return;
+
+    try {
+      const res = await fetch(`${API_URL}/messages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${localStorage.getItem("accessToken")}`,
+        },
+        body: JSON.stringify({
+          receiverId: selectedConversation.userId,
+          message: newMessage,
+        }),
+      });
+      
+      if (res.ok) {
+        setNewMessage("");
+        await loadMessages(selectedConversation.userId);
+      }
+    } catch (error) {
+      alert("Failed to send message");
+    }
+  };
+
+  // Merge clients with conversations
+  const allConversations = clients.map(client => {
+    const existing = conversations.find(c => c.userId === client.id);
+    return existing || {
+      userId: client.id,
+      userName: `${client.first_name} ${client.last_name}`,
+      userEmail: client.email,
+      lastMessage: "Start a conversation",
+      lastMessageTime: new Date().toISOString(),
+      unreadCount: 0,
+    };
+  });
+
+  return (
+    <>
+      <h2 style={{ fontSize: "28px", fontWeight: "700", color: colors.darkText, marginBottom: "24px" }}>
+        Messages
+      </h2>
+
+      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "24px", height: "calc(100vh - 200px)" }}>
+        {/* Conversations List */}
+        <div style={styles.card}>
+          <h3 style={styles.cardTitle}>Clients</h3>
+          {allConversations.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+              No clients yet
+            </div>
+          ) : (
+            <ul style={styles.list}>
+              {allConversations.map((conv) => (
+                <li
+                  key={conv.userId}
+                  style={{
+                    ...styles.listItem,
+                    cursor: "pointer",
+                    background: selectedConversation?.userId === conv.userId ? "rgba(107,127,110,0.08)" : "transparent",
+                  }}
+                  onClick={() => setSelectedConversation(conv)}
+                >
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: "16px", fontWeight: "600", color: colors.darkText }}>
+                      {conv.userName}
+                    </div>
+                    <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
+                      {conv.lastMessage}
+                    </div>
+                  </div>
+                  {conv.unreadCount > 0 && (
+                    <div style={{
+                      width: "24px",
+                      height: "24px",
+                      borderRadius: "50%",
+                      background: colors.sage,
+                      color: colors.white,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                    }}>
+                      {conv.unreadCount}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Messages */}
+        <div style={styles.card}>
+          {!selectedConversation ? (
+            <div style={{ textAlign: "center", padding: "48px", color: colors.lightText }}>
+              Select a client to start messaging
+            </div>
+          ) : (
+            <>
+              <div style={{ borderBottom: "1px solid rgba(0,0,0,0.08)", paddingBottom: "16px", marginBottom: "16px" }}>
+                <h3 style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
+                  {selectedConversation.userName}
+                </h3>
+                {selectedConversation.userEmail && (
+                  <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
+                    {selectedConversation.userEmail}
+                  </div>
+                )}
+              </div>
+
+              <div style={{ height: "400px", overflowY: "auto", marginBottom: "16px" }}>
+                {loading ? (
+                  <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+                    Loading messages...
+                  </div>
+                ) : messages.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
+                    No messages yet. Start the conversation!
+                  </div>
+                ) : (
+                  messages.map((msg) => {
+                    const isMe = msg.sender_id === user?.id;
+                    return (
+                      <div
+                        key={msg.id}
+                        style={{
+                          display: "flex",
+                          justifyContent: isMe ? "flex-end" : "flex-start",
+                          marginBottom: "12px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            maxWidth: "70%",
+                            padding: "12px 16px",
+                            borderRadius: "16px",
+                            background: isMe ? colors.sage : "rgba(0,0,0,0.06)",
+                            color: isMe ? colors.white : colors.darkText,
+                          }}
+                        >
+                          <div>{msg.message}</div>
+                          <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
+                            {new Date(msg.created_at).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              <form onSubmit={handleSend} style={{ display: "flex", gap: "8px" }}>
+                <input
+                  type="text"
+                  style={{ ...styles.input, flex: 1 }}
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  placeholder="Type a message..."
+                />
+                <button
+                  type="submit"
+                  style={{ ...styles.button, width: "auto", padding: "0 24px" }}
+                  disabled={!newMessage.trim()}
+                >
+                  Send
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ==================== COACH DASHBOARD ====================
 function CoachDashboard() {
   const { user, logout } = useApp();
-  const [activeTab, setActiveTab] = useState<"clients" | "groups">("clients");
+  const [activeTab, setActiveTab] = useState<"clients" | "groups" | "messages">("clients");
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [clientGlucose, setClientGlucose] = useState<GlucoseReading[]>([]);
   const [loading, setLoading] = useState(false);
+  const [messageClientId, setMessageClientId] = useState<number | null>(null);
 
   // Group management
   const [coachGroups, setCoachGroups] = useState<Group[]>([]);
@@ -2100,7 +2530,7 @@ function CoachDashboard() {
   useEffect(() => {
     if (activeTab === "clients") {
       loadClients();
-    } else {
+    } else if (activeTab === "groups") {
       loadCoachGroups();
     }
   }, [activeTab]);
@@ -2162,6 +2592,7 @@ function CoachDashboard() {
   const tabs = [
     { id: "clients", label: "Clients" },
     { id: "groups", label: "Groups" },
+    { id: "messages", label: "Messages" },
   ];
 
   return (
@@ -2199,7 +2630,7 @@ function CoachDashboard() {
         <div style={styles.header}>
           <h1 style={styles.greeting}>Welcome, Coach {user?.first_name}!</h1>
           <p style={{ color: colors.lightText, fontSize: "15px" }}>
-            {activeTab === "clients" ? "Manage your clients" : "Manage your coaching groups"}
+            {activeTab === "clients" ? "Manage your clients" : activeTab === "groups" ? "Manage your coaching groups" : "Message your clients"}
           </p>
         </div>
 
@@ -2255,42 +2686,34 @@ function CoachDashboard() {
                 </div>
               ) : (
                 <>
-                  <h3 style={styles.cardTitle}>
-                    {selectedClient.first_name} {selectedClient.last_name}
-                  </h3>
-                  <div style={{ marginBottom: "24px" }}>
-                    <div style={{ fontSize: "14px", color: colors.lightText }}>
-                      {selectedClient.email}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                    <div>
+                      <h3 style={{ fontSize: "20px", fontWeight: "700", color: colors.darkText }}>
+                        {selectedClient.first_name} {selectedClient.last_name}
+                      </h3>
+                      <div style={{ fontSize: "14px", color: colors.lightText, marginTop: "4px" }}>
+                        {selectedClient.email}
+                      </div>
                     </div>
+                    <button
+                      style={{ ...styles.button, width: "auto", padding: "0 24px", height: "48px" }}
+                      onClick={() => {
+                        setMessageClientId(selectedClient.id);
+                        setActiveTab("messages");
+                      }}
+                    >
+                      💬 Message Client
+                    </button>
                   </div>
 
-                  <h4 style={{ fontSize: "16px", fontWeight: "700", color: colors.darkText, marginBottom: "12px" }}>
-                    Recent Glucose Readings
-                  </h4>
-                  {clientGlucose.length === 0 ? (
-                    <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-                      No glucose readings yet
-                    </div>
-                  ) : (
-                    <ul style={styles.list}>
-                      {clientGlucose.slice(0, 10).map((reading, idx) => (
-                        <li key={reading.id || idx} style={styles.listItem}>
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
-                              {reading.value || reading.glucose_level} mg/dL
-                            </div>
-                            <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
-                              {new Date(reading.measured_at || reading.timestamp || "").toLocaleString()}
-                            </div>
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  {/* Tabs for Glucose and Symptoms */}
+                  <ClientDataTabs client={selectedClient} clientGlucose={clientGlucose} />
                 </>
               )}
             </div>
           </div>
+        ) : activeTab === "messages" ? (
+          <CoachMessagesTab preSelectedClientId={messageClientId} clients={clients} />
         ) : (
           // Groups Tab
           <>
@@ -2442,9 +2865,35 @@ function CoachDashboard() {
                   <div style={styles.grid}>
                     {coachGroups.map((group) => (
                       <div key={group.id} style={styles.card}>
-                        <h4 style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText, marginBottom: "8px" }}>
-                          {group.name}
-                        </h4>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "8px" }}>
+                          <h4 style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
+                            {group.name}
+                          </h4>
+                          {group.status === "draft" && (
+                            <span style={{
+                              padding: "4px 12px",
+                              background: "#FFF3CD",
+                              color: "#856404",
+                              borderRadius: "6px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                            }}>
+                              DRAFT
+                            </span>
+                          )}
+                          {group.status === "active" && (
+                            <span style={{
+                              padding: "4px 12px",
+                              background: "#D4EDDA",
+                              color: "#155724",
+                              borderRadius: "6px",
+                              fontSize: "12px",
+                              fontWeight: "600",
+                            }}>
+                              ACTIVE
+                            </span>
+                          )}
+                        </div>
                         <p style={{ fontSize: "14px", color: colors.lightText, marginBottom: "12px", lineHeight: "1.5" }}>
                           {group.description}
                         </p>
@@ -2457,12 +2906,81 @@ function CoachDashboard() {
                             </div>
                           )}
                         </div>
-                        <button
-                          style={styles.button}
-                          onClick={() => setSelectedGroup(group)}
-                        >
-                          💬 Open Group Chat
-                        </button>
+                        
+                        <div style={{ display: "flex", gap: "8px" }}>
+                          <button
+                            style={{ ...styles.button, flex: 1 }}
+                            onClick={() => setSelectedGroup(group)}
+                          >
+                            💬 Open Chat
+                          </button>
+                          
+                          {group.status === "draft" && (
+                            <button
+                              style={{
+                                ...styles.button,
+                                width: "auto",
+                                padding: "0 16px",
+                                background: "#28A745",
+                              }}
+                              onClick={async () => {
+                                try {
+                                  await api.updateGroupStatus(group.id, "active");
+                                  await loadCoachGroups();
+                                  alert("Group is now active and visible to users!");
+                                } catch (error) {
+                                  alert("Failed to publish group");
+                                }
+                              }}
+                            >
+                              📢 Publish
+                            </button>
+                          )}
+                          
+                          {group.status === "active" && (
+                            <button
+                              style={{
+                                ...styles.button,
+                                width: "auto",
+                                padding: "0 16px",
+                                background: "#FFC107",
+                              }}
+                              onClick={async () => {
+                                try {
+                                  await api.updateGroupStatus(group.id, "draft");
+                                  await loadCoachGroups();
+                                  alert("Group is now hidden from users");
+                                } catch (error) {
+                                  alert("Failed to unpublish group");
+                                }
+                              }}
+                            >
+                              👁️ Hide
+                            </button>
+                          )}
+                          
+                          <button
+                            style={{
+                              ...styles.button,
+                              width: "auto",
+                              padding: "0 16px",
+                              background: colors.errorRed,
+                            }}
+                            onClick={async () => {
+                              if (window.confirm(`Delete "${group.name}"? This cannot be undone.`)) {
+                                try {
+                                  await api.deleteGroup(group.id);
+                                  await loadCoachGroups();
+                                  alert("Group deleted successfully");
+                                } catch (error) {
+                                  alert("Failed to delete group");
+                                }
+                              }
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2489,6 +3007,7 @@ function CreateGroupForm({ onClose, onCreated }: { onClose: () => void; onCreate
     meetingDay: "Tuesday",
     meetingTime: "19:00",
     timezone: "EST",
+    status: "draft" as "draft" | "active",
   });
   const [loading, setLoading] = useState(false);
   const [accessCode, setAccessCode] = useState("");
@@ -2513,6 +3032,7 @@ function CreateGroupForm({ onClose, onCreated }: { onClose: () => void; onCreate
           time: formData.meetingTime,
           timezone: formData.timezone,
         },
+        status: formData.status,
       });
 
       setAccessCode(result.accessCode);
@@ -2645,6 +3165,19 @@ function CreateGroupForm({ onClose, onCreated }: { onClose: () => void; onCreate
               required
               disabled={loading}
             />
+          </div>
+
+          <div style={styles.formGroup}>
+            <label style={styles.label}>Status *</label>
+            <select
+              style={styles.input}
+              value={formData.status}
+              onChange={(e) => setFormData({ ...formData, status: e.target.value as "draft" | "active" })}
+              disabled={loading}
+            >
+              <option value="draft">Draft (Hidden from users)</option>
+              <option value="active">Active (Visible to users)</option>
+            </select>
           </div>
 
           <div style={{ gridColumn: "1 / -1", ...styles.formGroup }}>

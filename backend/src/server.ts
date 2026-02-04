@@ -342,6 +342,13 @@ const corsOptions: cors.CorsOptions = {
     // Allow requests with no Origin (Postman, curl, mobile, server-to-server)
     if (!origin) return cb(null, true);
 
+    // In development, allow all localhost/127.0.0.1 origins on any port
+    if (process.env.NODE_ENV !== "production") {
+      if (origin.startsWith("http://localhost") || origin.startsWith("http://127.0.0.1")) {
+        return cb(null, true);
+      }
+    }
+
     // Allow explicit origins from env
     if (allowedList.includes(origin)) return cb(null, true);
 

@@ -63,15 +63,15 @@ router.post('/', requireCoach, async (req, res) => {
         max_members: groupData.maxMembers,
         pricing: groupData.pricing,
         meeting_schedule: groupData.meetingSchedule,
-        status: 'active'
+        status: groupData.status || 'draft' // Default to draft
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    console.log('✅ Group created:', group);
-    console.log('🔑 Access code:', accessCode);
+    console.log('âœ… Group created:', group);
+    console.log('ðŸ”‘ Access code:', accessCode);
 
     res.status(201).json({ 
       group,
@@ -103,6 +103,77 @@ router.get('/coach/my-groups', requireCoach, async (req, res) => {
   } catch (error) {
     console.error('Error fetching coach groups:', error);
     res.status(500).json({ error: 'Failed to fetch groups' });
+  }
+});
+
+// PATCH /api/v1/groups/:groupId/status - Update group status (Coach only)
+router.patch('/:groupId/status', requireCoach, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { status } = req.body;
+    const coachId = req.user!.userId;
+
+    if (!['draft', 'active', 'archived', 'completed'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+
+    // Verify coach owns this group
+    const { data: group } = await supabase
+      .from('coaching_groups')
+      .select('coach_id')
+      .eq('id', groupId)
+      .single();
+
+    if (!group || group.coach_id !== coachId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Update status
+    const { data: updated, error } = await supabase
+      .from('coaching_groups')
+      .update({ status })
+      .eq('id', groupId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ group: updated });
+  } catch (error) {
+    console.error('Error updating group status:', error);
+    res.status(500).json({ error: 'Failed to update group status' });
+  }
+});
+
+// DELETE /api/v1/groups/:groupId - Delete group (Coach only)
+router.delete('/:groupId', requireCoach, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const coachId = req.user!.userId;
+
+    // Verify coach owns this group
+    const { data: group } = await supabase
+      .from('coaching_groups')
+      .select('coach_id')
+      .eq('id', groupId)
+      .single();
+
+    if (!group || group.coach_id !== coachId) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    // Delete group (cascade will handle memberships, messages, etc.)
+    const { error } = await supabase
+      .from('coaching_groups')
+      .delete()
+      .eq('id', groupId);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting group:', error);
+    res.status(500).json({ error: 'Failed to delete group' });
   }
 });
 
@@ -231,6 +302,25 @@ router.get('/:groupId/members', requireCoach, async (req, res) => {
 // ===========================================
 // USER ROUTES - Join and participate in groups
 // ===========================================
+
+// GET /api/v1/groups - Get all available groups (active only)
+router.get('/', async (req, res) => {
+  try {
+    const { data: groups, error } = await supabase
+      .from('coaching_groups')
+      .select('*')
+      .eq('status', 'active') // Only show active groups
+      .gte('end_date', new Date().toISOString()) // Only future/ongoing groups
+      .order('start_date', { ascending: true });
+
+    if (error) throw error;
+
+    res.json({ groups: groups || [] });
+  } catch (error) {
+    console.error('Error fetching available groups:', error);
+    res.status(500).json({ error: 'Failed to fetch groups' });
+  }
+});
 
 // POST /api/v1/groups/verify-code - Verify access code
 router.post('/verify-code', async (req, res) => {
@@ -363,7 +453,7 @@ router.post('/join', async (req, res) => {
   }
 });
 
-// GET /api/v1/groups/my-groups - Get user's groups
+// GET /api/v1/groups/my-groups - Get user's groups (MUST BE BEFORE /:groupId)
 router.get('/my-groups', async (req, res) => {
   try {
     const userId = req.user!.userId;
