@@ -619,68 +619,220 @@ function AppProvider({ children }: { children: React.ReactNode }) {
 
 // ==================== STYLES ====================
 const colors = {
-  sage: "#6B7F6E",
+  // Design System v1 — Light Botanical • Grounded • Professional
+  // Avoid pure white/black in surfaces; depth comes from layering.
+  sage: "#6B7F6E", // Living Sage (primary actions)
+  ink: "#2F3E34", // Soft Forest Ink (headings)
+  night: "#243128", // Deep botanical background (lux base)
+  night2: "#1F2A23", // Deeper edge for gradients
+  renewal: "#7FAF8B", // Progress / success accent
+  parchment: "#FAF8F4", // App background
+  linen: "#EFE9DF", // Primary surface
+  warmStone: "#E6E2DC", // Section separators
+  rootTaupe: "#B8B1A9", // Borders, subtle labels
+  text: "#2A2D2A", // Body text
+  muted: "#6B6B6B", // Secondary text
+  errorRed: "#C85A54",
+  white: "#FFFFFF", // Reserved (inputs, overlays)
+
+  // Legacy aliases (keep the app stable as we refactor screens)
   cream: "#FAF8F4",
   darkText: "#2A2D2A",
   lightText: "#6B6B6B",
-  errorRed: "#C85A54",
-  white: "#FFFFFF",
 };
 
 const styles: Record<string, React.CSSProperties> = {
   container: {
     minHeight: "100vh",
-    background: colors.cream,
-    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    // Lux botanical canvas (darker background, lighter surfaces)
+    background: `radial-gradient(1200px 700px at 20% 0%, rgba(107,127,110,0.22) 0%, transparent 55%),
+      radial-gradient(900px 600px at 90% 10%, rgba(127,175,139,0.14) 0%, transparent 60%),
+      linear-gradient(180deg, ${colors.night} 0%, ${colors.night2} 100%)`,
+    fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
   },
   nav: {
     display: "flex",
     alignItems: "center",
     padding: "16px 24px",
-    background: colors.white,
-    borderBottom: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(36,49,40,0.68)",
+    backdropFilter: "blur(10px)",
+    borderBottom: "1px solid rgba(250,248,244,0.10)",
     gap: "12px",
   },
   navButton: {
-    padding: "12px 20px",
+    padding: "12px 18px",
     border: "none",
     background: "transparent",
-    color: colors.lightText,
+    color: "rgba(250,248,244,0.78)",
     fontSize: "15px",
     fontWeight: "600",
     cursor: "pointer",
-    borderRadius: "8px",
+    borderRadius: "10px",
     transition: "all 0.2s",
   },
   navButtonActive: {
-    background: colors.sage,
-    color: colors.white,
+    background: "rgba(239,233,223,0.92)",
+    color: colors.ink,
   },
   dashboard: {
     maxWidth: "1200px",
     margin: "0 auto",
-    padding: "32px 24px",
+    padding: "30px 24px 44px",
   },
+
+  // Generic header (used in non-overview screens)
   header: {
-    marginBottom: "32px",
+    marginBottom: "18px",
   },
   greeting: {
-    fontSize: "32px",
+    fontSize: "28px",
     fontWeight: "700",
-    color: colors.darkText,
-    marginBottom: "8px",
+    color: "rgba(250,248,244,0.92)",
+    marginBottom: "6px",
+    letterSpacing: "-0.3px",
   },
+
+  hero: {
+    position: 
+      "relative" as const,
+    background:
+      "linear-gradient(135deg, rgba(239,233,223,0.94) 0%, rgba(250,248,244,0.96) 55%, rgba(232,237,233,0.92) 100%)",
+    border: "1px solid rgba(250,248,244,0.16)",
+    borderRadius: "24px",
+    padding: "22px 22px 20px",
+    marginBottom: "26px",
+    boxShadow: "0 18px 44px rgba(0,0,0,0.20)",
+    overflow: "hidden" as const,
+  },
+
+  
+
+  // Section rhythm
+  section: {
+    marginBottom: "28px",
+  },
+  sectionTitle: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "rgba(250,248,244,0.92)",
+    marginBottom: "12px",
+    letterSpacing: "-0.2px",
+  },
+
+sectionHeader: {
+  margin: "6px 2px 14px",
+},
+sectionSub: {
+  fontSize: "13.5px",
+  color: "rgba(250,248,244,0.70)",
+  lineHeight: 1.7,
+  marginTop: "6px",
+  marginBottom: 0,
+},
+emptyState: {
+  textAlign: "center" as const,
+  padding: "18px 10px",
+  color: "rgba(47,62,52,0.72)",
+  fontSize: "13.5px",
+  lineHeight: 1.6,
+  background: "rgba(239,233,223,0.92)",
+  border: "1px dashed rgba(47,62,52,0.10)",
+  borderRadius: "14px",
+},
+chip: {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: "6px",
+  padding: "6px 10px",
+  fontSize: "12px",
+  fontWeight: "650",
+  color: colors.ink,
+  background: "rgba(239,233,223,0.9)",
+  border: "1px solid rgba(47,62,52,0.08)",
+  borderRadius: "999px",
+  whiteSpace: "nowrap" as const,
+},
+
+  // Identity Layer (dashboard hero)
+ identityShell: {
+  borderRadius: "24px",
+  padding: "22px 22px 20px",
+  marginBottom: "26px",
+  background:
+    "linear-gradient(135deg, rgba(239,233,223,0.94) 0%, rgba(250,248,244,0.96) 55%, rgba(232,237,233,0.92) 100%)",
+  border: "1px solid rgba(250,248,244,0.16)",
+  position: "relative" as const,
+  overflow: "hidden",
+  boxShadow: "0 18px 44px rgba(0,0,0,0.20)",
+},
+
+identityTexture: {
+  position: "absolute" as const,
+  inset: 0,
+  backgroundImage: "url('/textures/linen.png')", // ✅ if using /public
+  // OR if importing: backgroundImage: `url(${linenTexture})`,
+  backgroundSize: "360px 360px",
+  backgroundRepeat: "repeat",
+  opacity: 0.035,               // ✅ subtle lux range: 0.02–0.05
+  pointerEvents: "none" as const,
+  mixBlendMode: "multiply" as any, // TS sometimes complains; "soft-light" also works
+},
+
+
+
+  identityGrain: {
+    position: "absolute" as const,
+    inset: 0,
+    // Lightweight linen grain (no external assets): layered radial gradients.
+    background:
+      "radial-gradient(circle at 20% 10%, rgba(47,62,52,0.04) 0 1px, transparent 2px) 0 0/18px 18px, radial-gradient(circle at 70% 60%, rgba(47,62,52,0.03) 0 1px, transparent 2px) 0 0/22px 22px",
+    opacity: 0.28,
+    pointerEvents: "none" as const,
+  },
+  identityContent: {
+  position: "relative" as const,
+  zIndex: 1,
+},
+  identityDivider: {
+    height: "1px",
+    width: "120px",
+    background: "rgba(47,62,52,0.14)",
+    margin: "12px 0 10px",
+    borderRadius: "999px",
+  },
+  identityTitle: {
+    fontSize: "30px",
+    fontWeight: "700",
+    color: colors.ink,
+    marginBottom: "6px",
+    letterSpacing: "-0.4px",
+  },
+  identitySubtext: {
+    fontSize: "14px",
+    lineHeight: 1.7,
+    color: colors.muted,
+    marginBottom: "10px",
+  },
+  identityWhisper: {
+    fontSize: "12.5px",
+    lineHeight: 1.8,
+    color: "rgba(47,62,52,0.68)",
+    letterSpacing: "0.3px",
+  },
+
+  // Core surface container (replaces “vanilla cards”)
   card: {
-    background: colors.white,
-    borderRadius: "16px",
-    padding: "24px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.06)",
-    marginBottom: "24px",
+    background: "rgba(250,248,244,0.96)",
+    borderRadius: "18px",
+    padding: "22px",
+    border: "1px solid rgba(250,248,244,0.18)",
+    boxShadow: "0 18px 44px rgba(0,0,0,0.20)",
+    marginBottom: "0px",
   },
   cardTitle: {
     fontSize: "18px",
-    fontWeight: "700",
-    color: colors.darkText,
+    fontWeight: "600",
+    color: colors.ink,
     marginBottom: "16px",
   },
   stat: {
@@ -695,7 +847,7 @@ const styles: Record<string, React.CSSProperties> = {
   statLabel: {
     fontSize: "14px",
     fontWeight: "600",
-    color: colors.lightText,
+    color: colors.muted,
     marginTop: "4px",
   },
   button: {
@@ -717,16 +869,17 @@ const styles: Record<string, React.CSSProperties> = {
     display: "block",
     fontSize: "14px",
     fontWeight: "600",
-    color: colors.darkText,
+    color: colors.ink,
     marginBottom: "8px",
   },
   input: {
     width: "100%",
     padding: "14px",
-    border: "2px solid rgba(0,0,0,0.08)",
+    border: "1px solid rgba(47,62,52,0.14)",
     borderRadius: "12px",
     fontSize: "15px",
     fontFamily: "inherit",
+    background: "rgba(255,255,255,0.86)",
     boxSizing: "border-box" as const,
   },
   list: {
@@ -736,7 +889,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   listItem: {
     padding: "16px",
-    borderBottom: "1px solid rgba(0,0,0,0.06)",
+    borderBottom: "1px solid rgba(47,62,52,0.06)",
     display: "flex",
     alignItems: "center",
     gap: "16px",
@@ -744,9 +897,227 @@ const styles: Record<string, React.CSSProperties> = {
   grid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
-    gap: "24px",
-    marginBottom: "24px",
+    gap: "18px",
+    marginBottom: "22px",
   },
+  // --- Conversations (Sanctuary UI) ---
+convoGrid: {
+  display: "grid",
+  gridTemplateColumns: "320px 1fr",
+  gap: "22px",
+  height: "calc(100vh - 220px)",
+},
+
+convoPanel: {
+  borderRadius: "18px",
+  border: "1px solid rgba(250,248,244,0.10)",
+  background: "rgba(250,248,244,0.06)", // subtle glass over dark canvas
+  backdropFilter: "blur(10px)",
+  overflow: "hidden",
+},
+
+convoPanelHeader: {
+  padding: "16px 16px 12px",
+  borderBottom: "1px solid rgba(250,248,244,0.10)",
+  display: "flex",
+  alignItems: "flex-end",
+  justifyContent: "space-between",
+  gap: "12px",
+},
+
+convoPanelTitle: {
+  fontSize: "14px",
+  fontWeight: 700,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase" as const,
+  color: "rgba(250,248,244,0.82)",
+},
+
+convoPanelHint: {
+  fontSize: "12px",
+  color: "rgba(250,248,244,0.58)",
+},
+
+convoList: {
+  listStyle: "none",
+  margin: 0,
+  padding: "10px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "8px",
+},
+
+convoRow: {
+  display: "flex",
+  alignItems: "center",
+  gap: "12px",
+  padding: "12px 12px",
+  borderRadius: "14px",
+  cursor: "pointer",
+  border: "1px solid rgba(250,248,244,0.08)",
+  background: "rgba(250,248,244,0.06)",
+  transition: "transform 120ms ease, background 120ms ease, border 120ms ease",
+},
+
+convoRowActive: {
+  background: "rgba(239,233,223,0.92)", // parchment highlight
+  border: "1px solid rgba(47,62,52,0.10)",
+  transform: "translateY(-1px)",
+},
+
+convoRowBody: {
+  flex: 1,
+  minWidth: 0,
+},
+
+convoName: {
+  fontSize: "15px",
+  fontWeight: 700,
+  color: "rgba(250,248,244,0.92)",
+},
+
+convoNameActive: {
+  color: "#2F3E34",
+},
+
+convoPreview: {
+  marginTop: "4px",
+  fontSize: "12.5px",
+  color: "rgba(250,248,244,0.62)",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap" as const,
+},
+
+convoPreviewActive: {
+  color: "rgba(47,62,52,0.70)",
+},
+
+badge: {
+  minWidth: "22px",
+  height: "22px",
+  padding: "0 7px",
+  borderRadius: "999px",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: "12px",
+  fontWeight: 800,
+  background: "#6B7F6E",
+  color: "#FAF8F4",
+},
+
+threadPanel: {
+  borderRadius: "18px",
+  border: "1px solid rgba(250,248,244,0.10)",
+  background: "rgba(239,233,223,0.92)", // parchment thread surface
+  overflow: "hidden",
+},
+
+threadHeader: {
+  padding: "16px 18px",
+  borderBottom: "1px solid rgba(47,62,52,0.10)",
+  background:
+    "linear-gradient(180deg, rgba(250,248,244,0.92) 0%, rgba(239,233,223,0.92) 100%)",
+},
+
+threadTitle: {
+  fontSize: "18px",
+  fontWeight: 800,
+  color: "#2F3E34",
+},
+
+threadSub: {
+  marginTop: "4px",
+  fontSize: "12.5px",
+  color: "rgba(47,62,52,0.65)",
+},
+
+threadBody: {
+  height: "460px",
+  overflowY: "auto" as const,
+  padding: "16px 16px 10px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "10px",
+  background: "rgba(250,248,244,0.55)",
+},
+
+msgWrapMe: {
+  display: "flex",
+  justifyContent: "flex-end",
+},
+
+msgWrapOther: {
+  display: "flex",
+  justifyContent: "flex-start",
+},
+
+msgBlockMe: {
+  maxWidth: "72%",
+  padding: "12px 14px",
+  borderRadius: "16px",
+  background: "#6B7F6E",
+  color: "#FAF8F4",
+  border: "1px solid rgba(250,248,244,0.18)",
+  boxShadow: "0 10px 24px rgba(0,0,0,0.20)",
+},
+
+msgBlockOther: {
+  maxWidth: "72%",
+  padding: "12px 14px",
+  borderRadius: "16px",
+  background: "rgba(239,233,223,0.98)",
+  color: "#2F3E34",
+  border: "1px solid rgba(47,62,52,0.12)",
+  boxShadow: "0 10px 24px rgba(0,0,0,0.12)",
+},
+
+msgText: {
+  fontSize: "14px",
+  lineHeight: 1.55,
+  whiteSpace: "pre-wrap" as const,
+},
+
+msgMeta: {
+  marginTop: "6px",
+  fontSize: "11px",
+  opacity: 0.70,
+},
+
+composer: {
+  padding: "12px 12px 14px",
+  borderTop: "1px solid rgba(47,62,52,0.10)",
+  background: "rgba(239,233,223,0.92)",
+  display: "flex",
+  gap: "10px",
+  alignItems: "flex-end",
+},
+
+composerInput: {
+  flex: 1,
+  minHeight: "44px",
+  maxHeight: "120px",
+  resize: "none" as const,
+  borderRadius: "14px",
+  padding: "12px 12px",
+  border: "1px solid rgba(47,62,52,0.14)",
+  background: "rgba(250,248,244,0.92)",
+  color: "#2F3E34",
+  outline: "none",
+  lineHeight: 1.5,
+},
+
+composerButton: {
+  borderRadius: "14px",
+  padding: "12px 16px",
+  border: "1px solid rgba(47,62,52,0.12)",
+  background: "#6B7F6E",
+  color: "#FAF8F4",
+  fontWeight: 800,
+  cursor: "pointer",
+  boxShadow: "0 12px 24px rgba(0,0,0,0.18)",
+},
 };
 
 // ==================== AUTH SCREENS ====================
@@ -1007,9 +1378,9 @@ function Navigation({ activeTab, onTabChange }: { activeTab: string; onTabChange
     { id: "glucose", label: "Glucose" },
     { id: "symptoms", label: "Symptoms" },
     { id: "cycle", label: "Cycle" },
-    { id: "messages", label: "Messages" },
+    { id: "messages", label: "Conversations" },
     { id: "groups", label: "Groups" },
-    { id: "settings", label: "Settings" },
+    { id: "settings", label: "Account" },
   ];
 
   return (
@@ -1048,85 +1419,139 @@ function Navigation({ activeTab, onTabChange }: { activeTab: string; onTabChange
 function OverviewTab() {
   const { user, glucoseReadings, glucoseStats, symptoms, currentCycle, myCoach } = useApp();
 
+  const firstName = user?.first_name || "there";
   const cycleDay = currentCycle
     ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
     : 0;
 
   const recentSymptoms = symptoms.slice(0, 3);
   const avgGlucose = glucoseStats?.average || glucoseStats?.avgGlucose || 0;
+  const timeInRange = Math.round(glucoseStats?.timeInRange || glucoseStats?.in_range_percentage || 0);
 
   return (
     <>
-      <div style={styles.header}>
-        <h1 style={styles.greeting}>Welcome back, {user?.first_name}!</h1>
-        <p style={{ color: colors.lightText, fontSize: "15px" }}>
-          Here's your wellness overview
-        </p>
+      {/* Identity Layer */}
+<section style={styles.identityShell}>
+  {/* Subtle texture overlay */}
+  <div style={styles.identityTexture} aria-hidden="true" />
+
+  {/* Content layer */}
+  <div style={styles.identityContent}>
+    <div style={styles.identityTitle}>
+      Welcome back, {firstName}
+    </div>
+
+    <div style={styles.identitySubtext}>
+      Strength grows quietly before it shows.
+    </div>
+
+    <div style={styles.identityDivider} />
+
+    <div style={styles.identityWhisper}>
+      You are entering a guided ecosystem for transformation.
+    </div>
+  </div>
+</section>
+
+      {/* Growth Snapshot */}
+      <div style={styles.sectionHeader}>
+        <h2 style={styles.sectionTitle}>Growth Snapshot</h2>
+        <p style={styles.sectionSub}>A calm overview of today’s foundations and momentum.</p>
       </div>
 
       <div style={styles.grid}>
         <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Glucose Status</h3>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
+            <h3 style={styles.cardTitle}>Glucose</h3>
+            {timeInRange > 0 && <span style={styles.chip}>{timeInRange}% in range</span>}
+          </div>
+
           <div style={styles.stat}>
             <div style={styles.statValue}>{avgGlucose > 0 ? Math.round(avgGlucose) : "--"}</div>
             <div style={styles.statLabel}>Average mg/dL</div>
           </div>
-          {glucoseStats && (
-            <div style={{ textAlign: "center", marginTop: "12px", color: colors.lightText, fontSize: "14px" }}>
-              {Math.round(glucoseStats.timeInRange || glucoseStats.in_range_percentage || 0)}% time in range
+
+          {glucoseReadings.length > 0 && (
+            <div style={{ marginTop: "10px", color: colors.muted, fontSize: "13px", textAlign: "center" }}>
+              Last reading: {" "}
+              <strong style={{ color: colors.ink }}>
+                {glucoseReadings[0]?.value || glucoseReadings[0]?.glucose_level} mg/dL
+              </strong>
             </div>
           )}
         </div>
 
         <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Cycle Tracking</h3>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
+            <h3 style={styles.cardTitle}>Cycle</h3>
+            {currentCycle?.phase && <span style={styles.chip}>{currentCycle.phase}</span>}
+          </div>
+
           {currentCycle ? (
             <div style={styles.stat}>
               <div style={styles.statValue}>{cycleDay}</div>
-              <div style={styles.statLabel}>Day of Cycle</div>
-              <div style={{ marginTop: "8px", fontSize: "14px", color: colors.lightText }}>
+              <div style={styles.statLabel}>Day of cycle</div>
+              <div style={{ marginTop: "8px", fontSize: "13px", color: colors.muted, textAlign: "center" }}>
                 {currentCycle.phase || "Tracking"}
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-              No active cycle
-            </div>
+            <div style={styles.emptyState}>No active cycle yet. Start when you’re ready.</div>
           )}
         </div>
 
-        {myCoach && (
+        {myCoach ? (
           <div style={styles.card}>
-            <h3 style={styles.cardTitle}>Your Coach</h3>
-            <div style={{ padding: "16px", textAlign: "center" }}>
-              <div style={{ fontSize: "18px", fontWeight: "600", color: colors.darkText }}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
+              <h3 style={styles.cardTitle}>Coach</h3>
+              <span style={styles.chip}>Support</span>
+            </div>
+
+            <div style={{ padding: "10px 0 2px", textAlign: "left" }}>
+              <div style={{ fontSize: "16px", fontWeight: 650, color: colors.ink }}>
                 {myCoach.first_name} {myCoach.last_name}
               </div>
-              <div style={{ fontSize: "14px", color: colors.lightText, marginTop: "4px" }}>
-                {myCoach.email}
+              <div style={{ fontSize: "13px", color: colors.muted, marginTop: "4px" }}>{myCoach.email}</div>
+              <div style={{ marginTop: "14px", fontSize: "13px", color: colors.muted, lineHeight: 1.6 }}>
+                Use Conversations for quick check-ins, wins, and accountability.
               </div>
+            </div>
+          </div>
+        ) : (
+          <div style={styles.card}>
+            <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: "12px" }}>
+              <h3 style={styles.cardTitle}>Coach</h3>
+              <span style={styles.chip}>Optional</span>
+            </div>
+            <div style={styles.emptyState}>
+              No coach assigned yet. When one is connected, you’ll see their details here.
             </div>
           </div>
         )}
       </div>
 
+      {/* Foundations */}
+      <div style={{ ...styles.sectionHeader, marginTop: "10px" }}>
+        <h2 style={styles.sectionTitle}>Foundations</h2>
+        <p style={styles.sectionSub}>Your latest inputs—small steps that build big change.</p>
+      </div>
+
       <div style={styles.grid}>
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>Recent Glucose</h3>
+
           {glucoseReadings.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-              No readings logged yet
-            </div>
+            <div style={styles.emptyState}>No readings logged yet.</div>
           ) : (
             <ul style={styles.list}>
               {glucoseReadings.slice(0, 3).map((reading, idx) => (
                 <li key={reading.id || idx} style={styles.listItem}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "16px", fontWeight: "600", color: colors.darkText }}>
+                    <div style={{ fontSize: "15px", fontWeight: 650, color: colors.ink }}>
                       {reading.value || reading.glucose_level} mg/dL
                     </div>
-                    <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "2px" }}>
-                      {new Date(reading.measured_at || reading.timestamp || "").toLocaleDateString()}
+                    <div style={{ fontSize: "12.5px", color: colors.muted, marginTop: "2px" }}>
+                      {new Date(reading.measured_at || reading.timestamp || "").toLocaleString()}
                     </div>
                   </div>
                 </li>
@@ -1137,31 +1562,30 @@ function OverviewTab() {
 
         <div style={styles.card}>
           <h3 style={styles.cardTitle}>Recent Symptoms</h3>
+
           {recentSymptoms.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-              No symptoms logged recently
-            </div>
+            <div style={styles.emptyState}>No symptoms logged recently.</div>
           ) : (
             <ul style={styles.list}>
               {recentSymptoms.map((symptom, idx) => (
                 <li key={symptom.id || idx} style={styles.listItem}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "16px", fontWeight: "600", color: colors.darkText }}>
+                    <div style={{ fontSize: "15px", fontWeight: 650, color: colors.ink }}>
                       {symptom.symptom_type}
                     </div>
-                    <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "2px" }}>
-                      {new Date(symptom.created_at || symptom.logged_at || "").toLocaleDateString()}
+                    <div style={{ fontSize: "12.5px", color: colors.muted, marginTop: "2px" }}>
+                      {new Date(symptom.created_at || symptom.logged_at || "").toLocaleString()}
                     </div>
                   </div>
-                  <div style={{
-                    padding: "6px 12px",
-                    borderRadius: "8px",
-                    background: "rgba(107,127,110,0.1)",
-                    color: colors.sage,
-                    fontWeight: "600",
-                  }}>
+                  <span
+                    style={{
+                      ...styles.chip,
+                      background: "rgba(107,127,110,0.10)",
+                      borderColor: "rgba(107,127,110,0.18)",
+                    }}
+                  >
                     {symptom.severity}/10
-                  </div>
+                  </span>
                 </li>
               ))}
             </ul>
@@ -1551,7 +1975,8 @@ function MessagesTab() {
     if (selectedConversation) {
       loadMessages(selectedConversation.userId);
     }
-  }, [selectedConversation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedConversation?.userId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -1559,9 +1984,12 @@ function MessagesTab() {
 
   const loadMessages = async (userId: number) => {
     setLoading(true);
-    const msgs = await getMessages(userId);
-    setMessages(msgs);
-    setLoading(false);
+    try {
+      const msgs = await getMessages(userId);
+      setMessages(msgs || []);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSend = async (e: React.FormEvent) => {
@@ -1578,148 +2006,132 @@ function MessagesTab() {
   };
 
   // If user has a coach, show coach as a conversation option
-  const allConversations = myCoach && !conversations.find(c => c.userId === myCoach.id)
-    ? [
-        {
-          userId: myCoach.id,
-          userName: `${myCoach.first_name} ${myCoach.last_name}`,
-          userEmail: myCoach.email,
-          lastMessage: "Start a conversation",
-          lastMessageTime: new Date().toISOString(),
-          unreadCount: 0,
-        },
-        ...conversations,
-      ]
-    : conversations;
+  const allConversations =
+    myCoach && !conversations.find((c) => c.userId === myCoach.id)
+      ? [
+          {
+            userId: myCoach.id,
+            userName: `${myCoach.first_name} ${myCoach.last_name}`,
+            userEmail: myCoach.email,
+            lastMessage: "This space is ready when you are.",
+            lastMessageTime: new Date().toISOString(),
+            unreadCount: 0,
+          },
+          ...conversations,
+        ]
+      : conversations;
+
+
+      const getPreviewText = (lastMessage: any) => {
+  if (!lastMessage) return "—";
+  if (typeof lastMessage === "string") return lastMessage;
+  if (typeof lastMessage === "object") {
+    // common API shapes
+    if (typeof lastMessage.message === "string") return lastMessage.message;
+    if (typeof lastMessage.text === "string") return lastMessage.text;
+  }
+  return "—";
+}
 
   return (
     <>
-      <h2 style={{ fontSize: "28px", fontWeight: "700", color: colors.darkText, marginBottom: "24px" }}>
-        Messages
+      <h2 style={{ fontSize: "28px", fontWeight: "800", color: "rgba(250,248,244,0.92)", marginBottom: "18px" }}>
+        Conversations
       </h2>
 
-      <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: "24px", height: "calc(100vh - 200px)" }}>
-        {/* Conversations List */}
-        <div style={styles.card}>
-          <h3 style={styles.cardTitle}>Conversations</h3>
+      <div style={styles.convoGrid}>
+        {/* Left: Conversation list (dark glass) */}
+        <div style={styles.convoPanel}>
+          <div style={styles.convoPanelHeader}>
+            <div>
+              <div style={styles.convoPanelTitle}>Correspondence</div>
+              <div style={styles.convoPanelHint}>Guidance • Support • Reflection</div>
+            </div>
+          </div>
+
           {allConversations.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-              No conversations yet
+            <div style={{ padding: "18px", color: "rgba(250,248,244,0.65)" }}>
+              This space is ready when you are.
             </div>
           ) : (
-            <ul style={styles.list}>
-              {allConversations.map((conv) => (
-                <li
-                  key={conv.userId}
-                  style={{
-                    ...styles.listItem,
-                    cursor: "pointer",
-                    background: selectedConversation?.userId === conv.userId ? "rgba(107,127,110,0.08)" : "transparent",
-                  }}
-                  onClick={() => setSelectedConversation(conv)}
-                >
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: "16px", fontWeight: "600", color: colors.darkText }}>
-                      {conv.userName}
-                    </div>
-                    <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
-                      {conv.lastMessage}
-                    </div>
-                  </div>
-                  {conv.unreadCount > 0 && (
-                    <div style={{
-                      width: "24px",
-                      height: "24px",
-                      borderRadius: "50%",
-                      background: colors.sage,
-                      color: colors.white,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: "12px",
-                      fontWeight: "700",
-                    }}>
-                      {conv.unreadCount}
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <ul style={styles.convoList}>
+  {allConversations.map((conv, idx) => {
+    const active = selectedConversation?.userId === conv.userId;
+
+    return (
+      <li
+        key={`${conv.userId}-${idx}`}  // ✅ unique
+        style={{ ...styles.convoRow, ...(active ? styles.convoRowActive : {}) }}
+        onClick={() => setSelectedConversation(conv)}
+      >
+        <div style={styles.convoRowBody}>
+          <div style={{ ...styles.convoName, ...(active ? styles.convoNameActive : {}) }}>
+            {conv.userName}
+          </div>
+
+          <div style={{ ...styles.convoPreview, ...(active ? styles.convoPreviewActive : {}) }}>
+            {getPreviewText(conv.lastMessage)} {/* ✅ safe string */}
+          </div>
+        </div>
+
+        {conv.unreadCount > 0 && <div style={styles.badge}>{conv.unreadCount}</div>}
+      </li>
+    );
+  })}
+</ul>
           )}
         </div>
 
-        {/* Messages */}
-        <div style={styles.card}>
+        {/* Right: Thread (light parchment sanctuary) */}
+        <div style={styles.threadPanel}>
           {!selectedConversation ? (
-            <div style={{ textAlign: "center", padding: "48px", color: colors.lightText }}>
-              Select a conversation to start messaging
+            <div style={{ padding: "44px 22px", color: "rgba(47,62,52,0.62)" }}>
+              Select a conversation to begin.
             </div>
           ) : (
             <>
-              <div style={{ borderBottom: "1px solid rgba(0,0,0,0.08)", paddingBottom: "16px", marginBottom: "16px" }}>
-                <h3 style={{ fontSize: "18px", fontWeight: "700", color: colors.darkText }}>
-                  {selectedConversation.userName}
-                </h3>
-                {selectedConversation.userEmail && (
-                  <div style={{ fontSize: "13px", color: colors.lightText, marginTop: "4px" }}>
-                    {selectedConversation.userEmail}
-                  </div>
-                )}
+              <div style={styles.threadHeader}>
+                <div style={styles.threadTitle}>{selectedConversation.userName}</div>
+                {selectedConversation.userEmail && <div style={styles.threadSub}>{selectedConversation.userEmail}</div>}
               </div>
 
-              <div style={{ height: "400px", overflowY: "auto", marginBottom: "16px" }}>
+              <div style={styles.threadBody}>
                 {loading ? (
-                  <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-                    Loading messages...
-                  </div>
+                  <div style={{ padding: "18px", color: "rgba(47,62,52,0.55)" }}>Loading…</div>
                 ) : messages.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "24px", color: colors.lightText }}>
-                    No messages yet. Start the conversation!
+                  <div style={{ padding: "18px", color: "rgba(47,62,52,0.55)" }}>
+                    This space is ready when you are.
                   </div>
                 ) : (
                   messages.map((msg) => {
                     const isMe = msg.sender_id === user?.id;
                     return (
-                      <div
-                        key={msg.id}
-                        style={{
-                          display: "flex",
-                          justifyContent: isMe ? "flex-end" : "flex-start",
-                          marginBottom: "12px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            maxWidth: "70%",
-                            padding: "12px 16px",
-                            borderRadius: "16px",
-                            background: isMe ? colors.sage : "rgba(0,0,0,0.06)",
-                            color: isMe ? colors.white : colors.darkText,
-                          }}
-                        >
-                          <div>{msg.message}</div>
-                          <div style={{ fontSize: "11px", marginTop: "4px", opacity: 0.7 }}>
-                            {new Date(msg.created_at).toLocaleTimeString()}
+                      <div key={msg.id} style={isMe ? styles.msgWrapMe : styles.msgWrapOther}>
+                        <div style={isMe ? styles.msgBlockMe : styles.msgBlockOther}>
+                          <div style={styles.msgText}>
+                            {typeof msg.message === "string" ? msg.message : JSON.stringify(msg.message)}</div>
+                          <div style={styles.msgMeta}>
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
                           </div>
                         </div>
                       </div>
                     );
                   })
                 )}
+
                 <div ref={messagesEndRef} />
               </div>
 
-              <form onSubmit={handleSend} style={{ display: "flex", gap: "8px" }}>
-                <input
-                  type="text"
-                  style={{ ...styles.input, flex: 1 }}
+              <form onSubmit={handleSend} style={styles.composer}>
+                <textarea
+                  style={styles.composerInput}
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  placeholder="Type a message..."
+                  placeholder="Write a message…"
                 />
                 <button
                   type="submit"
-                  style={{ ...styles.button, width: "auto", padding: "0 24px" }}
+                  style={{ ...styles.composerButton, opacity: !newMessage.trim() ? 0.6 : 1 }}
                   disabled={!newMessage.trim()}
                 >
                   Send
@@ -2592,7 +3004,7 @@ function CoachDashboard() {
   const tabs = [
     { id: "clients", label: "Clients" },
     { id: "groups", label: "Groups" },
-    { id: "messages", label: "Messages" },
+    { id: "messages", label: "Conversations" },
   ];
 
   return (
