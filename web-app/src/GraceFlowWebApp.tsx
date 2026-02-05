@@ -1257,71 +1257,71 @@ function CycleView() {
 function CoachDashboard() {
   const { user, logout } = useApp();
 
-  const API_BASE =
+  const API_HOST =
     (import.meta as any).env?.VITE_API_URL ||
     "http://localhost:3000";
+
+  const API = API_HOST.replace(/\/$/, "") + "/api/v1";
+
+  const token = localStorage.getItem("token"); // adjust if you store it differently
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const [clients, setClients] = useState<any[]>([]);
-  const [selectedClient, setSelectedClient] = useState<any | null>(null);
+  const [selected, setSelected] = useState<any | null>(null);
 
-  const [clientReadings, setClientReadings] = useState<any[]>([]);
-  const [clientSymptoms, setClientSymptoms] = useState<any[]>([]);
-  const [clientCycle, setClientCycle] = useState<any | null>(null);
+  const [readings, setReadings] = useState<any[]>([]);
+  const [symptoms, setSymptoms] = useState<any[]>([]);
+  const [cycle, setCycle] = useState<any | null>(null);
 
-  // If you store auth token in localStorage; adjust if yours is different.
-  const token = localStorage.getItem("token");
-
-  const fetchJSON = async (path: string) => {
-    const res = await fetch(`${API_BASE}${path}`, {
+  async function fetchJSON(path: string) {
+    const res = await fetch(`${API}${path}`, {
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`);
-    }
-    return res.json();
-  };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data?.error || `${res.status} ${res.statusText}`);
+    return data;
+  }
 
-  const loadClients = async () => {
+  async function loadClients() {
     setLoading(true);
     setError(null);
     try {
-      // You need a backend endpoint like: GET /api/coach/clients
-      const data = await fetchJSON(`/api/coach/clients`);
-      setClients(Array.isArray(data) ? data : data.clients || []);
+      // You might need to adjust this path to match your coach.routes.ts
+      const data = await fetchJSON("/coach/clients");
+      const list = Array.isArray(data) ? data : data.clients || [];
+      setClients(list);
     } catch (e: any) {
       setError(e.message || "Failed to load clients");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const loadClientDetails = async (clientId: string) => {
+  async function loadClient(clientId: string) {
     setLoading(true);
     setError(null);
     try {
-      // Example endpoints (you can rename to whatever your backend uses):
-      const [readings, symptoms, cycle] = await Promise.all([
-        fetchJSON(`/api/coach/clients/${clientId}/glucose`),
-        fetchJSON(`/api/coach/clients/${clientId}/symptoms`),
-        fetchJSON(`/api/coach/clients/${clientId}/cycle/current`),
+      // Adjust these to your actual routes if needed
+      const [r, s, c] = await Promise.all([
+        fetchJSON(`/coach/clients/${clientId}/glucose`),
+        fetchJSON(`/coach/clients/${clientId}/symptoms`),
+        fetchJSON(`/coach/clients/${clientId}/cycle/current`),
       ]);
 
-      setClientReadings(Array.isArray(readings) ? readings : readings.readings || []);
-      setClientSymptoms(Array.isArray(symptoms) ? symptoms : symptoms.symptoms || []);
-      setClientCycle(cycle?.cycle || cycle || null);
+      setReadings(Array.isArray(r) ? r : r.readings || []);
+      setSymptoms(Array.isArray(s) ? s : s.symptoms || []);
+      setCycle(c?.cycle || c || null);
     } catch (e: any) {
       setError(e.message || "Failed to load client data");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   useEffect(() => {
     loadClients();
@@ -1343,35 +1343,21 @@ function CoachDashboard() {
 
       <div style={styles.dashboard}>
         <div style={styles.header}>
-          <h3 style={styles.dashboard}>COACH DASHBOARD LIVE ✅</h3>
-          <h1 style={styles.greeting}>
-            Welcome, Coach {user?.first_name || "Coach"}!
-          </h1>
-          <p style={{ color: "#6B6B6B", fontSize: "15px" }}>
-            Client management
-          </p>
+          <h1 style={styles.greeting}>Welcome, Coach {user?.first_name || "Coach"}!</h1>
+          <p style={{ color: "#6B6B6B", fontSize: "15px" }}>Your client management dashboard</p>
         </div>
 
         {error && (
           <div style={{ ...styles.card, border: "1px solid rgba(200,90,84,0.35)" }}>
-            <div style={{ color: "#C85A54", fontWeight: 700, marginBottom: 8 }}>
-              Something went wrong
-            </div>
-            <div style={{ color: "#6B6B6B", fontSize: 14, lineHeight: "20px" }}>{error}</div>
-            <button
-              style={{ ...styles.button, width: "auto", padding: "0 18px", height: 40, marginTop: 14 }}
-              onClick={loadClients}
-            >
-              Retry
-            </button>
+            <div style={{ color: "#C85A54", fontWeight: 800, marginBottom: 6 }}>Error</div>
+            <div style={{ color: "#6B6B6B", fontSize: 14 }}>{error}</div>
           </div>
         )}
 
         <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 18 }}>
-          {/* Left: client list */}
           <div style={styles.card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontWeight: 800, color: "#2A2D2A" }}>Clients</div>
+              <div style={{ fontWeight: 900, color: "#2A2D2A" }}>Clients</div>
               <button
                 style={{ ...styles.navButton, width: "auto", padding: "8px 12px" }}
                 onClick={loadClients}
@@ -1386,45 +1372,41 @@ function CoachDashboard() {
               <div style={{ color: "#6B6B6B" }}>No clients yet.</div>
             ) : (
               <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
-                {clients.map((c) => {
-                  const isActive = selectedClient?.id === c.id;
-                  return (
-                    <li key={c.id} style={{ marginBottom: 10 }}>
-                      <button
-                        onClick={() => {
-                          setSelectedClient(c);
-                          loadClientDetails(String(c.id));
-                        }}
-                        style={{
-                          width: "100%",
-                          textAlign: "left",
-                          padding: "12px 12px",
-                          borderRadius: 14,
-                          border: "1px solid rgba(184,177,169,0.45)",
-                          background: isActive ? "rgba(107,127,110,0.10)" : "#fff",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <div style={{ fontWeight: 800, color: "#2A2D2A" }}>
-                          {c.first_name || ""} {c.last_name || ""}
-                        </div>
-                        <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 4 }}>
-                          {c.email || "—"}
-                        </div>
-                      </button>
-                    </li>
-                  );
-                })}
+                {clients.map((c) => (
+                  <li key={c.id} style={{ marginBottom: 10 }}>
+                    <button
+                      onClick={() => {
+                        setSelected(c);
+                        loadClient(String(c.id));
+                      }}
+                      style={{
+                        width: "100%",
+                        textAlign: "left",
+                        padding: "12px 12px",
+                        borderRadius: 14,
+                        border: "1px solid rgba(184,177,169,0.45)",
+                        background: selected?.id === c.id ? "rgba(107,127,110,0.10)" : "#fff",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <div style={{ fontWeight: 900, color: "#2A2D2A" }}>
+                        {c.first_name || ""} {c.last_name || ""}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 4 }}>
+                        {c.email || "—"}
+                      </div>
+                    </button>
+                  </li>
+                ))}
               </ul>
             )}
           </div>
 
-          {/* Right: client detail */}
           <div style={styles.card}>
-            {!selectedClient ? (
+            {!selected ? (
               <div style={{ textAlign: "center", padding: "48px 24px" }}>
                 <div style={{ fontSize: 42, marginBottom: 12 }}>🌿</div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: "#2A2D2A" }}>
+                <div style={{ fontSize: 20, fontWeight: 900, color: "#2A2D2A" }}>
                   Select a client
                 </div>
                 <div style={{ marginTop: 8, color: "#6B6B6B" }}>
@@ -1436,14 +1418,14 @@ function CoachDashboard() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12 }}>
                   <div>
                     <div style={{ fontSize: 22, fontWeight: 900, color: "#2A2D2A" }}>
-                      {selectedClient.first_name} {selectedClient.last_name}
+                      {selected.first_name} {selected.last_name}
                     </div>
                     <div style={{ fontSize: 13, color: "#6B6B6B", marginTop: 4 }}>
-                      {selectedClient.email || ""}
+                      {selected.email || ""}
                     </div>
                   </div>
                   <div style={{ fontSize: 13, color: "#6B6B6B" }}>
-                    {loading ? "Loading client data…" : " "}
+                    {loading ? "Loading…" : " "}
                   </div>
                 </div>
 
@@ -1451,37 +1433,32 @@ function CoachDashboard() {
                   <div style={{ ...styles.card, padding: 16 }}>
                     <div style={{ fontSize: 12, color: "#6B6B6B" }}>Latest Glucose</div>
                     <div style={{ fontSize: 22, fontWeight: 900, color: "#2A2D2A", marginTop: 6 }}>
-                      {clientReadings[0]?.value ? `${clientReadings[0].value} ${clientReadings[0].unit || "mg/dL"}` : "—"}
+                      {readings[0]?.value ? `${readings[0].value} ${readings[0].unit || "mg/dL"}` : "—"}
                     </div>
                   </div>
 
                   <div style={{ ...styles.card, padding: 16 }}>
                     <div style={{ fontSize: 12, color: "#6B6B6B" }}>Symptoms Logged</div>
                     <div style={{ fontSize: 22, fontWeight: 900, color: "#2A2D2A", marginTop: 6 }}>
-                      {clientSymptoms.length}
+                      {symptoms.length}
                     </div>
                   </div>
 
                   <div style={{ ...styles.card, padding: 16 }}>
                     <div style={{ fontSize: 12, color: "#6B6B6B" }}>Cycle</div>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: "#2A2D2A", marginTop: 8 }}>
-                      {clientCycle?.phase || "—"}
-                    </div>
-                    <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 4 }}>
-                      {clientCycle?.cycle_start_date
-                        ? `Started ${new Date(clientCycle.cycle_start_date).toLocaleDateString()}`
-                        : ""}
+                    <div style={{ fontSize: 14, fontWeight: 900, color: "#2A2D2A", marginTop: 8 }}>
+                      {cycle?.phase || "—"}
                     </div>
                   </div>
                 </div>
 
                 <div style={{ marginTop: 18 }}>
                   <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 10 }}>Recent glucose</div>
-                  {clientReadings.length === 0 ? (
+                  {readings.length === 0 ? (
                     <div style={{ color: "#6B6B6B" }}>No readings yet.</div>
                   ) : (
                     <ul style={styles.list}>
-                      {clientReadings.slice(0, 10).map((r, idx) => (
+                      {readings.slice(0, 10).map((r, idx) => (
                         <li key={r.id || idx} style={styles.listItem}>
                           <div style={{ fontWeight: 900, color: "#2A2D2A" }}>
                             {r.value} {r.unit || "mg/dL"}
