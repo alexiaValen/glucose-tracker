@@ -1343,6 +1343,7 @@ function CoachDashboard() {
 
       <div style={styles.dashboard}>
         <div style={styles.header}>
+          <h3 style={styles.dashboard}>COACH DASHBOARD LIVE ✅</h3>
           <h1 style={styles.greeting}>
             Welcome, Coach {user?.first_name || "Coach"}!
           </h1>
