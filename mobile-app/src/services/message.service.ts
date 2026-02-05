@@ -10,21 +10,44 @@ export interface Message {
   created_at: string;
 }
 
-export interface Conversation {
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-  };
-  lastMessage: Message;
-  unreadCount: number;
+export interface ConversationUser {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
 }
+
+export interface Conversation {
+  user?: ConversationUser | null;
+  lastMessage?: Message | null;
+  unreadCount?: number | null;
+}
+
+const normalizeConversation = (c: any): Conversation => {
+  const user = c?.user ?? null;
+
+  return {
+    user: user
+      ? {
+          id: user.id,
+          firstName: user.firstName ?? user.first_name ?? null,
+          lastName: user.lastName ?? user.last_name ?? null,
+          email: user.email ?? null,
+        }
+      : null,
+    lastMessage: c?.lastMessage ?? c?.last_message ?? null,
+    unreadCount: c?.unreadCount ?? c?.unread_count ?? 0,
+  };
+};
 
 export const messageService = {
   // Get all conversations for current user
   async getConversations(): Promise<Conversation[]> {
     const response = await api.get('/messages/conversations');
-    return response.data.conversations || response.data;
+    const raw = response.data?.conversations ?? response.data;
+
+    if (!Array.isArray(raw)) return [];
+    return raw.map(normalizeConversation);
   },
 
   // Get messages between current user and another user
@@ -32,7 +55,8 @@ export const messageService = {
     const response = await api.get(`/messages/${userId}`, {
       params: { limit },
     });
-    return response.data.messages || response.data;
+    const raw = response.data?.messages ?? response.data;
+    return Array.isArray(raw) ? raw : [];
   },
 
   // Send a message
@@ -41,7 +65,7 @@ export const messageService = {
       recipientId,
       message,
     });
-    return response.data.message || response.data;
+    return response.data?.message ?? response.data;
   },
 
   // Mark messages as read
@@ -52,6 +76,6 @@ export const messageService = {
   // Get unread count
   async getUnreadCount(): Promise<number> {
     const response = await api.get('/messages/unread-count');
-    return response.data.count || 0;
+    return response.data?.count ?? 0;
   },
 };

@@ -10,51 +10,88 @@ router.get('/conversations', authenticateToken, async (req, res) => {
   try {
     const userId = req.user!.userId;
 
-    // Get all unique conversation partners
     const { data: conversations, error } = await supabase
       .from('messages')
-      .select(`
-        *,
-        sender:users!messages_sender_id_fkey(id, first_name, last_name),
-        recipient:users!messages_recipient_id_fkey(id, first_name, last_name)
-      `)
+      .select(
+        `
+        id,
+        sender_id,
+        recipient_id,
+        message,
+        read,
+        created_at,
+        sender:users!messages_sender_id_fkey(id, first_name, last_name, email),
+        recipient:users!messages_recipient_id_fkey(id, first_name, last_name, email)
+      `
+      )
       .or(`sender_id.eq.${userId},recipient_id.eq.${userId}`)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    // Group by conversation partner
-    const conversationMap = new Map();
+    const conversationMap = new Map<string, any>();
 
-    conversations?.forEach((msg: any) => {
-      const partnerId = msg.sender_id === userId ? msg.recipient_id : msg.sender_id;
-      const partner = msg.sender_id === userId ? msg.recipient : msg.sender;
+    (conversations || []).forEach((msg: any) => {
+      const isSender = msg.sender_id === userId;
+      const partnerId = isSender ? msg.recipient_id : msg.sender_id;
+      const partner = isSender ? msg.recipient : msg.sender;
+
+      // ✅ Safe partner fields (joins can be null)
+      const partnerFirst = (partner?.first_name ?? '').toString();
+      const partnerLast = (partner?.last_name ?? '').toString();
+      const partnerEmail = (partner?.email ?? '').toString();
 
       if (!conversationMap.has(partnerId)) {
         conversationMap.set(partnerId, {
           user: {
-            id: partnerId,
-            firstName: partner.first_name,
-            lastName: partner.last_name,
+            id: partner?.id ?? partnerId,
+            firstName: partnerFirst,
+            lastName: partnerLast,
+            email: partnerEmail,
           },
-          lastMessage: msg,
+          lastMessage: {
+            id: msg.id,
+            sender_id: msg.sender_id,
+            recipient_id: msg.recipient_id,
+            message: msg.message,
+            read: msg.read,
+            created_at: msg.created_at,
+          },
           unreadCount: 0,
         });
       }
 
-      // Count unread messages
+      // Count unread messages (only those sent TO current user)
       if (msg.recipient_id === userId && !msg.read) {
         const conv = conversationMap.get(partnerId);
-        conv.unreadCount++;
+        conv.unreadCount = (conv.unreadCount || 0) + 1;
       }
     });
 
-    const conversationList = Array.from(conversationMap.values());
-
-    res.json({ conversations: conversationList });
+    res.json({ conversations: Array.from(conversationMap.values()) });
   } catch (error) {
     console.error('Error fetching conversations:', error);
     res.status(500).json({ error: 'Failed to fetch conversations' });
+  }
+});
+
+// ✅ IMPORTANT: this must come BEFORE "/:userId"
+router.get('/unread-count', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user!.userId;
+
+    const { count, error } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('recipient_id', userId)
+      .eq('read', false);
+
+    if (error) throw error;
+
+    res.json({ count: count || 0 });
+  } catch (error) {
+    console.error('Error getting unread count:', error);
+    res.status(500).json({ error: 'Failed to get unread count' });
   }
 });
 
@@ -68,7 +105,9 @@ router.get('/:userId', authenticateToken, async (req, res) => {
     const { data: messages, error } = await supabase
       .from('messages')
       .select('*')
-      .or(`and(sender_id.eq.${currentUserId},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${currentUserId})`)
+      .or(
+        `and(sender_id.eq.${currentUserId},recipient_id.eq.${userId}),and(sender_id.eq.${userId},recipient_id.eq.${currentUserId})`
+      )
       .order('created_at', { ascending: true })
       .limit(limit);
 
@@ -96,7 +135,7 @@ router.post('/', authenticateToken, async (req, res) => {
       .insert({
         sender_id: senderId,
         recipient_id: recipientId,
-        message: message.trim(),
+        message: String(message).trim(),
         read: false,
       })
       .select()
@@ -130,26 +169,6 @@ router.put('/:userId/read', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error marking messages as read:', error);
     res.status(500).json({ error: 'Failed to mark messages as read' });
-  }
-});
-
-// Get unread message count
-router.get('/unread-count', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user!.userId;
-
-    const { count, error } = await supabase
-      .from('messages')
-      .select('*', { count: 'exact', head: true })
-      .eq('recipient_id', userId)
-      .eq('read', false);
-
-    if (error) throw error;
-
-    res.json({ count: count || 0 });
-  } catch (error) {
-    console.error('Error getting unread count:', error);
-    res.status(500).json({ error: 'Failed to get unread count' });
   }
 });
 
