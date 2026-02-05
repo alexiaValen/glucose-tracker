@@ -1263,7 +1263,7 @@ function CoachDashboard() {
 
   const API = API_HOST.replace(/\/$/, "") + "/api/v1";
 
-  const token = localStorage.getItem("token"); // adjust if you store it differently
+  const token = localStorage.getItem("accessToken"); // adjust if you store it differently
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -1343,7 +1343,7 @@ function CoachDashboard() {
 
       <div style={styles.dashboard}>
         <div style={styles.header}>
-          <h1 style={styles.greeting}>Welcome, Coach {user?.first_name || "Coach"}!</h1>
+          <h1 style={styles.greeting}>Welcome, {user?.first_name || "Coach"}!</h1>
           <p style={{ color: "#6B6B6B", fontSize: "15px" }}>Your client management dashboard</p>
         </div>
 
