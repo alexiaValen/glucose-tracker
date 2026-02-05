@@ -3,16 +3,19 @@ import { GlucoseReading, GlucoseStats, CreateGlucoseRequest } from '../types/glu
 
 export const glucoseService = {
   async getReadings(limit = 50, offset = 0): Promise<{ readings: GlucoseReading[] }> {
-    const response = await api.get('/glucose', {
-      params: { limit, offset },
-    });
-    return response.data;
-  },
+  const response = await api.get('/glucose', { params: { limit, offset } });
 
-  // async createReading(data: CreateGlucoseRequest): Promise<GlucoseReading> {
-  //   const response = await api.post('/glucose', data);
-  //   return response.data;
-  // },
+  const data = response.data;
+
+  // Backend returns array, normalize here
+  if (Array.isArray(data)) {
+    return { readings: data as GlucoseReading[] };
+  }
+
+  // If backend ever returns { readings: [...] }, still works
+  return data as { readings: GlucoseReading[] };
+},
+
   async createReading(data: CreateGlucoseRequest): Promise<GlucoseReading> {
   const response = await api.post('/glucose', {
     glucose_level: data.glucose_level,  // Not 'value'

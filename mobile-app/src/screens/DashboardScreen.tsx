@@ -20,24 +20,30 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 // CHANGE THIS LINE - use SimpleIcons instead of the SVG icons
 import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/SimpleIcons';
+import { glucoseService } from '../services/glucose.service';
 
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
 interface Props {
   navigation: DashboardScreenNavigationProp;
+
 }
 
-export default function DashboardScreen({ navigation }: Props) {
+export default function DashboardScreen({ navigation }: Props){
   const { user, logout } = useAuthStore();
   const { readings, stats, fetchReadings, fetchStats } = useGlucoseStore();
   const { currentCycle, fetchCurrentCycle } = useCycleStore();
   const { symptoms, fetchSymptoms } = useSymptomStore();
+
+  const safeReadings = Array.isArray(readings) ? readings : [];
+const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
   
   const [refreshing, setRefreshing] = useState(false);
   const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
   const [myCoach, setMyCoach] = useState<any>(null);
   const [groupMembership, setGroupMembership] = useState<any>(null);
+
 
   useEffect(() => {
     loadData();
@@ -120,6 +126,7 @@ export default function DashboardScreen({ navigation }: Props) {
     if (severity <= 6) return 'rgba(184,164,95,0.5)'; // Gold
     return 'rgba(139,111,71,0.6)'; // Brown
   };
+
 
   return (
     <BotanicalBackground variant="3d" intensity="medium">

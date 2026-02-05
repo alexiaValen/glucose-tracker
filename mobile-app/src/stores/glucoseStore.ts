@@ -18,15 +18,23 @@ export const useGlucoseStore = create<GlucoseState>((set, get) => ({
   isLoading: false,
 
   fetchReadings: async () => {
-    set({ isLoading: true });
-    try {
-      const data = await glucoseService.getReadings(20, 0);
-      set({ readings: data.readings, isLoading: false });
-    } catch (error) {
-      console.error('Failed to fetch readings:', error);
-      set({ isLoading: false });
-    }
-  },
+  set({ isLoading: true });
+  try {
+    const data = await glucoseService.getReadings(20, 0);
+
+    // ✅ Normalize: backend may return an array OR { readings: [] }
+    const normalizedReadings = Array.isArray(data)
+      ? (data as GlucoseReading[])
+      : Array.isArray((data as any)?.readings)
+        ? ((data as any).readings as GlucoseReading[])
+        : [];
+
+    set({ readings: normalizedReadings, isLoading: false });
+  } catch (error) {
+    console.error('Failed to fetch readings:', error);
+    set({ readings: [], isLoading: false }); // ✅ keep it an array even on error
+  }
+},
 
   fetchStats: async () => {
     try {

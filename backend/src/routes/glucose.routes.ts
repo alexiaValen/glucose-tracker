@@ -26,7 +26,7 @@ router.post(
       const unit = req.body.unit || 'mg/dL';
       const mealContext = req.body.meal_context;
 
-      console.log('📝 Creating glucose reading:', { userId, value, measuredAt, source });
+      console.log('ðŸ“ Creating glucose reading:', { userId, value, measuredAt, source });
 
       // Validate required fields
       if (!value || !measuredAt) {
@@ -49,10 +49,10 @@ router.post(
         [userId, value, measuredAt, notes, source, unit, mealContext]
       );
 
-      console.log('✅ Glucose reading created:', result.rows[0].id);
+      console.log('âœ… Glucose reading created:', result.rows[0].id);
       res.status(201).json(result.rows[0]);
     } catch (error: any) {
-      console.error('❌ Error creating glucose reading:', error);
+      console.error('âŒ Error creating glucose reading:', error);
       res.status(500).json({ error: 'Failed to create glucose reading' });
     }
   }
@@ -71,7 +71,7 @@ router.get(
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
 
-      console.log('📊 Fetching glucose readings for user:', userId);
+      console.log('ðŸ“Š Fetching glucose readings for user:', userId);
 
       const result = await pool.query(
         `SELECT 
@@ -90,16 +90,67 @@ router.get(
         [userId, limit, offset]
       );
 
-      console.log(`✅ Found ${result.rows.length} glucose readings`);
+      console.log(`âœ… Found ${result.rows.length} glucose readings`);
       
       // Return array directly for web app
       res.json(result.rows);
     } catch (error: any) {
-      console.error('❌ Error fetching glucose readings:', error);
+      console.error('âŒ Error fetching glucose readings:', error);
       res.status(500).json({ error: 'Failed to fetch glucose readings' });
     }
   }
 );
+
+// GET /api/v1/glucose/stats - Get glucose statistics
+router.get('/stats', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.userId;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+
+    console.log('📊 Fetching glucose stats for user:', userId);
+
+    // Build query with optional date filters
+    let query = `
+      SELECT 
+        COUNT(*)::int as total_readings,
+        ROUND(AVG(value)::numeric, 1)::float as average,
+        MIN(value)::float as min_value,
+        MAX(value)::float as max_value,
+        ROUND(STDDEV(value)::numeric, 1)::float as std_dev
+      FROM glucose_readings 
+      WHERE user_id = $1
+    `;
+    
+    const params: any[] = [userId];
+    
+    if (startDate) {
+      query += ` AND measured_at >= $${params.length + 1}`;
+      params.push(startDate);
+    }
+    
+    if (endDate) {
+      query += ` AND measured_at <= $${params.length + 1}`;
+      params.push(endDate);
+    }
+
+    const result = await pool.query(query, params);
+    
+    const stats = result.rows[0] || {
+      total_readings: 0,
+      average: 0,
+      min_value: 0,
+      max_value: 0,
+      std_dev: 0,
+    };
+
+    console.log('✅ Stats calculated:', stats);
+    res.json(stats);
+  } catch (error: any) {
+    console.error('❌ Error fetching glucose stats:', error);
+    res.status(500).json({ error: 'Failed to fetch glucose statistics' });
+  }
+});
 
 // DELETE /api/v1/glucose/:id - Delete glucose reading
 router.delete('/:id', async (req: Request, res: Response) => {
@@ -118,10 +169,10 @@ router.delete('/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Reading not found' });
     }
 
-    console.log('✅ Glucose reading deleted');
+    console.log('âœ… Glucose reading deleted');
     res.json({ message: 'Reading deleted successfully' });
   } catch (error: any) {
-    console.error('❌ Error deleting glucose reading:', error);
+    console.error('âŒ Error deleting glucose reading:', error);
     res.status(500).json({ error: 'Failed to delete glucose reading' });
   }
 });
