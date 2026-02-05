@@ -71,6 +71,7 @@ if (process.env.NODE_ENV !== "production") {
 app.get("/health", (_req, res) => {
   res.json({
     status: "ok",
+    server: "backend/src/server.ts ✅",
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || "development",
   });
