@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.graceflow.app",
-      "buildNumber": "6",
+      "buildNumber": "7",
       "infoPlist": {
         "UIBackgroundModes": ["fetch", "processing"],
         "NSHealthShareUsageDescription": "GraceFlow needs access to read your blood glucose data from Apple Health to help your coach track your progress.",
