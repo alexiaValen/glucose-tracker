@@ -12,6 +12,8 @@ import symptomRoutes from "./routes/symptom.routes";
 import messagesRoutes from "./routes/messages";
 import groupRoutes from "./routes/group.routes";
 
+
+
 dotenv.config();
 
 
@@ -73,6 +75,12 @@ app.get("/health", (_req, res) => {
     env: process.env.NODE_ENV || "development",
   });
 });
+
+//root sanity check
+app.get("/", (_req, res) => res.json({ status: "ok", service: "glucose-tracker-api" }));
+
+//api mount sanity check
+app.get("/api/v1", (_req, res) => res.json({ status: "ok", api: "v1" }));
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/glucose", glucoseRoutes);
