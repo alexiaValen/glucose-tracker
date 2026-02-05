@@ -11,14 +11,18 @@
       "resizeMode": "contain",
       "backgroundColor": "#3D5540"
     },
-    "assetBundlePatterns": ["**/*"],
-
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.graceflow.app",
       "buildNumber": "2",
       "infoPlist": {
-        "UIBackgroundModes": ["fetch", "processing"],
+        "UIBackgroundModes": [
+          "fetch",
+          "processing"
+        ],
         "NSHealthShareUsageDescription": "GraceFlow needs access to read your blood glucose data from Apple Health to help your coach track your progress.",
         "NSHealthUpdateUsageDescription": "GraceFlow needs access to save your blood glucose readings to Apple Health for a complete health record.",
         "NSPhotoLibraryUsageDescription": "GraceFlow needs access to your photo library so you can share health-related images like glucose meter readings, lab results, and meal photos with your coach.",
@@ -27,16 +31,18 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-
     "android": {
       "package": "com.graceflow.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3D5540"
       },
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
-
     "plugins": [
       [
         "expo-build-properties",
@@ -53,9 +59,9 @@
           "cameraPermission": "GraceFlow needs camera access to capture health information."
         }
       ],
-      "expo-font"
+      "expo-font",
+      "@react-native-community/datetimepicker"
     ],
-
     "extra": {
       "eas": {
         "projectId": "6f4a2e56-93c6-4ba8-9f83-5966ee4220e4"

@@ -12,13 +12,13 @@
     "@expo-google-fonts/playfair-display": "^0.4.2",
     "@expo/vector-icons": "^15.0.3",
     "@react-native-async-storage/async-storage": "^2.2.0",
-    "@react-native-community/datetimepicker": "^8.5.1",
-    "@react-native-community/slider": "^5.1.2",
+    "@react-native-community/datetimepicker": "8.4.4",
+    "@react-native-community/slider": "5.0.1",
     "@react-navigation/native": "^7.1.25",
     "@react-navigation/native-stack": "^7.8.6",
     "@supabase/supabase-js": "^2.89.0",
     "axios": "^1.13.2",
-    "expo": "~54.0.31",
+    "expo": "~54.0.33",
     "expo-auth-session": "^7.0.10",
     "expo-build-properties": "^1.0.10",
     "expo-constants": "^18.0.13",
@@ -43,6 +43,9 @@
     "react-native-web": "^0.21.0",
     "zustand": "^5.0.9"
   },
+  "overrides": {
+  "@expo/fingerprint": "0.15.4"
+},
   "devDependencies": {
     "@react-native-community/cli": "^20.1.1",
     "@types/react": "~19.1.0",
