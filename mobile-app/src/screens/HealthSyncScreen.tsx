@@ -1,712 +1,23 @@
-// // mobile-app/src/screens/HealthSyncScreen.tsx
-// import React, { useState, useEffect } from 'react';
-// import {
-//   View,
-//   Text,
-//   StyleSheet,
-//   TouchableOpacity,
-//   Switch,
-//   ScrollView,
-//   ActivityIndicator,
-//   Alert,
-//   Platform,
-// } from 'react-native';
-// import { Ionicons } from '@expo/vector-icons';
-// import { healthKitService } from '../services/healthkit.service';
-// //import healthKitService from '../services/healthkit.service';
-// import { colors } from '../theme/colors';
-
-// interface SyncStatus {
-//   isConnected: boolean;
-//   lastSync: Date | null;
-//   latestGlucose: { value: number; timestamp: string } | null;
-//   autoSyncEnabled: boolean;
-// }
-
-// export const HealthSyncScreen: React.FC = () => {
-//   const [status, setStatus] = useState<SyncStatus>({
-//     isConnected: false,
-//     lastSync: null,
-//     latestGlucose: null,
-//     autoSyncEnabled: false,
-//   });
-//   const [isSyncing, setIsSyncing] = useState(false);
-//   const [isLoading, setIsLoading] = useState(true);
-
-//   useEffect(() => {
-//     loadStatus();
-//   }, []);
-
-//   const loadStatus = async () => {
-//     try {
-//       setIsLoading(true);
-
-//       // Check if available
-//       const isConnected = healthKitService.isAvailable();
-      
-//       // Get last sync time
-//       const lastSync = healthKitService.getLastSyncTime();
-      
-//       // Get auto-sync status
-//       const autoSyncEnabled = healthKitService.isAutoSyncEnabled();
-      
-//       // Get latest glucose
-//       let latestGlucose = null;
-//       if (isConnected) {
-//         const latest = await healthKitService.getLatestGlucose();
-//         if (latest) {
-//           latestGlucose = {
-//             value: latest.value,
-//             timestamp: latest.timestamp,
-//           };
-//         }
-//       }
-
-//       setStatus({
-//         isConnected,
-//         lastSync,
-//         latestGlucose,
-//         autoSyncEnabled,
-//       });
-//     } catch (error) {
-//       console.error('Error loading status:', error);
-//     } finally {
-//       setIsLoading(false);
-//     }
-//   };
-
-//   const handleConnect = async () => {
-//     try {
-//       const success = await healthKitService.requestPermissions();
-//       if (success) {
-//         Alert.alert(
-//           'Success',
-//           'Connected to Apple Health! You can now sync your glucose readings.',
-//           [{ text: 'OK', onPress: loadStatus }]
-//         );
-//       } else {
-//         Alert.alert(
-//           'Permission Denied',
-//           'Please enable Health permissions in Settings to use this feature.'
-//         );
-//       }
-//     } catch (error) {
-//       Alert.alert('Error', 'Failed to connect to Apple Health');
-//       console.error(error);
-//     }
-//   };
-
-//   const handleSync = async () => {
-//     try {
-//       setIsSyncing(true);
-//       const count = await healthKitService.syncToBackend();
-      
-//       Alert.alert(
-//         'Sync Complete',
-//         `${count} ${count === 1 ? 'reading' : 'readings'} synced from Apple Health`
-//       );
-      
-//       await loadStatus();
-//     } catch (error) {
-//       Alert.alert('Sync Failed', 'Could not sync with Apple Health');
-//       console.error(error);
-//     } finally {
-//       setIsSyncing(false);
-//     }
-//   };
-
-//   const handleToggleAutoSync = async (enabled: boolean) => {
-//     try {
-//        healthKitService.setAutoSync(enabled);
-//       setStatus((prev) => ({ ...prev, autoSyncEnabled: enabled }));
-      
-//       if (enabled) {
-//         Alert.alert(
-//           'Auto-Sync Enabled',
-//           'Your glucose readings will sync automatically every 15 minutes'
-//         );
-//       }
-//     } catch (error) {
-//       Alert.alert('Error', 'Could not update auto-sync setting');
-//       console.error(error);
-//     }
-//   };
-
-//   const formatTimestamp = (date: Date | string) => {
-//     const d = typeof date === 'string' ? new Date(date) : date;
-//     const now = new Date();
-//     const diffMs = now.getTime() - d.getTime();
-//     const diffMins = Math.floor(diffMs / 60000);
-//     const diffHours = Math.floor(diffMins / 60);
-//     const diffDays = Math.floor(diffHours / 24);
-
-//     if (diffMins < 1) return 'Just now';
-//     if (diffMins < 60) return `${diffMins}m ago`;
-//     if (diffHours < 24) return `${diffHours}h ago`;
-//     if (diffDays === 1) return 'Yesterday';
-//     if (diffDays < 7) return `${diffDays}d ago`;
-    
-//     return d.toLocaleDateString();
-//   };
-
-//   if (Platform.OS !== 'ios') {
-//     return (
-//       <View style={styles.container}>
-//         <View style={styles.unavailableContainer}>
-//           <Ionicons name="phone-portrait-outline" size={64} color={colors.textSecondary} />
-//           <Text style={styles.unavailableTitle}>iOS Only</Text>
-//           <Text style={styles.unavailableText}>
-//             Apple Health integration is only available on iOS devices
-//           </Text>
-//         </View>
-//       </View>
-//     );
-//   }
-
-//   if (isLoading) {
-//     return (
-//       <View style={[styles.container, styles.centerContent]}>
-//         <ActivityIndicator size="large" color={colors.primary} />
-//       </View>
-//     );
-//   }
-
-//   return (
-//     <ScrollView style={styles.container}>
-//       {/* Connection Status */}
-//       <View style={styles.section}>
-//         <View style={styles.statusCard}>
-//           <View style={styles.statusHeader}>
-//             <View style={styles.statusIconContainer}>
-//               <Ionicons
-//                 name={status.isConnected ? 'checkmark-circle' : 'alert-circle-outline'}
-//                 size={32}
-//                 color={status.isConnected ? colors.success : colors.textSecondary}
-//               />
-//             </View>
-//             <View style={styles.statusTextContainer}>
-//               <Text style={styles.statusTitle}>
-//                 {status.isConnected ? 'Connected' : 'Not Connected'}
-//               </Text>
-//               <Text style={styles.statusSubtitle}>
-//                 {status.isConnected
-//                   ? 'Syncing with Apple Health'
-//                   : 'Connect to sync glucose data'}
-//               </Text>
-//             </View>
-//           </View>
-
-//           {!status.isConnected && (
-//             <TouchableOpacity style={styles.connectButton} onPress={handleConnect}>
-//               <Text style={styles.connectButtonText}>Connect Apple Health</Text>
-//             </TouchableOpacity>
-//           )}
-//         </View>
-//       </View>
-
-//       {status.isConnected && (
-//         <>
-//           {/* Latest Glucose */}
-//           {status.latestGlucose && (
-//             <View style={styles.section}>
-//               <Text style={styles.sectionTitle}>Latest from Apple Health</Text>
-//               <View style={styles.glucoseCard}>
-//                 <View style={styles.glucoseMain}>
-//                   <Text style={styles.glucoseValue}>{status.latestGlucose.value}</Text>
-//                   <Text style={styles.glucoseUnit}>mg/dL</Text>
-//                 </View>
-//                 <Text style={styles.glucoseTime}>
-//                   {formatTimestamp(status.latestGlucose.timestamp)}
-//                 </Text>
-//               </View>
-//             </View>
-//           )}
-
-//           {/* Sync Controls */}
-//           <View style={styles.section}>
-//             <Text style={styles.sectionTitle}>Sync Settings</Text>
-            
-//             {/* Manual Sync */}
-//             <TouchableOpacity
-//               style={styles.syncButton}
-//               onPress={handleSync}
-//               disabled={isSyncing}
-//             >
-//               {isSyncing ? (
-//                 <ActivityIndicator size="small" color={colors.white} />
-//               ) : (
-//                 <>
-//                   <Ionicons name="sync-outline" size={20} color={colors.white} />
-//                   <Text style={styles.syncButtonText}>Sync Now</Text>
-//                 </>
-//               )}
-//             </TouchableOpacity>
-
-//             {status.lastSync && (
-//               <Text style={styles.lastSyncText}>
-//                 Last synced: {formatTimestamp(status.lastSync)}
-//               </Text>
-//             )}
-
-//             {/* Auto-Sync Toggle */}
-//             <View style={styles.autoSyncCard}>
-//               <View style={styles.autoSyncText}>
-//                 <Text style={styles.autoSyncTitle}>Automatic Sync</Text>
-//                 <Text style={styles.autoSyncSubtitle}>
-//                   Sync every 15 minutes in background
-//                 </Text>
-//               </View>
-//               <Switch
-//                 value={status.autoSyncEnabled}
-//                 onValueChange={handleToggleAutoSync}
-//                 trackColor={{ false: colors.border, true: colors.primaryLight }}
-//                 thumbColor={status.autoSyncEnabled ? colors.primary : colors.white}
-//               />
-//             </View>
-//           </View>
-
-//           {/* Info Cards */}
-//           <View style={styles.section}>
-//             <Text style={styles.sectionTitle}>How It Works</Text>
-            
-//             <View style={styles.infoCard}>
-//               <View style={styles.infoIconContainer}>
-//                 <Ionicons name="watch-outline" size={24} color={colors.primary} />
-//               </View>
-//               <View style={styles.infoTextContainer}>
-//                 <Text style={styles.infoTitle}>Apple Watch</Text>
-//                 <Text style={styles.infoText}>
-//                   Readings from your CGM or blood glucose apps automatically sync through Apple Health
-//                 </Text>
-//               </View>
-//             </View>
-
-//             <View style={styles.infoCard}>
-//               <View style={styles.infoIconContainer}>
-//                 <Ionicons name="sync-circle-outline" size={24} color={colors.primary} />
-//               </View>
-//               <View style={styles.infoTextContainer}>
-//                 <Text style={styles.infoTitle}>Two-Way Sync</Text>
-//                 <Text style={styles.infoText}>
-//                   Readings you enter in GraceFlow are also saved to Apple Health
-//                 </Text>
-//               </View>
-//             </View>
-
-//             <View style={styles.infoCard}>
-//               <View style={styles.infoIconContainer}>
-//                 <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
-//               </View>
-//               <View style={styles.infoTextContainer}>
-//                 <Text style={styles.infoTitle}>Privacy First</Text>
-//                 <Text style={styles.infoText}>
-//                   Your health data stays on your device. Only synced readings are shared with your coach
-//                 </Text>
-//               </View>
-//             </View>
-//           </View>
-//         </>
-//       )}
-//     </ScrollView>
-//   );
-// };
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: colors.background,
-//   },
-//   centerContent: {
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//   },
-//   section: {
-//     padding: 20,
-//   },
-//   sectionTitle: {
-//     fontSize: 18,
-//     fontWeight: '600',
-//     color: colors.text,
-//     marginBottom: 12,
-//   },
-
-//   // Status Card
-//   statusCard: {
-//     backgroundColor: colors.white,
-//     borderRadius: 12,
-//     padding: 20,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 4,
-//     elevation: 3,
-//   },
-//   statusHeader: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     marginBottom: 16,
-//   },
-//   statusIconContainer: {
-//     marginRight: 12,
-//   },
-//   statusTextContainer: {
-//     flex: 1,
-//   },
-//   statusTitle: {
-//     fontSize: 20,
-//     fontWeight: '600',
-//     color: colors.text,
-//     marginBottom: 4,
-//   },
-//   statusSubtitle: {
-//     fontSize: 14,
-//     color: colors.textSecondary,
-//   },
-//   connectButton: {
-//     backgroundColor: colors.primary,
-//     borderRadius: 8,
-//     padding: 14,
-//     alignItems: 'center',
-//   },
-//   connectButtonText: {
-//     color: colors.white,
-//     fontSize: 16,
-//     fontWeight: '600',
-//   },
-
-//   // Glucose Card
-//   glucoseCard: {
-//     backgroundColor: colors.white,
-//     borderRadius: 12,
-//     padding: 20,
-//     alignItems: 'center',
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 4,
-//     elevation: 3,
-//   },
-//   glucoseMain: {
-//     flexDirection: 'row',
-//     alignItems: 'baseline',
-//     marginBottom: 8,
-//   },
-//   glucoseValue: {
-//     fontSize: 48,
-//     fontWeight: '700',
-//     color: colors.primary,
-//   },
-//   glucoseUnit: {
-//     fontSize: 18,
-//     fontWeight: '500',
-//     color: colors.textSecondary,
-//     marginLeft: 8,
-//   },
-//   glucoseTime: {
-//     fontSize: 14,
-//     color: colors.textSecondary,
-//   },
-
-//   // Sync Controls
-//   syncButton: {
-//     backgroundColor: colors.primary,
-//     borderRadius: 8,
-//     padding: 14,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     gap: 8,
-//     marginBottom: 12,
-//   },
-//   syncButtonText: {
-//     color: colors.white,
-//     fontSize: 16,
-//     fontWeight: '600',
-//   },
-//   lastSyncText: {
-//     textAlign: 'center',
-//     fontSize: 14,
-//     color: colors.textSecondary,
-//     marginBottom: 20,
-//   },
-//   autoSyncCard: {
-//     backgroundColor: colors.white,
-//     borderRadius: 12,
-//     padding: 16,
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     justifyContent: 'space-between',
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 2 },
-//     shadowOpacity: 0.1,
-//     shadowRadius: 4,
-//     elevation: 3,
-//   },
-//   autoSyncText: {
-//     flex: 1,
-//     marginRight: 12,
-//   },
-//   autoSyncTitle: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: colors.text,
-//     marginBottom: 4,
-//   },
-//   autoSyncSubtitle: {
-//     fontSize: 14,
-//     color: colors.textSecondary,
-//   },
-
-//   // Info Cards
-//   infoCard: {
-//     backgroundColor: colors.white,
-//     borderRadius: 12,
-//     padding: 16,
-//     flexDirection: 'row',
-//     marginBottom: 12,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 1 },
-//     shadowOpacity: 0.05,
-//     shadowRadius: 2,
-//     elevation: 2,
-//   },
-//   infoIconContainer: {
-//     width: 40,
-//     height: 40,
-//     borderRadius: 20,
-//     backgroundColor: colors.primaryLight,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     marginRight: 12,
-//   },
-//   infoTextContainer: {
-//     flex: 1,
-//   },
-//   infoTitle: {
-//     fontSize: 16,
-//     fontWeight: '600',
-//     color: colors.text,
-//     marginBottom: 4,
-//   },
-//   infoText: {
-//     fontSize: 14,
-//     color: colors.textSecondary,
-//     lineHeight: 20,
-//   },
-
-//   // Unavailable State
-//   unavailableContainer: {
-//     flex: 1,
-//     justifyContent: 'center',
-//     alignItems: 'center',
-//     padding: 40,
-//   },
-//   unavailableTitle: {
-//     fontSize: 24,
-//     fontWeight: '600',
-//     color: colors.text,
-//     marginTop: 20,
-//     marginBottom: 12,
-//   },
-//   unavailableText: {
-//     fontSize: 16,
-//     color: colors.textSecondary,
-//     textAlign: 'center',
-//     lineHeight: 24,
-//   },
-
-//   primaryButton: {
-//   height: 56,
-//   borderRadius: 20,
-//   alignItems: 'center',
-//   justifyContent: 'center',
-//   backgroundColor: colors.sage,
-//   shadowColor: '#000',
-//   shadowOffset: { width: 0, height: 6 },
-//   shadowOpacity: 0.08,
-//   shadowRadius: 14,
-//   elevation: 2,
-// },
-// primaryButtonText: {
-//   color: colors.white,
-//   fontSize: 16,
-//   fontWeight: '700',
-//   letterSpacing: 0.2,
-// },
-// secondaryButton: {
-//   height: 56,
-//   borderRadius: 20,
-//   alignItems: 'center',
-//   justifyContent: 'center',
-//   backgroundColor: colors.white,
-//   borderWidth: 1,
-//   borderColor: colors.border,
-// },
-// secondaryButtonText: {
-//   color: colors.sage,
-//   fontSize: 16,
-//   fontWeight: '700',
-// },
-// });
-
-
-
 // mobile-app/src/screens/HealthSyncScreen.tsx
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
-  Switch,
   ScrollView,
-  ActivityIndicator,
-  Alert,
   Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { healthKitService } from '../services/healthkit.service';
 import { colors } from '../theme/colors';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 
-interface SyncStatus {
-  isConnected: boolean;
-  lastSync: Date | null;
-  latestGlucose: { value: number; timestamp: string } | null;
-  autoSyncEnabled: boolean;
-}
-
 export const HealthSyncScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const [status, setStatus] = useState<SyncStatus>({
-    isConnected: false,
-    lastSync: null,
-    latestGlucose: null,
-    autoSyncEnabled: false,
-  });
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    loadStatus();
-  }, []);
-
-  const loadStatus = async () => {
-    try {
-      setIsLoading(true);
-
-      // Check if available
-      const isConnected = healthKitService.isAvailable();
-      
-      // Get last sync time
-      const lastSync = healthKitService.getLastSyncTime();
-      
-      // Get auto-sync status
-      const autoSyncEnabled = healthKitService.isAutoSyncEnabled();
-      
-      // Get latest glucose
-      let latestGlucose = null;
-      if (isConnected) {
-        const latest = await healthKitService.getLatestGlucose();
-        if (latest) {
-          latestGlucose = {
-            value: latest.value,
-            timestamp: latest.timestamp,
-          };
-        }
-      }
-
-      setStatus({
-        isConnected,
-        lastSync,
-        latestGlucose,
-        autoSyncEnabled,
-      });
-    } catch (error) {
-      console.error('Error loading status:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleConnect = async () => {
-    try {
-      const success = await healthKitService.requestPermissions();
-      if (success) {
-        Alert.alert(
-          'Success',
-          'Connected to Apple Health! You can now sync your glucose readings.',
-          [{ text: 'OK', onPress: loadStatus }]
-        );
-      } else {
-        Alert.alert(
-          'Permission Denied',
-          'Please enable Health permissions in Settings to use this feature.'
-        );
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to connect to Apple Health');
-      console.error(error);
-    }
-  };
-
-  const handleSync = async () => {
-    try {
-      setIsSyncing(true);
-      const count = await healthKitService.syncToBackend();
-      
-      Alert.alert(
-        'Sync Complete',
-        `${count} ${count === 1 ? 'reading' : 'readings'} synced from Apple Health`
-      );
-      
-      await loadStatus();
-    } catch (error) {
-      Alert.alert('Sync Failed', 'Could not sync with Apple Health');
-      console.error(error);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
-  const handleToggleAutoSync = async (enabled: boolean) => {
-    try {
-      healthKitService.setAutoSync(enabled);
-      setStatus((prev) => ({ ...prev, autoSyncEnabled: enabled }));
-      
-      if (enabled) {
-        Alert.alert(
-          'Auto-Sync Enabled',
-          'Your glucose readings will sync automatically every 15 minutes'
-        );
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Could not update auto-sync setting');
-      console.error(error);
-    }
-  };
-
-  const formatTimestamp = (date: Date | string) => {
-    const d = typeof date === 'string' ? new Date(date) : date;
-    const now = new Date();
-    const diffMs = now.getTime() - d.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays}d ago`;
-    
-    return d.toLocaleDateString();
-  };
-
+  // Keep the platform guard (Apple Health is iOS only)
   if (Platform.OS !== 'ios') {
     return (
       <BotanicalBackground variant="green" intensity="light">
         <View style={styles.container}>
-          {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
               <Text style={styles.backText}>← Back</Text>
@@ -719,19 +30,9 @@ export const HealthSyncScreen: React.FC<{ navigation: any }> = ({ navigation }) 
             <Ionicons name="phone-portrait-outline" size={64} color={colors.textSecondary} />
             <Text style={styles.unavailableTitle}>iOS Only</Text>
             <Text style={styles.unavailableText}>
-              Apple Health integration is only available on iOS devices
+              Apple Health integration is only available on iOS devices.
             </Text>
           </View>
-        </View>
-      </BotanicalBackground>
-    );
-  }
-
-  if (isLoading) {
-    return (
-      <BotanicalBackground variant="green" intensity="light">
-        <View style={[styles.container, styles.centerContent]}>
-          <ActivityIndicator size="large" color={colors.primary} />
         </View>
       </BotanicalBackground>
     );
@@ -750,140 +51,94 @@ export const HealthSyncScreen: React.FC<{ navigation: any }> = ({ navigation }) 
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Connection Status */}
+          {/* Coming Soon Card */}
           <View style={styles.section}>
-            <View style={styles.statusCard}>
-              <View style={styles.statusHeader}>
-                <View style={styles.statusIconContainer}>
-                  <Ionicons
-                    name={status.isConnected ? 'checkmark-circle' : 'alert-circle-outline'}
-                    size={32}
-                    color={status.isConnected ? colors.success : colors.textSecondary}
-                  />
+            <View style={styles.comingSoonCard}>
+              <View style={styles.badgeRow}>
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>COMING SOON</Text>
                 </View>
-                <View style={styles.statusTextContainer}>
-                  <Text style={styles.statusTitle}>
-                    {status.isConnected ? 'Connected' : 'Not Connected'}
-                  </Text>
-                  <Text style={styles.statusSubtitle}>
-                    {status.isConnected
-                      ? 'Syncing with Apple Health'
-                      : 'Connect to sync glucose data'}
+              </View>
+
+              <View style={styles.heroRow}>
+                <View style={styles.heroIcon}>
+                  <Ionicons name="heart-outline" size={26} color={colors.primary} />
+                </View>
+                <View style={styles.heroText}>
+                  <Text style={styles.heroTitle}>Apple Watch + Health Sync</Text>
+                  <Text style={styles.heroSubtitle}>
+                    We’re polishing this feature to make it reliable before turning it on.
                   </Text>
                 </View>
               </View>
 
-              {!status.isConnected && (
-                <TouchableOpacity style={styles.connectButton} onPress={handleConnect}>
-                  <Text style={styles.connectButtonText}>Connect Apple Health</Text>
-                </TouchableOpacity>
-              )}
+              <View style={styles.divider} />
+
+              <View style={styles.bullets}>
+                <View style={styles.bulletRow}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={colors.textSecondary} />
+                  <Text style={styles.bulletText}>
+                    Sync glucose readings from Apple Health into GraceFlow
+                  </Text>
+                </View>
+
+                <View style={styles.bulletRow}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={colors.textSecondary} />
+                  <Text style={styles.bulletText}>
+                    Optional background sync (hands-free)
+                  </Text>
+                </View>
+
+                <View style={styles.bulletRow}>
+                  <Ionicons name="checkmark-circle-outline" size={18} color={colors.textSecondary} />
+                  <Text style={styles.bulletText}>
+                    Share synced insights with your coach (only what you choose)
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.infoNote}>
+                <Ionicons name="information-circle-outline" size={18} color={colors.textSecondary} />
+                <Text style={styles.infoNoteText}>
+                  Feature will be enabled in a future update.
+                </Text>
+              </View>
+
+              {/* Disabled action */}
+              <TouchableOpacity style={styles.disabledButton} activeOpacity={1}>
+                <Text style={styles.disabledButtonText}>Enable Apple Health (Coming Soon)</Text>
+              </TouchableOpacity>
             </View>
           </View>
 
-          {status.isConnected && (
-            <>
-              {/* Latest Glucose */}
-              {status.latestGlucose && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Latest from Apple Health</Text>
-                  <View style={styles.glucoseCard}>
-                    <View style={styles.glucoseMain}>
-                      <Text style={styles.glucoseValue}>{status.latestGlucose.value}</Text>
-                      <Text style={styles.glucoseUnit}>mg/dL</Text>
-                    </View>
-                    <Text style={styles.glucoseTime}>
-                      {formatTimestamp(status.latestGlucose.timestamp)}
-                    </Text>
-                  </View>
-                </View>
-              )}
+          {/* Why disabled / transparency */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Why it’s disabled</Text>
 
-              {/* Sync Controls */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Sync Settings</Text>
-                
-                {/* Manual Sync */}
-                <TouchableOpacity
-                  style={styles.syncButton}
-                  onPress={handleSync}
-                  disabled={isSyncing}
-                >
-                  {isSyncing ? (
-                    <ActivityIndicator size="small" color={colors.white} />
-                  ) : (
-                    <>
-                      <Ionicons name="sync-outline" size={20} color={colors.white} />
-                      <Text style={styles.syncButtonText}>Sync Now</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-
-                {status.lastSync && (
-                  <Text style={styles.lastSyncText}>
-                    Last synced: {formatTimestamp(status.lastSync)}
-                  </Text>
-                )}
-
-                {/* Auto-Sync Toggle */}
-                <View style={styles.autoSyncCard}>
-                  <View style={styles.autoSyncText}>
-                    <Text style={styles.autoSyncTitle}>Automatic Sync</Text>
-                    <Text style={styles.autoSyncSubtitle}>
-                      Sync every 15 minutes in background
-                    </Text>
-                  </View>
-                  <Switch
-                    value={status.autoSyncEnabled}
-                    onValueChange={handleToggleAutoSync}
-                    trackColor={{ false: colors.border, true: colors.primaryLight }}
-                    thumbColor={status.autoSyncEnabled ? colors.primary : colors.white}
-                  />
-                </View>
+            <View style={styles.infoCard}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="shield-checkmark-outline" size={22} color={colors.primary} />
               </View>
-
-              {/* Info Cards */}
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>How It Works</Text>
-                
-                <View style={styles.infoCard}>
-                  <View style={styles.infoIconContainer}>
-                    <Ionicons name="watch-outline" size={24} color={colors.primary} />
-                  </View>
-                  <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoTitle}>Apple Watch</Text>
-                    <Text style={styles.infoText}>
-                      Readings from your CGM or blood glucose apps automatically sync through Apple Health
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoCard}>
-                  <View style={styles.infoIconContainer}>
-                    <Ionicons name="sync-circle-outline" size={24} color={colors.primary} />
-                  </View>
-                  <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoTitle}>Two-Way Sync</Text>
-                    <Text style={styles.infoText}>
-                      Readings you enter in GraceFlow are also saved to Apple Health
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.infoCard}>
-                  <View style={styles.infoIconContainer}>
-                    <Ionicons name="shield-checkmark-outline" size={24} color={colors.primary} />
-                  </View>
-                  <View style={styles.infoTextContainer}>
-                    <Text style={styles.infoTitle}>Privacy First</Text>
-                    <Text style={styles.infoText}>
-                      Your health data stays on your device. Only synced readings are shared with your coach
-                    </Text>
-                  </View>
-                </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoTitle}>Stability first</Text>
+                <Text style={styles.infoText}>
+                  We’re ensuring syncing works consistently across devices and doesn’t miss readings.
+                </Text>
               </View>
-            </>
-          )}
+            </View>
+
+            <View style={styles.infoCard}>
+              <View style={styles.infoIconContainer}>
+                <Ionicons name="lock-closed-outline" size={22} color={colors.primary} />
+              </View>
+              <View style={styles.infoTextContainer}>
+                <Text style={styles.infoTitle}>Privacy protected</Text>
+                <Text style={styles.infoText}>
+                  You control what gets shared. We’ll enable this once permissions and data flow are solid.
+                </Text>
+              </View>
+            </View>
+          </View>
 
           <View style={{ height: 40 }} />
         </ScrollView>
@@ -893,13 +148,8 @@ export const HealthSyncScreen: React.FC<{ navigation: any }> = ({ navigation }) 
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  container: { flex: 1 },
+
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -910,25 +160,12 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  backButton: {
-    paddingVertical: 8,
-  },
-  backText: {
-    color: colors.sage,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: colors.charcoal,
-  },
-  content: {
-    flex: 1,
-  },
-  section: {
-    padding: 20,
-  },
+  backButton: { paddingVertical: 8 },
+  backText: { color: colors.sage, fontSize: 16, fontWeight: '600' },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: colors.charcoal },
+
+  content: { flex: 1 },
+  section: { padding: 20 },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '600',
@@ -936,145 +173,95 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  // Status Card
-  statusCard: {
+  comingSoonCard: {
     backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 14,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  statusHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
+  badgeRow: { flexDirection: 'row', justifyContent: 'flex-start', marginBottom: 12 },
+  badge: {
+    backgroundColor: colors.primaryLight,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 999,
   },
-  statusIconContainer: {
-    marginRight: 12,
-  },
-  statusTextContainer: {
-    flex: 1,
-  },
-  statusTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  statusSubtitle: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
-  connectButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    padding: 14,
-    alignItems: 'center',
-  },
-  connectButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
-  },
-
-  // Glucose Card
-  glucoseCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  glucoseMain: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 8,
-  },
-  glucoseValue: {
-    fontSize: 48,
+  badgeText: {
+    fontSize: 11,
     fontWeight: '700',
+    letterSpacing: 0.8,
     color: colors.primary,
   },
-  glucoseUnit: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: colors.textSecondary,
-    marginLeft: 8,
-  },
-  glucoseTime: {
-    fontSize: 14,
-    color: colors.textSecondary,
-  },
 
-  // Sync Controls
-  syncButton: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
-    padding: 14,
-    flexDirection: 'row',
+  heroRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  heroIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryLight,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-    marginBottom: 12,
   },
-  syncButtonText: {
-    color: colors.white,
-    fontSize: 16,
-    fontWeight: '600',
+  heroText: { flex: 1 },
+  heroTitle: { fontSize: 18, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  heroSubtitle: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
+
+  divider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 16,
   },
-  lastSyncText: {
-    textAlign: 'center',
+
+  bullets: { gap: 10 },
+  bulletRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  bulletText: {
+    flex: 1,
     fontSize: 14,
     color: colors.textSecondary,
-    marginBottom: 20,
+    lineHeight: 20,
   },
-  autoSyncCard: {
-    backgroundColor: colors.white,
-    borderRadius: 12,
-    padding: 16,
+
+  infoNote: {
+    marginTop: 14,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    gap: 8,
+    padding: 12,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.03)',
   },
-  autoSyncText: {
-    flex: 1,
-    marginRight: 12,
+  infoNoteText: { fontSize: 13, color: colors.textSecondary, flex: 1 },
+
+  disabledButton: {
+    marginTop: 16,
+    height: 52,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
-  autoSyncTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  autoSyncSubtitle: {
-    fontSize: 14,
+  disabledButtonText: {
+    fontSize: 15,
+    fontWeight: '700',
     color: colors.textSecondary,
   },
 
-  // Info Cards
   infoCard: {
     backgroundColor: colors.white,
     borderRadius: 12,
     padding: 16,
     flexDirection: 'row',
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   infoIconContainer: {
     width: 40,
@@ -1085,22 +272,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  infoTextContainer: {
-    flex: 1,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.text,
-    marginBottom: 4,
-  },
-  infoText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
+  infoTextContainer: { flex: 1 },
+  infoTitle: { fontSize: 16, fontWeight: '700', color: colors.text, marginBottom: 4 },
+  infoText: { fontSize: 14, color: colors.textSecondary, lineHeight: 20 },
 
-  // Unavailable State
   unavailableContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -1109,7 +284,7 @@ const styles = StyleSheet.create({
   },
   unavailableTitle: {
     fontSize: 24,
-    fontWeight: '600',
+    fontWeight: '700',
     color: colors.text,
     marginTop: 20,
     marginBottom: 12,
