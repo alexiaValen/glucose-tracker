@@ -1,25 +1,21 @@
-// mobile-app/src/config/api.ts
 import axios from 'axios';
-import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Backend API URL
-// iOS Simulator: localhost works
-// Android Emulator: Use 10.0.2.2
-// Real device: Use your computer's IP (e.g., 192.168.1.XXX)
-const BASE_URL = Platform.select({
-  ios: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
-  android: process.env.EXPO_PUBLIC_API_URL || 'http://10.0.2.2:3000/api/v1',
-  default: process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1',
-});
+// Read from EAS / .env
+const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-console.log('🌐 API Base URL:', BASE_URL);
-console.log('📱 Platform:', Platform.OS);
-console.log('🔧 EXPO_PUBLIC_API_URL:', process.env.EXPO_PUBLIC_API_URL);
+// Fail fast if missing (prevents “silently calls localhost”)
+if (!API_URL) {
+  throw new Error(
+    'Missing EXPO_PUBLIC_API_URL. Set it in mobile-app/eas.json (production env) or mobile-app/.env (local dev).'
+  );
+}
+
+export const API_BASE_URL = API_URL;
 
 // Create axios instance
 export const api = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -47,13 +43,15 @@ api.interceptors.request.use(
 // Response interceptor
 api.interceptors.response.use(
   (response) => {
-    console.log(`✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    console.log(
+      `✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`
+    );
     return response;
   },
   async (error) => {
     const url = error.config?.url || 'unknown';
     const method = error.config?.method?.toUpperCase() || 'GET';
-    
+
     if (error.response) {
       console.error(`❌ ${error.response.status} ${method} ${url}`);
       console.error('Error data:', JSON.stringify(error.response.data, null, 2));
@@ -66,18 +64,21 @@ api.interceptors.response.use(
     }
 
     // Handle 401 - token refresh
-    if (error.response?.status === 401 && !error.config._retry) {
+    if (error.response?.status === 401 && !error.config?._retry) {
       error.config._retry = true;
 
       try {
         const refreshToken = await AsyncStorage.getItem('refreshToken');
         if (!refreshToken) throw new Error('No refresh token');
 
-        const response = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
-        const { accessToken } = response.data;
+        const refreshRes = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
+        const { accessToken } = refreshRes.data;
+
         await AsyncStorage.setItem('accessToken', accessToken);
 
+        error.config.headers = error.config.headers ?? {};
         error.config.headers.Authorization = `Bearer ${accessToken}`;
+
         return api(error.config);
       } catch (refreshError) {
         console.error('Token refresh failed:', refreshError);
@@ -97,7 +98,6 @@ export const setAuthToken = async (token: string | null) => {
       await AsyncStorage.setItem('accessToken', token);
       console.log('✅ Auth token saved');
     } else {
-      // If token is null, remove it instead of saving null
       await AsyncStorage.removeItem('accessToken');
       console.log('🗑️ Auth token removed');
     }

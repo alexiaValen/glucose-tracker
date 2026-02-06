@@ -22,6 +22,11 @@ import { BotanicalBackground } from '../components/BotanicalBackground';
 import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/SimpleIcons';
 import { glucoseService } from '../services/glucose.service';
 
+const API_BASE = process.env.EXPO_PUBLIC_API_URL;
+
+if (!API_BASE) {
+  throw new Error('Missing EXPO_PUBLIC_API_URL');
+}
 
 type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
 
@@ -69,7 +74,7 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
   const loadMyCoach = async () => {
     try {
       const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/coach/my-coach`, {
+      const response = await fetch(`${API_BASE}/coach/my-coach`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -92,7 +97,7 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
   const loadGroupMembership = async () => {
     try {
       const token = await AsyncStorage.getItem('accessToken');
-      const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/groups/my-membership`, {
+      const response = await fetch(`${API_BASE}/groups/my-membership`, {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
