@@ -1281,6 +1281,10 @@ function CoachDashboard() {
 
   const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
 
+  useEffect(() => {
+  console.log("🟣 selectedGroup changed:", selectedGroup);
+}, [selectedGroup]);
+
   const fetchJSON = async (path: string) => {
     const res = await fetch(`${API_URL}${path}`, {
       headers: {
