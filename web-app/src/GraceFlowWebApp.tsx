@@ -3,6 +3,9 @@
 // Users can login, signup, log glucose, log symptoms - just like the mobile app
 
 import React, { useEffect, useState, createContext, useContext } from "react";
+import { GroupList } from "./groups/GroupList";
+import { GroupChat } from "./groups/GroupChat";
+
 
 // ==================== TYPES ====================
 interface User {
@@ -1276,6 +1279,8 @@ function CoachDashboard() {
 
   const token = localStorage.getItem("accessToken");
 
+  const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+
   const fetchJSON = async (path: string) => {
     const res = await fetch(`${API_URL}${path}`, {
       headers: {
@@ -1344,96 +1349,143 @@ function CoachDashboard() {
   // UI
   // ─────────────────────────────────────────────
   return (
-    <div style={styles.container}>
-      <nav style={styles.nav}>
-        <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
-          Dashboard
+  <div style={styles.container}>
+    {/* ───────── NAV ───────── */}
+    <nav style={styles.nav}>
+      <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
+        Dashboard
+      </button>
+      <div style={{ marginLeft: "auto" }}>
+        <button
+          style={{ ...styles.navButton, color: "#C85A54" }}
+          onClick={logout}
+        >
+          Logout
         </button>
-        <div style={{ marginLeft: "auto" }}>
+      </div>
+    </nav>
+
+    {/* ───────── HEADER ───────── */}
+    <div style={styles.dashboard}>
+      <div style={styles.header}>
+        <h3>COACH DASHBOARD LIVE ✅</h3>
+        <h1>Welcome, Coach {user?.first_name || "Coach"}!</h1>
+        <p style={{ color: "#6B6B6B" }}>
+          Clients · Groups · Coaching insights
+        </p>
+      </div>
+
+      {/* ───────── ERROR STATE ───────── */}
+      {error && (
+        <div
+          style={{
+            ...styles.card,
+            border: "1px solid rgba(200,90,84,0.35)",
+          }}
+        >
+          <strong style={{ color: "#C85A54" }}>
+            Something went wrong
+          </strong>
+          <div style={{ marginTop: 6 }}>{error}</div>
           <button
-            style={{ ...styles.navButton, color: "#C85A54" }}
-            onClick={logout}
+            style={{ ...styles.button, marginTop: 12 }}
+            onClick={loadClients}
           >
-            Logout
+            Retry
           </button>
         </div>
-      </nav>
+      )}
 
-      <div style={styles.dashboard}>
-        <div style={styles.header}>
-          <h3>COACH DASHBOARD LIVE ✅</h3>
-          <h1>
-            Welcome, Coach {user?.first_name || "Coach"}!
-          </h1>
-          <p style={{ color: "#6B6B6B" }}>Client management</p>
+      {/* ───────── MAIN GRID ───────── */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "320px 320px 1fr",
+          gap: 18,
+        }}
+      >
+        {/* ───── Clients ───── */}
+        <div style={styles.card}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              marginBottom: 8,
+            }}
+          >
+            <strong>Clients</strong>
+            <button onClick={loadClients}>Refresh</button>
+          </div>
+
+          {loading && clients.length === 0 ? (
+            <div>Loading clients…</div>
+          ) : clients.length === 0 ? (
+            <div>No clients yet.</div>
+          ) : (
+            <ul style={{ listStyle: "none", padding: 0 }}>
+              {clients.map((c) => (
+                <li key={c.id} style={{ marginBottom: 6 }}>
+                  <button
+                    style={{ width: "100%" }}
+                    onClick={() => {
+                      setSelectedClient(c);
+                      loadClientDetails(String(c.id));
+                    }}
+                  >
+                    {c.first_name} {c.last_name}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
 
-        {error && (
-          <div style={{ ...styles.card, border: "1px solid rgba(200,90,84,0.35)" }}>
-            <strong style={{ color: "#C85A54" }}>Something went wrong</strong>
-            <div style={{ marginTop: 6 }}>{error}</div>
-            <button
-              style={{ ...styles.button, marginTop: 12 }}
-              onClick={loadClients}
-            >
-              Retry
-            </button>
-          </div>
-        )}
+        {/* ───── Groups ───── */}
+        <div style={styles.card}>
+          <strong style={{ display: "block", marginBottom: 8 }}>
+            Groups
+          </strong>
+          <GroupList onSelect={setSelectedGroup} />
+        </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "320px 1fr", gap: 18 }}>
-          {/* Clients list */}
-          <div style={styles.card}>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <strong>Clients</strong>
-              <button onClick={loadClients}>Refresh</button>
+        {/* ───── Detail Panel ───── */}
+        <div style={styles.card}>
+          {/* Client details */}
+          {selectedClient && !selectedGroup && (
+            <>
+              <h2>
+                {selectedClient.first_name}{" "}
+                {selectedClient.last_name}
+              </h2>
+              <p>
+                Latest glucose:{" "}
+                {clientReadings[0]?.value ?? "—"}
+              </p>
+              <p>Symptoms logged: {clientSymptoms.length}</p>
+              <p>
+                Cycle phase: {clientCycle?.phase ?? "—"}
+              </p>
+            </>
+          )}
+
+          {/* Group chat */}
+          {selectedGroup && <GroupChat group={selectedGroup} />}
+
+          {/* Empty state */}
+          {!selectedClient && !selectedGroup && (
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <div style={{ fontSize: 32 }}>🌿</div>
+              <strong>Select a client or group</strong>
+              <p style={{ color: "#6B6B6B", marginTop: 6 }}>
+                View client trends or coach your group.
+              </p>
             </div>
-
-            {loading && clients.length === 0 ? (
-              <div>Loading clients…</div>
-            ) : clients.length === 0 ? (
-              <div>No clients yet.</div>
-            ) : (
-              <ul style={{ listStyle: "none", padding: 0 }}>
-                {clients.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      onClick={() => {
-                        setSelectedClient(c);
-                        loadClientDetails(String(c.id));
-                      }}
-                    >
-                      {c.first_name} {c.last_name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/* Client detail */}
-          <div style={styles.card}>
-            {!selectedClient ? (
-              <div style={{ textAlign: "center", padding: 40 }}>
-                <div style={{ fontSize: 32 }}>🌿</div>
-                <strong>Select a client</strong>
-              </div>
-            ) : (
-              <>
-                <h2>
-                  {selectedClient.first_name} {selectedClient.last_name}
-                </h2>
-
-                <p>Latest glucose: {clientReadings[0]?.value ?? "—"}</p>
-                <p>Symptoms logged: {clientSymptoms.length}</p>
-                <p>Cycle phase: {clientCycle?.phase ?? "—"}</p>
-              </>
-            )}
-          </div>
+          )}
         </div>
       </div>
     </div>
-  );
+  </div>
+);
 }
 
 function App() {
@@ -1457,6 +1509,8 @@ function Root() {
       <App />
     </AppProvider>
   );
+
 }
+
 
 export default Root;
