@@ -1262,11 +1262,14 @@ function CycleView() {
 function CoachDashboard() {
   const { user, logout } = useApp();
 
-  // Single source of truth — already includes /api/v1
+  // Single source of truth (includes /api/v1)
   const API_URL =
     (import.meta as any).env.VITE_API_URL ||
     "http://localhost:3000/api/v1";
 
+  const token = localStorage.getItem("accessToken");
+
+  // ───────── STATE ─────────
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -1277,14 +1280,16 @@ function CoachDashboard() {
   const [clientSymptoms, setClientSymptoms] = useState<any[]>([]);
   const [clientCycle, setClientCycle] = useState<any | null>(null);
 
-  const token = localStorage.getItem("accessToken");
-
+  const [groups, setGroups] = useState<any[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+  const [loadingGroups, setLoadingGroups] = useState(false);
 
+  // Debug helper
   useEffect(() => {
-  console.log("🟣 selectedGroup changed:", selectedGroup);
-}, [selectedGroup]);
+    console.log("🟣 selectedGroup changed:", selectedGroup);
+  }, [selectedGroup]);
 
+  // ───────── API HELPER ─────────
   const fetchJSON = async (path: string) => {
     const res = await fetch(`${API_URL}${path}`, {
       headers: {
@@ -1303,10 +1308,7 @@ function CoachDashboard() {
     return res.json();
   };
 
-  // ─────────────────────────────────────────────
-  // Load coach clients
-  // GET /api/v1/coach/clients
-  // ─────────────────────────────────────────────
+  // ───────── LOAD CLIENTS ─────────
   const loadClients = async () => {
     setLoading(true);
     setError(null);
@@ -1320,183 +1322,192 @@ function CoachDashboard() {
     }
   };
 
-  // ─────────────────────────────────────────────
-  // Load selected client details
-  // ─────────────────────────────────────────────
+  // ───────── LOAD CLIENT DETAILS ─────────
   const loadClientDetails = async (clientId: string) => {
-  setLoading(true);
-  setError(null);
+    setLoading(true);
+    setError(null);
 
-  try {
-    const [glucoseRes, symptomsRes, cycleRes] = await Promise.all([
-      fetchJSON(`/coach/clients/${clientId}/glucose`),
-      fetchJSON(`/coach/clients/${clientId}/symptoms`),
-      fetchJSON(`/coach/clients/${clientId}/cycle`),
-    ]);
+    try {
+      const [glucoseRes, symptomsRes, cycleRes] = await Promise.all([
+        fetchJSON(`/coach/clients/${clientId}/glucose`),
+        fetchJSON(`/coach/clients/${clientId}/symptoms`),
+        fetchJSON(`/coach/clients/${clientId}/cycle`),
+      ]);
 
-    setClientReadings(glucoseRes.readings || []);
-    setClientSymptoms(symptomsRes.symptoms || []);
-    setClientCycle(cycleRes.cycle || null);
-  } catch (e: any) {
-    setError(e.message || "Failed to load client data");
-  } finally {
-    setLoading(false);
-  }
-};
+      setClientReadings(glucoseRes.readings || []);
+      setClientSymptoms(symptomsRes.symptoms || []);
+      setClientCycle(cycleRes.cycle || null);
+    } catch (e: any) {
+      setError(e.message || "Failed to load client data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // ───────── LOAD GROUPS ─────────
+  const loadGroups = async () => {
+    setLoadingGroups(true);
+    try {
+      const data = await fetchJSON("/groups/coach/my-groups");
+      setGroups(data.groups || []);
+    } catch (e: any) {
+      setError(e.message || "Failed to load groups");
+    } finally {
+      setLoadingGroups(false);
+    }
+  };
+
+  // ───────── INITIAL LOAD ─────────
   useEffect(() => {
     loadClients();
+    loadGroups();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─────────────────────────────────────────────
-  // UI
-  // ─────────────────────────────────────────────
+  // ───────── UI ─────────
   return (
-  <div style={styles.container}>
-    {/* ───────── NAV ───────── */}
-    <nav style={styles.nav}>
-      <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
-        Dashboard
-      </button>
-
-      <div style={{ marginLeft: "auto" }}>
-        <button
-          style={{ ...styles.navButton, color: "#C85A54" }}
-          onClick={logout}
-        >
-          Logout
+    <div style={styles.container}>
+      {/* NAV */}
+      <nav style={styles.nav}>
+        <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
+          Dashboard
         </button>
-      </div>
-    </nav>
 
-    {/* ───────── HEADER ───────── */}
-    <div style={styles.dashboard}>
-      <div style={styles.header}>
-        <h3>COACH DASHBOARD LIVE ✅</h3>
-        <h1>Welcome, Coach {user?.first_name || "Coach"}!</h1>
-        <p style={{ color: "#6B6B6B" }}>
-          Clients · Groups · Coaching insights
-        </p>
-      </div>
-
-      {/* ───────── ERROR STATE ───────── */}
-      {error && (
-        <div
-          style={{
-            ...styles.card,
-            border: "1px solid rgba(200,90,84,0.35)",
-          }}
-        >
-          <strong style={{ color: "#C85A54" }}>
-            Something went wrong
-          </strong>
-          <div style={{ marginTop: 6 }}>{error}</div>
+        <div style={{ marginLeft: "auto" }}>
           <button
-            style={{ ...styles.button, marginTop: 12 }}
-            onClick={loadClients}
+            style={{ ...styles.navButton, color: "#C85A54" }}
+            onClick={logout}
           >
-            Retry
+            Logout
           </button>
         </div>
-      )}
+      </nav>
 
-      {/* ───────── MAIN GRID ───────── */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "320px 320px 1fr",
-          gap: 18,
-        }}
-      >
-        {/* ───── CLIENTS ───── */}
-        <div style={styles.card}>
+      <div style={styles.dashboard}>
+        {/* HEADER */}
+        <div style={styles.header}>
+          <h3>COACH DASHBOARD LIVE ✅</h3>
+          <h1>Welcome, Coach {user?.first_name || "Coach"}!</h1>
+          <p style={{ color: "#6B6B6B" }}>
+            Clients · Groups · Coaching insights
+          </p>
+        </div>
+
+        {/* ERROR */}
+        {error && (
           <div
             style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: 8,
+              ...styles.card,
+              border: "1px solid rgba(200,90,84,0.35)",
             }}
           >
-            <strong>Clients</strong>
-            <button onClick={loadClients}>Refresh</button>
+            <strong style={{ color: "#C85A54" }}>
+              Something went wrong
+            </strong>
+            <div style={{ marginTop: 6 }}>{error}</div>
+            <button
+              style={{ ...styles.button, marginTop: 12 }}
+              onClick={loadClients}
+            >
+              Retry
+            </button>
           </div>
+        )}
 
-          {loading && clients.length === 0 ? (
-            <div>Loading clients…</div>
-          ) : clients.length === 0 ? (
-            <div>No clients yet.</div>
-          ) : (
-            <ul style={{ listStyle: "none", padding: 0 }}>
-              {clients.map((c) => (
-                <li key={c.id} style={{ marginBottom: 6 }}>
-                  <button
-                    style={{ width: "100%" }}
-                    onClick={() => {
-                      setSelectedGroup(null); // 🔑 clear group
-                      setSelectedClient(c);
-                      loadClientDetails(String(c.id));
-                    }}
-                  >
-                    {c.first_name} {c.last_name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
+        {/* MAIN GRID */}
+        {/* MAIN GRID */}
+<div
+  style={{
+    display: "grid",
+    gridTemplateColumns: "320px 320px 1fr",
+    gap: 18,
+  }}
+>
+  {/* CLIENTS */}
+  <div style={styles.card}>
+    <div
+      style={{
+        display: "flex",
+        justifyContent: "space-between",
+        marginBottom: 8,
+      }}
+    >
+      <strong>Clients</strong>
+      <button onClick={loadClients}>Refresh</button>
+    </div>
 
-        {/* ───── GROUPS ───── */}
-        <div style={styles.card}>
-          <strong style={{ display: "block", marginBottom: 8 }}>
-            Groups
-          </strong>
+    {loading && clients.length === 0 ? (
+      <div>Loading clients…</div>
+    ) : clients.length === 0 ? (
+      <div>No clients yet.</div>
+    ) : (
+      <ul style={{ listStyle: "none", padding: 0 }}>
+        {clients.map((c) => (
+          <li key={c.id} style={{ marginBottom: 6 }}>
+            <button
+              style={{ width: "100%" }}
+              onClick={() => {
+                setSelectedGroup(null);
+                setSelectedClient(c);
+                loadClientDetails(String(c.id));
+              }}
+            >
+              {c.first_name} {c.last_name}
+            </button>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
 
-          <GroupList
-            onSelect={(group) => {
-              setSelectedClient(null); // 🔑 clear client
-              setSelectedGroup(group);
-            }}
-          />
-        </div>
+  {/* GROUPS */}
+  <div style={styles.card}>
+    <strong style={{ display: "block", marginBottom: 8 }}>
+      Groups
+    </strong>
 
-        {/* ───── DETAIL PANEL ───── */}
-        <div style={styles.card}>
-          {/* Client details */}
-          {selectedClient && !selectedGroup && (
-            <>
-              <h2>
-                {selectedClient.first_name} {selectedClient.last_name}
-              </h2>
-              <p>
-                Latest glucose: {clientReadings[0]?.value ?? "—"}
-              </p>
-              <p>Symptoms logged: {clientSymptoms.length}</p>
-              <p>
-                Cycle phase: {clientCycle?.phase ?? "—"}
-              </p>
-            </>
-          )}
+    <GroupList
+      groups={groups}
+      loading={loadingGroups}
+      onSelect={(group) => {
+        setSelectedClient(null);
+        setSelectedGroup(group);
+      }}
+    />
+  </div>
 
-          {/* Group chat */}
-          {selectedGroup && <GroupChat group={selectedGroup} />}
+  {/* DETAIL PANEL */}
+  <div style={styles.card}>
+    {selectedClient && !selectedGroup && (
+      <>
+        <h2>
+          {selectedClient.first_name} {selectedClient.last_name}
+        </h2>
+        <p>Latest glucose: {clientReadings[0]?.value ?? "—"}</p>
+        <p>Symptoms logged: {clientSymptoms.length}</p>
+        <p>Cycle phase: {clientCycle?.phase ?? "—"}</p>
+      </>
+    )}
 
-          {/* Empty state */}
-          {!selectedClient && !selectedGroup && (
-            <div style={{ textAlign: "center", padding: 40 }}>
-              <div style={{ fontSize: 32 }}>🌿</div>
-              <strong>Select a client or group</strong>
-              <p style={{ color: "#6B6B6B", marginTop: 6 }}>
-                View client trends or coach your group.
-              </p>
-            </div>
-          )}
-        </div>
+    {selectedGroup && <GroupChat group={selectedGroup} />}
+
+    {!selectedClient && !selectedGroup && (
+      <div style={{ textAlign: "center", padding: 40 }}>
+        <div style={{ fontSize: 32 }}>🌿</div>
+        <strong>Select a client or group</strong>
+        <p style={{ color: "#6B6B6B", marginTop: 6 }}>
+          View client trends or coach your group.
+        </p>
+      </div>
+    )}
+
+  </div>
+</div>
       </div>
     </div>
-  </div>
-);
+  );
 }
+        
 
 function App() {
   const { isAuthenticated } = useApp();
@@ -1512,6 +1523,7 @@ function App() {
     <LoginScreen onSwitchToRegister={() => setShowRegister(true)} />
   );
 }
+
 
 function Root() {
   return (
