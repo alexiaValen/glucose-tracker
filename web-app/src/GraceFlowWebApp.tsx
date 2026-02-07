@@ -41,8 +41,10 @@ interface Cycle {
 }
 
 // ==================== API BASE ====================
-const API_HOST = ((import.meta as any).env.VITE_API_URL as string) || "http://localhost:3000";
-const API_URL = `${API_HOST.replace(/\/$/, "")}/api/v1`;
+const API_URL =
+  (import.meta as any).env.VITE_API_URL || "http://localhost:3000/api/v1";
+
+console.log("🌐 API URL:", API_URL);
 
 console.log('ðŸŒ API URL:', API_URL);
 
