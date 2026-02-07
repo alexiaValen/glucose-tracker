@@ -1359,6 +1359,7 @@ function CoachDashboard() {
       <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
         Dashboard
       </button>
+
       <div style={{ marginLeft: "auto" }}>
         <button
           style={{ ...styles.navButton, color: "#C85A54" }}
@@ -1408,7 +1409,7 @@ function CoachDashboard() {
           gap: 18,
         }}
       >
-        {/* ───── Clients ───── */}
+        {/* ───── CLIENTS ───── */}
         <div style={styles.card}>
           <div
             style={{
@@ -1432,6 +1433,7 @@ function CoachDashboard() {
                   <button
                     style={{ width: "100%" }}
                     onClick={() => {
+                      setSelectedGroup(null); // 🔑 clear group
                       setSelectedClient(c);
                       loadClientDetails(String(c.id));
                     }}
@@ -1444,26 +1446,30 @@ function CoachDashboard() {
           )}
         </div>
 
-        {/* ───── Groups ───── */}
+        {/* ───── GROUPS ───── */}
         <div style={styles.card}>
           <strong style={{ display: "block", marginBottom: 8 }}>
             Groups
           </strong>
-          <GroupList onSelect={setSelectedGroup} />
+
+          <GroupList
+            onSelect={(group) => {
+              setSelectedClient(null); // 🔑 clear client
+              setSelectedGroup(group);
+            }}
+          />
         </div>
 
-        {/* ───── Detail Panel ───── */}
+        {/* ───── DETAIL PANEL ───── */}
         <div style={styles.card}>
           {/* Client details */}
           {selectedClient && !selectedGroup && (
             <>
               <h2>
-                {selectedClient.first_name}{" "}
-                {selectedClient.last_name}
+                {selectedClient.first_name} {selectedClient.last_name}
               </h2>
               <p>
-                Latest glucose:{" "}
-                {clientReadings[0]?.value ?? "—"}
+                Latest glucose: {clientReadings[0]?.value ?? "—"}
               </p>
               <p>Symptoms logged: {clientSymptoms.length}</p>
               <p>

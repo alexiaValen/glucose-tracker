@@ -1,43 +1,66 @@
-// src/groups/GroupList.tsx
 import { useEffect, useState } from "react";
-import { GroupService } from "../services/group.service";
+
+interface Group {
+  id: string;
+  name: string;
+  description?: string;
+  status: string;
+}
 
 export function GroupList({
   onSelect,
 }: {
-  onSelect: (group: any) => void;
+  onSelect: (group: Group) => void;
 }) {
-  const [groups, setGroups] = useState<any[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const API_URL =
+    (import.meta as any).env.VITE_API_URL ||
+    "http://localhost:3000/api/v1";
+
   useEffect(() => {
-    GroupService.getCoachGroups()
-      .then((res) => setGroups(res.groups || []))
-      .finally(() => setLoading(false));
+    const loadGroups = async () => {
+      try {
+        const token = localStorage.getItem("accessToken");
+        const res = await fetch(`${API_URL}/groups/coach/my-groups`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        });
+
+        const data = await res.json();
+        setGroups(data.groups || []);
+      } catch (err) {
+        console.error("Failed to load groups", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadGroups();
   }, []);
 
   if (loading) return <div>Loading groups…</div>;
-  if (!groups.length) return <div>No groups yet.</div>;
+
+  if (groups.length === 0) {
+    return (
+      <div style={{ color: "#6B6B6B", fontSize: 14 }}>
+        No groups yet.
+      </div>
+    );
+  }
 
   return (
     <ul style={{ listStyle: "none", padding: 0 }}>
-      {groups.map((g) => (
-        <li key={g.id} style={{ marginBottom: 8 }}>
+      {groups.map((group) => (
+        <li key={group.id} style={{ marginBottom: 8 }}>
           <button
-            onClick={() => onSelect(g)}
-            style={{
-              width: "100%",
-              textAlign: "left",
-              padding: 10,
-              borderRadius: 10,
-              border: "1px solid #ddd",
-              background: "#fff",
-            }}
+            style={{ width: "100%" }}
+            onClick={() => onSelect(group)}
           >
-            <strong>{g.name}</strong>
-            <div style={{ fontSize: 12, color: "#666" }}>
-              {g.status}
-            </div>
+            {group.name}
           </button>
         </li>
       ))}
