@@ -1315,28 +1315,25 @@ function CoachDashboard() {
   // Load selected client details
   // ─────────────────────────────────────────────
   const loadClientDetails = async (clientId: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [readings, symptoms, cycle] = await Promise.all([
-        fetchJSON(`/coach/clients/${clientId}/glucose`),
-        fetchJSON(`/coach/clients/${clientId}/symptoms`),
-        fetchJSON(`/coach/clients/${clientId}/cycle/current`),
-      ]);
+  setLoading(true);
+  setError(null);
 
-      setClientReadings(
-        Array.isArray(readings) ? readings : readings.readings || []
-      );
-      setClientSymptoms(
-        Array.isArray(symptoms) ? symptoms : symptoms.symptoms || []
-      );
-      setClientCycle(cycle?.cycle || cycle || null);
-    } catch (e: any) {
-      setError(e.message || "Failed to load client data");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const [glucoseRes, symptomsRes, cycleRes] = await Promise.all([
+      fetchJSON(`/coach/clients/${clientId}/glucose`),
+      fetchJSON(`/coach/clients/${clientId}/symptoms`),
+      fetchJSON(`/coach/clients/${clientId}/cycle`),
+    ]);
+
+    setClientReadings(glucoseRes.readings || []);
+    setClientSymptoms(symptomsRes.symptoms || []);
+    setClientCycle(cycleRes.cycle || null);
+  } catch (e: any) {
+    setError(e.message || "Failed to load client data");
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadClients();
