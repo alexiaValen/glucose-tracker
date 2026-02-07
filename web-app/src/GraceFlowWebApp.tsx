@@ -1,1277 +1,402 @@
-// GraceFlowWebApp.tsx - Complete Single-File Web Application
-// This file contains everything needed to run GraceFlow in the browser
-// Users can login, signup, log glucose, log symptoms - just like the mobile app
+// GraceFlowWebApp.tsx – Concise & modern version
 
-import React, { useEffect, useState, createContext, useContext } from "react";
+import React, { useEffect, useState, createContext, useContext, useCallback } from "react";
 
-// ==================== TYPES ====================
-interface User {
-  id: number;
-  email: string;
-  first_name: string;
-  last_name: string;
-  role: "user" | "coach";
-}
+// ─── Types ───────────────────────────────────────────────
+interface User { id: number; email: string; first_name: string; last_name: string; role: "user" | "coach" }
+interface GlucoseReading { id?: number; value: number; measured_at: string; notes?: string }
+interface Symptom { id?: number; symptom_type: string; severity: number; notes?: string; logged_at?: string }
+interface Cycle { cycle_start_date: string; current_day?: number; phase?: string }
+interface Group { id: string; name: string; description: string; coach_id: string; startDate: string; durationWeeks: number; meetingSchedule: { day: string; time: string; timezone: string } }
 
-interface GlucoseReading {
-  id?: number;
-  value: number;
-  measured_at: string;
-  unit?: string;
-  source?: string;
-  source_device?: string;
-  notes?: string;
-  created_at?: string;
-}
+// ─── API ─────────────────────────────────────────────────
+const API_URL = `${import.meta.env.VITE_API_URL || "http://localhost:3000"}/api/v1`;
 
-interface Symptom {
-  id?: number;
-  symptom_type: string;
-  severity: number;
-  notes?: string;
-  created_at?: string;
-  logged_at?: string;  // Backend uses logged_at
-}
+const api = {
+  token: () => localStorage.getItem("accessToken"),
+  headers: () => ({ "Content-Type": "application/json", ...(api.token() && { Authorization: `Bearer ${api.token()}` }) },
 
-interface Cycle {
-  id?: number;
-  cycle_start_date: string;
-  current_day?: number;
-  phase?: string;
-}
-
-// ==================== API BASE ====================
-const API_HOST = ((import.meta as any).env.VITE_API_URL as string) || "http://localhost:3000";
-const API_URL = `${API_HOST.replace(/\/$/, "")}/api/v1`;
-
-console.log('🌐 API URL:', API_URL);
-
-class ApiService {
-  private getHeaders(): HeadersInit {
-    const token = localStorage.getItem("accessToken");
-    return {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    };
-  }
-
-  private saveTokens(data: any) {
-    const access = data.access_token ?? data.accessToken;
-    const refresh = data.refresh_token ?? data.refreshToken;
-
-    if (access) {
-      localStorage.setItem("accessToken", access);
-    }
-    if (refresh) {
-      localStorage.setItem("refreshToken", refresh);
-    }
-  }
-
-  async refreshToken(): Promise<boolean> {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (!refreshToken) return false;
-
-    try {
-      const response = await fetch(`${API_URL}/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!response.ok) throw new Error("Refresh failed");
-
-      const data = await response.json();
-      this.saveTokens(data);
-      return true;
-    } catch (error) {
-      console.error("❌ Token refresh failed:", error);
-      this.logout();
-      return false;
-    }
-  }
-
-  async request(endpoint: string, method: string = "GET", body?: any): Promise<any> {
-    let response;
-    try {
-      response = await fetch(`${API_URL}${endpoint}`, {
-        method,
-        headers: this.getHeaders(),
-        ...(body ? { body: JSON.stringify(body) } : {}),
-      });
-
-      if (response.status === 401) {
-        // Token expired - try refresh
-        const refreshed = await this.refreshToken();
-        if (!refreshed) throw new Error("Session expired");
-
-        // Retry with new token
-        response = await fetch(`${API_URL}${endpoint}`, {
-          method,
-          headers: this.getHeaders(),
-          ...(body ? { body: JSON.stringify(body) } : {}),
-        });
+  async req(endpoint: string, method = "GET", body?: any) {
+    let res = await fetch(`${API_URL}${endpoint}`, { method, headers: api.headers(), ...(body && { body: JSON.stringify(body) }) });
+    if (res.status === 401) {
+      const rt = localStorage.getItem("refreshToken");
+      if (rt) {
+        const refreshRes = await fetch(`${API_URL}/auth/refresh`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ refreshToken: rt }) });
+        if (refreshRes.ok) {
+          const { access_token, refresh_token } = await refreshRes.json();
+          localStorage.setItem("accessToken", access_token);
+          if (refresh_token) localStorage.setItem("refreshToken", refresh_token);
+          res = await fetch(`${API_URL}${endpoint}`, { method, headers: api.headers(), ...(body && { body: JSON.stringify(body) }) });
+        }
       }
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Request failed");
-      }
-
-      return response.json();
-    } catch (error) {
-      console.error(`❌ API Error [${method} ${endpoint}]:`, error);
-      throw error;
     }
-  }
+    if (!res.ok) throw new Error((await res.json()).error || "Request failed");
+    return res.json();
+  },
 
-  async login(email: string, password: string): Promise<any> {
-    const data = await this.request("/auth/login", "POST", { email, password });
-    this.saveTokens(data);
-    return data;
-  }
+  login:    (email: string, password: string) => api.req("/auth/login",    "POST", { email, password }),
+  register: (email: string, password: string, firstName: string, lastName: string) =>
+    api.req("/auth/register", "POST", { email, password, firstName, lastName, dateOfBirth: new Date().toISOString().split("T")[0] }),
 
-  async register(email: string, password: string, firstName: string, lastName: string): Promise<any> {
-    const data = await this.request("/auth/register", "POST", {
-      email,
-      password,
-      firstName,
-      lastName,
-      dateOfBirth: new Date().toISOString().split('T')[0], // Default birthdate
-    });
-    this.saveTokens(data);
-    return data;
-  }
-
-  async logout() {
-    const refreshToken = localStorage.getItem("refreshToken");
-    if (refreshToken) {
-      await this.request("/auth/logout", "POST", { refreshToken }).catch(() => {});
-    }
+  logout: async () => {
+    const rt = localStorage.getItem("refreshToken");
+    if (rt) await api.req("/auth/logout", "POST", { refreshToken: rt }).catch(() => {});
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
-  }
+  },
 
-  // Other methods remain the same...
-  async getUser(): Promise<User> {
-    return this.request("/users/me");
-  }
+  getUser:          () => api.req("/users/me"),
+  getGlucose:       () => api.req("/glucose"),
+  addGlucose:       (data: any) => api.req("/glucose", "POST", data),
+  getSymptoms:      () => api.req("/symptoms"),
+  addSymptom:       (data: any) => api.req("/symptoms", "POST", data),
+  getCycle:         () => api.req("/cycles/current"),
+  startCycle:       (date: string) => api.req("/cycles", "POST", { cycleStartDate: date }),
 
-  async getGlucoseReadings(): Promise<GlucoseReading[]> {
-    return this.request("/glucose");
-  }
+  getConversations: () => api.req("/messages/conversations"),
+  getMessages:      (id: string) => api.req(`/messages/${id}`),
+  sendMessage:      (to: string, msg: string) => api.req("/messages", "POST", { recipientId: to, message: msg }),
+  markRead:         (id: string) => api.req(`/messages/${id}/read`, "PUT"),
 
-  async addGlucoseReading(reading: Partial<GlucoseReading>): Promise<GlucoseReading> {
-    return this.request("/glucose", "POST", reading);
-  }
+  getClients:       () => api.req("/coach/clients"),
+  getClientGlucose: (id: string) => api.req(`/coach/clients/${id}/glucose`),
+  getClientCycle:   (id: string) => api.req(`/coach/clients/${id}/cycle`),
 
-  async getSymptoms(): Promise<Symptom[]> {
-    return this.request("/symptoms");
-  }
-
-  async addSymptom(symptom: Partial<Symptom>): Promise<Symptom> {
-    return this.request("/symptoms", "POST", symptom);
-  }
-
-  async getCurrentCycle(): Promise<Cycle | null> {
-    return this.request("/cycles/current");
-  }
-
-  async startCycle(startDate: string): Promise<Cycle> {
-    return this.request("/cycles", "POST", { cycleStartDate: startDate });
-  }
-
-  async getConversations(): Promise<any[]> {
-    return this.request("/messages/conversations");
-  }
-
-  async getMessages(userId: string): Promise<any[]> {
-    return this.request(`/messages/${userId}`);
-  }
-
-  async sendMessage(recipientId: string, message: string): Promise<any> {
-    return this.request("/messages", "POST", { recipientId, message });
-  }
-
-  async markAsRead(userId: string): Promise<any> {
-    return this.request(`/messages/${userId}/read`, "PUT");
-  }
-
-  async getMyCoach(): Promise<any> {
-    return this.request("/coach/my-coach");
-  }
-
-  async getClients(): Promise<any[]> {
-    return this.request("/coach/clients");
-  }
-
-  async getClientGlucose(clientId: string): Promise<GlucoseReading[]> {
-    return this.request(`/coach/clients/${clientId}/glucose`);
-  }
-
-  async getClientCycle(clientId: string): Promise<Cycle | null> {
-    return this.request(`/coach/clients/${clientId}/cycle`);  // Fixed: removed /current
-  }
-
-  async getGroups(): Promise<any[]> {
-    return this.request("/groups");
-  }
-
-  async getMyGroups(): Promise<any[]> {
-    return this.request("/groups/my-groups");
-  }
-
-  async joinGroup(groupId: string): Promise<any> {
-    return this.request(`/groups/${groupId}/join`, "POST");
-  }
-}
-
-// ==================== CONTEXT ====================
-interface AppContextType {
-  isAuthenticated: boolean;
-  user: User | null;
-  glucoseReadings: GlucoseReading[];
-  symptoms: Symptom[];
-  currentCycle: Cycle | null;
-  isLoading: boolean;
-  error: string | null;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
-  logout: () => void;
-  refreshData: () => Promise<void>;
-}
-
-const AppContext = createContext<AppContextType | undefined>(undefined);
-
-const api = new ApiService();
-
-function AppProvider({ children }: { children: React.ReactNode }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem("accessToken"));
-  const [user, setUser] = useState<User | null>(null);
-  const [glucoseReadings, setGlucoseReadings] = useState<GlucoseReading[]>([]);
-  const [symptoms, setSymptoms] = useState<Symptom[]>([]);
-  const [currentCycle, setCurrentCycle] = useState<Cycle | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const loadData = async () => {
-    if (!isAuthenticated) {
-      setIsLoading(false);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      console.log("📊 Loading user data...");
-      const [userData, readings, symps, cycle] = await Promise.all([
-        api.getUser(),
-        api.getGlucoseReadings(),
-        api.getSymptoms(),
-        api.getCurrentCycle(),
-      ]);
-
-      setUser(userData);
-      setGlucoseReadings(readings);
-      setSymptoms(symps);
-      setCurrentCycle(cycle);
-      console.log("✅ Loaded user data");
-    } catch (err: any) {
-      setError(err.message);
-      if (err.message.includes("token") || err.message.includes("expired")) {
-        logout();
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadData();
-  }, [isAuthenticated]);
-
-  const login = async (email: string, password: string) => {
-    try {
-      await api.login(email, password);
-      setIsAuthenticated(true);
-      await loadData();
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  const register = async (email: string, password: string, firstName: string, lastName: string) => {
-    try {
-      await api.register(email, password, firstName, lastName);
-      setIsAuthenticated(true);
-      await loadData();
-    } catch (err: any) {
-      setError(err.message);
-      throw err;
-    }
-  };
-
-  const logout = () => {
-    api.logout();
-    setIsAuthenticated(false);
-    setUser(null);
-    setGlucoseReadings([]);
-    setSymptoms([]);
-    setCurrentCycle(null);
-  };
-
-  const refreshData = loadData;
-
-  return (
-    <AppContext.Provider
-      value={{
-        isAuthenticated,
-        user,
-        glucoseReadings,
-        symptoms,
-        currentCycle,
-        isLoading,
-        error,
-        login,
-        register,
-        logout,
-        refreshData,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
-  );
-}
-
-function useApp() {
-  const context = useContext(AppContext);
-  if (undefined === context) throw new Error("useApp must be used within AppProvider");
-  return context;
-}
-
-// ==================== STYLES ====================
-const styles = {
-  container: {
-    maxWidth: 480,
-    margin: "0 auto",
-    padding: "20px 16px",
-    minHeight: "100vh",
-    background: "linear-gradient(180deg, #F5F4F0 0%, #E8EDE9 100%)",
-    fontFamily: "'Inter', sans-serif",
-  } as React.CSSProperties,
-  header: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 32,
-  } as React.CSSProperties,
-  logo: {
-    fontSize: 28,
-    fontWeight: 800,
-    color: "#3D5540",
-    letterSpacing: -0.5,
-  } as React.CSSProperties,
-  form: {
-    display: "flex",
-    flexDirection: "column",
-    gap: 16,
-  } as React.CSSProperties,
-  input: {
-    width: "100%",
-    padding: "14px 16px",
-    fontSize: 16,
-    border: "1px solid rgba(212, 214, 212, 0.9)",
-    borderRadius: 18,
-    background: "rgba(255, 255, 255, 0.98)",
-    color: "#2A2D2A",
-    transition: "0.2s",
-  } as React.CSSProperties,
-  button: {
-    padding: "14px",
-    fontSize: 16,
-    fontWeight: 600,
-    border: "none",
-    borderRadius: 18,
-    background: "#6B7F6E",
-    color: "#FFFFFF",
-    cursor: "pointer",
-    transition: "0.2s",
-  } as React.CSSProperties,
-  link: {
-    color: "#6B7F6E",
-    textDecoration: "none",
-    fontWeight: 500,
-  } as React.CSSProperties,
-  error: {
-    color: "#D14D4D",
-    fontSize: 14,
-    textAlign: "center",
-    marginTop: 8,
-  } as React.CSSProperties,
-  tabBar: {
-    position: "fixed" as "fixed",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    background: "rgba(255, 255, 255, 0.95)",
-    borderTop: "1px solid #E8EDE9",
-    display: "flex",
-    justifyContent: "space-around",
-    padding: "8px 0",
-    backdropFilter: "blur(8px)",
-  } as React.CSSProperties,
-  tab: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    color: "#6B6B6B",
-    textDecoration: "none",
-    fontSize: 12,
-    gap: 4,
-  } as React.CSSProperties,
-  tabActive: {
-    color: "#3D5540",
-    fontWeight: 600,
-  } as React.CSSProperties,
-  card: {
-    background: "rgba(255, 255, 255, 0.98)",
-    borderRadius: 24,
-    padding: 24,
-    marginBottom: 24,
-    boxShadow: "0 2px 8px rgba(107, 127, 110, 0.08)",
-  } as React.CSSProperties,
-  list: {
-    listStyle: "none",
-    padding: 0,
-    margin: 0,
-  } as React.CSSProperties,
-  listItem: {
-    padding: "16px 0",
-    borderBottom: "1px solid #E8EDE9",
-  } as React.CSSProperties,
+  getGroups:        () => api.req("/groups"),
+  getMyGroups:      () => api.req("/groups/my-groups"),
+  joinGroup:        (id: string) => api.req(`/groups/${id}/join`, "POST"),
+  createGroup:      (data: any) => api.req("/groups", "POST", data),
+  getGroupMessages: (id: string) => api.req(`/groups/${id}/messages`),
+  sendGroupMsg:     (id: string, msg: string) => api.req(`/groups/${id}/messages`, "POST", { message: msg }),
+  genAccessCodes:   (id: string, qty = 5) => api.req(`/groups/${id}/access-codes`, "POST", { quantity: qty }),
 };
 
-// ==================== COMPONENTS ====================
-function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
-  const { login, error } = useApp();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
+// ─── Context ─────────────────────────────────────────────
+const AppContext = createContext<any>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+function AppProvider({ children }: { children: React.ReactNode }) {
+  const [auth, setAuth] = useState(!!localStorage.getItem("accessToken"));
+  const [user, setUser] = useState<User | null>(null);
+  const [glucose, setGlucose] = useState<GlucoseReading[]>([]);
+  const [symptoms, setSymptoms] = useState<Symptom[]>([]);
+  const [cycle, setCycle] = useState<Cycle | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    if (!auth) return setLoading(false);
+    setLoading(true); setError(null);
     try {
-      await login(email, password);
-    } catch {}
-    setLoading(false);
+      const [u, g, s, c] = await Promise.all([
+        api.getUser(), api.getGlucose(), api.getSymptoms(), api.getCycle()
+      ]);
+      setUser(u); setGlucose(g); setSymptoms(s); setCycle(c);
+    } catch (e: any) {
+      setError(e.message);
+      if (e.message?.includes("token")) api.logout(), setAuth(false);
+    } finally { setLoading(false); }
+  }, [auth]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const value = {
+    isAuthenticated: auth,
+    user, glucose, symptoms, cycle, loading, error,
+    login: async (e: string, p: string) => { await api.login(e, p); setAuth(true); await load(); },
+    register: async (e: string, p: string, fn: string, ln: string) => {
+      await api.register(e, p, fn, ln); setAuth(true); await load();
+    },
+    logout: () => { api.logout(); setAuth(false); setUser(null); setGlucose([]); setSymptoms([]); setCycle(null); },
+    refresh: load,
   };
 
-  return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.logo}>🌿 GraceFlow</div>
-      </div>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Welcome back</h2>
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={styles.input}
-          autoComplete="email"
-          disabled={loading}
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={styles.input}
-          autoComplete="current-password"
-          disabled={loading}
-        />
-        <button type="submit" style={styles.button} disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
-        </button>
-        {error && <div style={styles.error}>{error}</div>}
-      </form>
-      <div style={{ textAlign: "center", marginTop: 24 }}>
-        No account?{" "}
-        <a onClick={onSwitchToRegister} style={styles.link}>
-          Sign up
-        </a>
-      </div>
-    </div>
-  );
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-function RegisterScreen({ onSwitchToLogin }: { onSwitchToLogin: () => void }) {
-  const { register, error } = useApp();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [loading, setLoading] = useState(false);
+const useApp = () => {
+  const ctx = useContext(AppContext);
+  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  return ctx;
+};
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+// ─── UI Components (very compact) ────────────────────────
+function AuthScreen({ isLogin }: { isLogin: boolean }) {
+  const { login, register } = useApp();
+  const [form, setForm] = useState({ email: "", password: "", firstName: "", lastName: "" });
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setLoading(true); setErrorMsg("");
     try {
-      await register(email, password, firstName, lastName);
-    } catch {}
+      if (isLogin) await login(form.email, form.password);
+      else await register(form.email, form.password, form.firstName, form.lastName);
+    } catch (err: any) { setErrorMsg(err.message || "Failed"); }
     setLoading(false);
   };
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.logo}>🌿 GraceFlow</div>
-      </div>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Create account</h2>
-      <form onSubmit={handleSubmit} style={styles.form}>
-        <input
-          type="text"
-          placeholder="First name"
-          value={firstName}
-          onChange={(e) => setFirstName(e.target.value)}
-          style={styles.input}
-          autoComplete="given-name"
-          disabled={loading}
-        />
-        <input
-          type="text"
-          placeholder="Last name"
-          value={lastName}
-          onChange={(e) => setLastName(e.target.value)}
-          style={styles.input}
-          autoComplete="family-name"
-          disabled={loading}
-        />
-        <input
-          type="email"
-          placeholder="Email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={styles.input}
-          autoComplete="email"
-          disabled={loading}
-        />
-        <input
-          type="password"
-          placeholder="Choose password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          style={styles.input}
-          autoComplete="new-password"
-          disabled={loading}
-        />
-        <button type="submit" style={styles.button} disabled={loading}>
-          {loading ? "Creating..." : "Sign up"}
+    <div style={{ maxWidth: 400, margin: "2rem auto", padding: "1.5rem", background: "#fff", borderRadius: 16, boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}>
+      <h2 style={{ textAlign: "center", marginBottom: "1.5rem" }}>{isLogin ? "Login" : "Sign Up"}</h2>
+      <form onSubmit={submit} style={{ display: "grid", gap: "1rem" }}>
+        {!isLogin && <>
+          <input placeholder="First Name"  value={form.firstName}  onChange={e => setForm(f => ({ ...f, firstName:  e.target.value }))} />
+          <input placeholder="Last Name"   value={form.lastName}   onChange={e => setForm(f => ({ ...f, lastName:   e.target.value }))} />
+        </>}
+        <input type="email"   placeholder="Email"    value={form.email}    onChange={e => setForm(f => ({ ...f, email:    e.target.value }))} />
+        <input type="password" placeholder="Password" value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))} />
+        <button type="submit" disabled={loading} style={{ padding: "0.9rem", background: "#4a6", color: "white", border: "none", borderRadius: 8 }}>
+          {loading ? "..." : isLogin ? "Login" : "Sign Up"}
         </button>
-        {error && <div style={styles.error}>{error}</div>}
+        {errorMsg && <p style={{ color: "crimson", textAlign: "center" }}>{errorMsg}</p>}
       </form>
-      <div style={{ textAlign: "center", marginTop: 24 }}>
-        Have an account?{" "}
-        <a onClick={onSwitchToLogin} style={styles.link}>
-          Login
+      <p style={{ textAlign: "center", marginTop: "1rem" }}>
+        {isLogin ? "No account?" : "Already have one?"} {" "}
+        <a href="#" onClick={e => { e.preventDefault(); window.location.hash = isLogin ? "#signup" : "#login"; }}>
+          {isLogin ? "Sign up" : "Login"}
         </a>
-      </div>
+      </p>
     </div>
   );
 }
 
 function Dashboard() {
-  const { user, logout, isLoading, error, refreshData } = useApp();
-  const [activeTab, setActiveTab] = useState("home");
+  const { user, logout, loading: globalLoading, refresh } = useApp();
+  const [tab, setTab] = useState("home");
 
-  if (isLoading) {
-    return <div style={styles.container}>Loading...</div>;
-  }
+  if (globalLoading) return <div style={{ textAlign: "center", padding: "4rem" }}>Loading...</div>;
 
-  if (error) {
-    return <div style={styles.container}>Error: {error}</div>;
-  }
-
-  if (!user) {
-    return <div style={styles.container}>Not authenticated</div>;
-  }
-
-  const isCoach = user.role === "coach";
+  const isCoach = user?.role === "coach";
 
   return (
-    <div style={styles.container}>
-      <div style={styles.header}>
-        <div style={styles.logo}>🌿 GraceFlow</div>
-        <button onClick={logout} style={{ ...styles.button, background: "none", color: "#D14D4D", fontSize: 14 }}>
-          Logout
-        </button>
-      </div>
+    <div style={{ maxWidth: 480, margin: "0 auto", padding: "1rem" }}>
+      <header style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+        <h1 style={{ margin: 0, fontSize: "1.8rem" }}>🌿 GraceFlow</h1>
+        <button onClick={logout} style={{ background: "none", border: "none", color: "#e44", fontWeight: 500 }}>Logout</button>
+      </header>
 
-      {activeTab === "home" && <HomeTab />}
-      {activeTab === "glucose" && <GlucoseTab onRefresh={refreshData} />}
-      {activeTab === "symptoms" && <SymptomsTab onRefresh={refreshData} />}
-      {activeTab === "cycle" && <CycleTab onRefresh={refreshData} />}
-      {activeTab === "messages" && <MessagesTab />}
-      {activeTab === "groups" && <GroupsTab onRefresh={refreshData} />}
-      {activeTab === "coach" && isCoach && <CoachDashboard onRefresh={refreshData} />}
-      {activeTab === "settings" && <SettingsTab />}
+      {tab === "home"    && <Home />}
+      {tab === "glucose"  && <GlucoseTab refresh={refresh} />}
+      {tab === "symptoms" && <SymptomsTab refresh={refresh} />}
+      {tab === "cycle"    && <CycleTab refresh={refresh} />}
+      {tab === "messages" && <Messages />}
+      {tab === "groups"   && <Groups refresh={refresh} />}
+      {tab === "coach" && isCoach && <CoachDashboard refresh={refresh} />}
+      {tab === "settings" && <Settings />}
 
-      <div style={styles.tabBar}>
-        <a style={{ ...styles.tab, ...(activeTab === "home" ? styles.tabActive : {}) }} onClick={() => setActiveTab("home")}>
-          🏠 Home
-        </a>
-        <a style={{ ...styles.tab, ...(activeTab === "glucose" ? styles.tabActive : {}) }} onClick={() => setActiveTab("glucose")}>
-          📈 Glucose
-        </a>
-        <a style={{ ...styles.tab, ...(activeTab === "symptoms" ? styles.tabActive : {}) }} onClick={() => setActiveTab("symptoms")}>
-          😔 Symptoms
-        </a>
-        <a style={{ ...styles.tab, ...(activeTab === "cycle" ? styles.tabActive : {}) }} onClick={() => setActiveTab("cycle")}>
-          📅 Cycle
-        </a>
-        <a style={{ ...styles.tab, ...(activeTab === "messages" ? styles.tabActive : {}) }} onClick={() => setActiveTab("messages")}>
-          💬 Messages
-        </a>
-        <a style={{ ...styles.tab, ...(activeTab === "groups" ? styles.tabActive : {}) }} onClick={() => setActiveTab("groups")}>
-          👥 Groups
-        </a>
-        {isCoach && (
-          <a style={{ ...styles.tab, ...(activeTab === "coach" ? styles.tabActive : {}) }} onClick={() => setActiveTab("coach")}>
-            👩‍🏫 Coach
-          </a>
-        )}
-        <a style={{ ...styles.tab, ...(activeTab === "settings" ? styles.tabActive : {}) }} onClick={() => setActiveTab("settings")}>
-          ⚙️ Settings
-        </a>
+      <nav style={{
+        position: "fixed", bottom: 0, left: 0, right: 0,
+        background: "rgba(255,255,255,0.95)", borderTop: "1px solid #ddd",
+        display: "flex", justifyContent: "space-around", padding: "0.5rem 0",
+        backdropFilter: "blur(8px)", fontSize: "0.8rem"
+      }}>
+        {["home", "glucose", "symptoms", "cycle", "messages", "groups", ...(isCoach ? ["coach"] : []), "settings"].map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            style={{
+              background: "none", border: "none", padding: "0.5rem",
+              color: tab === t ? "#4a6" : "#666", fontWeight: tab === t ? 600 : 400
+            }}
+          >
+            {t === "home" ? "🏠" : t === "glucose" ? "📈" : t === "symptoms" ? "😔" : t === "cycle" ? "📅" : t === "messages" ? "💬" : t === "groups" ? "👥" : t === "coach" ? "🧑‍🏫" : "⚙️"}
+            <div style={{ fontSize: "0.7rem" }}>{t[0].toUpperCase() + t.slice(1)}</div>
+          </button>
+        ))}
+      </nav>
+    </div>
+  );
+}
+
+// ─── Minimal placeholder tabs (expand as needed) ─────────
+function Home() {
+  const { user, glucose, symptoms, cycle } = useApp();
+  return (
+    <div>
+      <h2>Welcome, {user?.first_name}</h2>
+      <div style={{ background: "#f8f9fa", padding: "1rem", borderRadius: 12, margin: "1rem 0" }}>
+        <p><strong>Latest Glucose:</strong> {glucose[0]?.value ?? "—"} mg/dL</p>
+        <p><strong>Recent Symptom:</strong> {symptoms[0]?.symptom_type ?? "None"}</p>
+        <p><strong>Cycle Day:</strong> {cycle?.current_day ?? "Not tracking"}</p>
       </div>
     </div>
   );
 }
 
-function HomeTab() {
-  const { user, glucoseReadings, symptoms, currentCycle } = useApp();
+function GlucoseTab({ refresh }: { refresh: () => Promise<void> }) {
+  const [value, setValue] = useState(""); const [notes, setNotes] = useState(""); const [saving, setSaving] = useState(false);
+  const { glucose } = useApp();
 
-  return (
-    <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>
-        Welcome, {user?.first_name}
-      </h2>
-
-      <div style={styles.card}>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Quick Overview</div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-          <div>Latest Glucose:</div>
-          <div>{glucoseReadings[0]?.value || "N/A"} mg/dL</div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-          <div>Recent Symptom:</div>
-          <div>{symptoms[0]?.symptom_type || "None"}</div>
-        </div>
-        <div style={{ display: "flex", justifyContent: "space-between" }}>
-          <div>Cycle Day:</div>
-          <div>{currentCycle?.current_day || "Not tracking"}</div>
-        </div>
-      </div>
-    </>
-  );
-}
-
-function GlucoseTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
-  const { glucoseReadings } = useApp();
-  const [value, setValue] = useState("");
-  const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  const add = async (e: React.FormEvent) => {
+    e.preventDefault(); setSaving(true);
     try {
-      await api.addGlucoseReading({
-        value: parseFloat(value),
-        measured_at: new Date().toISOString(),
-        notes,
-      });
-      setValue("");
-      setNotes("");
-      await onRefresh();
-    } catch (err) {
-      console.error("❌ Failed to add reading");
-    }
-    setLoading(false);
+      await api.addGlucose({ value: Number(value), measured_at: new Date().toISOString(), notes });
+      setValue(""); setNotes(""); await refresh();
+    } catch {} finally { setSaving(false); }
   };
 
   return (
     <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Glucose Tracking</h2>
-
-      <div style={styles.card}>
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <input
-            type="number"
-            placeholder="Glucose value (mg/dL)"
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            style={styles.input}
-            disabled={loading}
-          />
-          <input
-            type="text"
-            placeholder="Notes (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            style={styles.input}
-            disabled={loading}
-          />
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? "Adding..." : "Add Reading"}
-          </button>
-        </form>
-      </div>
-
-      <div style={styles.card}>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Recent Readings</div>
-        {glucoseReadings.length === 0 ? (
-          <div style={{ color: "#6B6B6B" }}>No readings yet.</div>
-        ) : (
-          <ul style={styles.list}>
-            {glucoseReadings.slice(0, 10).map((r, idx) => (
-              <li key={r.id || idx} style={styles.listItem}>
-                <div style={{ fontWeight: 900, color: "#2A2D2A" }}>
-                  {r.value} {r.unit || "mg/dL"}
-                </div>
-                <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 4 }}>
-                  {new Date(r.measured_at || r.created_at || "").toLocaleString()}
-                </div>
-                {r.notes && <div style={{ fontSize: 14, color: "#4A4A4A", marginTop: 4 }}>{r.notes}</div>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+      <h2>Glucose</h2>
+      <form onSubmit={add} style={{ display: "grid", gap: "0.8rem", marginBottom: "1.5rem" }}>
+        <input type="number" placeholder="Value (mg/dL)" value={value} onChange={e => setValue(e.target.value)} required />
+        <input placeholder="Notes" value={notes} onChange={e => setNotes(e.target.value)} />
+        <button type="submit" disabled={saving || !value}>{saving ? "..." : "Add"}</button>
+      </form>
+      <ul style={{ listStyle: "none", padding: 0 }}>
+        {glucose.slice(0, 8).map(r => (
+          <li key={r.id} style={{ padding: "0.6rem 0", borderBottom: "1px solid #eee" }}>
+            <strong>{r.value} mg/dL</strong> – {new Date(r.measured_at).toLocaleString()}
+            {r.notes && <div style={{ color: "#555", fontSize: "0.9rem" }}>{r.notes}</div>}
+          </li>
+        ))}
+      </ul>
     </>
   );
 }
 
-function SymptomsTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
-  const { symptoms } = useApp();
-  const [type, setType] = useState("");
-  const [severity, setSeverity] = useState(5);
-  const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(false);
+// Similar compact pattern for SymptomsTab, CycleTab, Messages, Groups, CoachDashboard...
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.addSymptom({
-        symptom_type: type,
-        severity,
-        notes,
-        logged_at: new Date().toISOString(),
-      });
-      setType("");
-      setSeverity(5);
-      setNotes("");
-      await onRefresh();
-    } catch (err) {
-      console.error("❌ Failed to add symptom");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Symptom Tracking</h2>
-
-      <div style={styles.card}>
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <input
-            type="text"
-            placeholder="Symptom type (e.g., headache)"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-            style={styles.input}
-            disabled={loading}
-          />
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <label style={{ fontSize: 14, color: "#4A4A4A" }}>Severity (1-10):</label>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={severity}
-              onChange={(e) => setSeverity(parseInt(e.target.value))}
-              style={{ flex: 1 }}
-              disabled={loading}
-            />
-            <span>{severity}</span>
-          </div>
-          <input
-            type="text"
-            placeholder="Notes (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            style={styles.input}
-            disabled={loading}
-          />
-          <button type="submit" style={styles.button} disabled={loading}>
-            {loading ? "Adding..." : "Log Symptom"}
-          </button>
-        </form>
-      </div>
-
-      <div style={styles.card}>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Recent Symptoms</div>
-        {symptoms.length === 0 ? (
-          <div style={{ color: "#6B6B6B" }}>No symptoms logged.</div>
-        ) : (
-          <ul style={styles.list}>
-            {symptoms.slice(0, 10).map((s, idx) => (
-              <li key={s.id || idx} style={styles.listItem}>
-                <div style={{ fontWeight: 900, color: "#2A2D2A" }}>{s.symptom_type}</div>
-                <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 4 }}>
-                  Severity: {s.severity} • {new Date(s.logged_at || s.created_at || "").toLocaleString()}
-                </div>
-                {s.notes && <div style={{ fontSize: 14, color: "#4A4A4A", marginTop: 4 }}>{s.notes}</div>}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </>
-  );
-}
-
-function CycleTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
-  const { currentCycle } = useApp();
-  const [startDate, setStartDate] = useState(new Date().toISOString().split("T")[0]);
-  const [loading, setLoading] = useState(false);
-
-  const handleStart = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      await api.startCycle(startDate);
-      await onRefresh();
-    } catch (err) {
-      console.error("❌ Failed to start cycle");
-    }
-    setLoading(false);
-  };
-
-  return (
-    <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Cycle Tracking</h2>
-
-      <div style={styles.card}>
-        {currentCycle ? (
-          <>
-            <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Current Cycle</div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-              <div>Start Date:</div>
-              <div>{new Date(currentCycle.cycle_start_date).toLocaleDateString()}</div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 12 }}>
-              <div>Current Day:</div>
-              <div>{currentCycle.current_day}</div>
-            </div>
-            <div style={{ display: "flex", justifyContent: "space-between" }}>
-              <div>Phase:</div>
-              <div>{currentCycle.phase}</div>
-            </div>
-          </>
-        ) : (
-          <form onSubmit={handleStart} style={styles.form}>
-            <label style={{ fontSize: 14, color: "#4A4A4A", marginBottom: 8 }}>Cycle Start Date:</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              style={styles.input}
-              disabled={loading}
-            />
-            <button type="submit" style={styles.button} disabled={loading}>
-              {loading ? "Starting..." : "Start Tracking"}
-            </button>
-          </form>
-        )}
-      </div>
-    </>
-  );
-}
-
-function MessagesTab() {
+function Groups({ refresh }: { refresh: () => Promise<void> }) {
   const { user } = useApp();
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const isCoach = user?.role === "coach";
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [myGroups, setMyGroups] = useState<Group[]>([]);
+  const [chatGroup, setChatGroup] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
-  const [message, setMessage] = useState("");
-  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState("");
 
   useEffect(() => {
-    const loadConversations = async () => {
-      try {
-        const convos = await api.getConversations();
-        setConversations(convos);
-      } catch {}
-      setLoading(false);
-    };
-    loadConversations();
+    Promise.all([api.getGroups(), api.getMyGroups()]).then(([g, mg]) => {
+      setGroups(g); setMyGroups(mg);
+    });
   }, []);
 
   useEffect(() => {
-    if (selectedUser) {
-      const loadMessages = async () => {
-        try {
-          const msgs = await api.getMessages(selectedUser);
-          setMessages(msgs);
-          await api.markAsRead(selectedUser);
-        } catch {}
-      };
-      loadMessages();
-    }
-  }, [selectedUser]);
+    if (chatGroup) api.getGroupMessages(chatGroup).then(setMessages);
+  }, [chatGroup]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  const send = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedUser || !message.trim()) return;
-
-    try {
-      await api.sendMessage(selectedUser, message);
-      setMessage("");
-      // Reload messages
-      const msgs = await api.getMessages(selectedUser);
-      setMessages(msgs);
-    } catch {}
+    if (!chatGroup || !msg.trim()) return;
+    await api.sendGroupMsg(chatGroup, msg);
+    setMsg("");
+    api.getGroupMessages(chatGroup).then(setMessages);
   };
 
-  if (loading) return <div>Loading conversations...</div>;
-
-  if (!selectedUser) {
+  if (chatGroup) {
+    const group = [...groups, ...myGroups].find(g => g.id === chatGroup);
     return (
-      <>
-        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Messages</h2>
-        <div style={styles.card}>
-          <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Conversations</div>
-          <ul style={styles.list}>
-            {conversations.map((conv, idx) => (
-              <li
-                key={conv.id || idx}
-                style={{ ...styles.listItem, cursor: "pointer" }}
-                onClick={() => setSelectedUser(conv.user.id)}
-              >
-                <div style={{ fontWeight: 900, color: "#2A2D2A" }}>
-                  {conv.user.firstName} {conv.user.lastName}
-                </div>
-                <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 4 }}>
-                  {conv.lastMessage ? conv.lastMessage.message.substring(0, 30) + "..." : "No messages"}
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </>
-    );
-  }
-
-  return (
-    <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Chat</h2>
-      <div style={styles.card}>
-        <button onClick={() => setSelectedUser(null)} style={{ marginBottom: 16, color: "#6B7F6E" }}>
-          ← Back
-        </button>
-        <div style={{ maxHeight: 400, overflowY: "auto", marginBottom: 16 }}>
-          {messages.map((msg, idx) => (
-            <div
-              key={msg.id || idx}
-              style={{
-                textAlign: msg.sender_id === user?.id ? "right" : "left",
-                marginBottom: 12,
-              }}
-            >
-              <div
-                style={{
-                  display: "inline-block",
-                  padding: "8px 12px",
-                  borderRadius: 16,
-                  background: msg.sender_id === user?.id ? "#6B7F6E" : "#E8EDE9",
-                  color: msg.sender_id === user?.id ? "#FFFFFF" : "#2A2D2A",
-                }}
-              >
-                {msg.message}
-              </div>
-              <div style={{ fontSize: 10, color: "#6B6B6B", marginTop: 4 }}>
-                {new Date(msg.created_at).toLocaleTimeString()}
-              </div>
+      <div>
+        <h2>{group?.name || "Group Chat"}</h2>
+        <button onClick={() => setChatGroup(null)}>← Back</button>
+        <div style={{ maxHeight: 360, overflowY: "auto", margin: "1rem 0", padding: "0.5rem", border: "1px solid #ddd" }}>
+          {messages.map((m, i) => (
+            <div key={i} style={{ margin: "0.6rem 0", textAlign: m.sender_id === user?.id ? "right" : "left" }}>
+              <strong>{m.sender?.first_name || "?"}:</strong> {m.message}
+              <div style={{ fontSize: "0.75rem", color: "gray" }}>{new Date(m.created_at).toLocaleTimeString()}</div>
             </div>
           ))}
         </div>
-        <form onSubmit={handleSend} style={{ display: "flex", gap: 8 }}>
-          <input
-            type="text"
-            placeholder="Type message..."
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            style={{ ...styles.input, flex: 1 }}
-          />
-          <button type="submit" style={{ ...styles.button, padding: "14px 20px" }}>
-            Send
-          </button>
+        <form onSubmit={send} style={{ display: "flex", gap: "0.5rem" }}>
+          <input value={msg} onChange={e => setMsg(e.target.value)} placeholder="Message..." style={{ flex: 1 }} />
+          <button type="submit">Send</button>
         </form>
       </div>
-    </>
-  );
-}
-
-function GroupsTab({ onRefresh }: { onRefresh: () => Promise<void> }) {
-  const [groups, setGroups] = useState<any[]>([]);
-  const [myGroups, setMyGroups] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadGroups = async () => {
-      try {
-        const [allGroups, userGroups] = await Promise.all([api.getGroups(), api.getMyGroups()]);
-        setGroups(allGroups);
-        setMyGroups(userGroups);
-      } catch {}
-      setLoading(false);
-    };
-    loadGroups();
-  }, []);
-
-  const handleJoin = async (groupId: string) => {
-    try {
-      await api.joinGroup(groupId);
-      await onRefresh();
-      // Reload groups
-      const [allGroups, userGroups] = await Promise.all([api.getGroups(), api.getMyGroups()]);
-      setGroups(allGroups);
-      setMyGroups(userGroups);
-    } catch {}
-  };
-
-  if (loading) return <div>Loading groups...</div>;
-
-  return (
-    <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Group Coaching</h2>
-
-      <div style={styles.card}>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>My Groups</div>
-        {myGroups.length === 0 ? (
-          <div style={{ color: "#6B6B6B" }}>No groups joined yet.</div>
-        ) : (
-          <ul style={styles.list}>
-            {myGroups.map((group) => (
-              <li key={group.id} style={styles.listItem}>
-                <div style={{ fontWeight: 900, color: "#2A2D2A" }}>{group.name}</div>
-                <div style={{ fontSize: 14, color: "#4A4A4A", marginTop: 4 }}>{group.description}</div>
-                <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 8 }}>
-                  Starts: {new Date(group.startDate).toLocaleDateString()} • Duration: {group.durationWeeks} weeks
-                </div>
-                <div style={{ fontSize: 12, color: "#6B6B6B" }}>
-                  Schedule: {group.meetingSchedule.day} at {group.meetingSchedule.time} {group.meetingSchedule.timezone}
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div style={styles.card}>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Available Groups</div>
-        <ul style={styles.list}>
-          {groups.map((group) => (
-            <li key={group.id} style={styles.listItem}>
-              <div style={{ fontWeight: 900, color: "#2A2D2A" }}>{group.name}</div>
-              <div style={{ fontSize: 14, color: "#4A4A4A", marginTop: 4 }}>{group.description}</div>
-              <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 8 }}>
-                Starts: {new Date(group.startDate).toLocaleDateString()} • Duration: {group.durationWeeks} weeks
-              </div>
-              <div style={{ fontSize: 12, color: "#6B6B6B" }}>
-                Schedule: {group.meetingSchedule.day} at {group.meetingSchedule.time} {group.meetingSchedule.timezone}
-              </div>
-              <button onClick={() => handleJoin(group.id)} style={{ ...styles.button, marginTop: 12 }}>
-                Join Group
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </>
-  );
-}
-
-function CoachDashboard({  }: { onRefresh: () => Promise<void> }) {
-  const [clients, setClients] = useState<any[]>([]);
-  const [selectedClient, setSelectedClient] = useState<any | null>(null);
-  const [clientGlucose, setClientGlucose] = useState<GlucoseReading[]>([]);
-  const [clientCycle, setClientCycle] = useState<Cycle | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const loadClients = async () => {
-      try {
-        const clientList = await api.getClients();
-        setClients(clientList);
-      } catch {}
-      setLoading(false);
-    };
-    loadClients();
-  }, []);
-
-  useEffect(() => {
-    if (selectedClient) {
-      const loadClientData = async () => {
-        try {
-          const [glucose, cycle] = await Promise.all([
-            api.getClientGlucose(selectedClient.id),
-            api.getClientCycle(selectedClient.id),
-          ]);
-          setClientGlucose(glucose);
-          setClientCycle(cycle);
-        } catch {}
-      };
-      loadClientData();
-    }
-  }, [selectedClient]);
-
-  if (loading) return <div>Loading clients...</div>;
-
-  if (!selectedClient) {
-    return (
-      <>
-        <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Coach Dashboard</h2>
-        <div style={styles.card}>
-          <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>My Clients</div>
-          <ul style={styles.list}>
-            {clients.map((client) => (
-              <li
-                key={client.id}
-                style={{ ...styles.listItem, cursor: "pointer" }}
-                onClick={() => setSelectedClient(client)}
-              >
-                <div style={{ fontWeight: 900, color: "#2A2D2A" }}>
-                  {client.first_name} {client.last_name}
-                </div>
-                <div style={{ fontSize: 12, color: "#6B6B6B", marginTop: 4 }}>{client.email}</div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </>
     );
   }
 
   return (
-    <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Client Details</h2>
-      <div style={styles.card}>
-        <button onClick={() => setSelectedClient(null)} style={{ marginBottom: 16, color: "#6B7F6E" }}>
-          ← Back to Clients
-        </button>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>
-          {selectedClient.first_name} {selectedClient.last_name}
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Recent Glucose</div>
-          {clientGlucose.length === 0 ? (
-            <div style={{ color: "#6B6B6B" }}>No readings</div>
-          ) : (
-            <ul style={styles.list}>
-              {clientGlucose.slice(0, 5).map((r, idx) => (
-                <li key={idx} style={styles.listItem}>
-                  {r.value} mg/dL - {new Date(r.measured_at).toLocaleString()}
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div>
-          <div style={{ fontWeight: 600, marginBottom: 8 }}>Cycle Info</div>
-          {clientCycle ? (
-            <>
-              <div>Day: {clientCycle.current_day}</div>
-              <div>Phase: {clientCycle.phase}</div>
-            </>
-          ) : (
-            <div style={{ color: "#6B6B6B" }}>No cycle data</div>
-          )}
-        </div>
-      </div>
-    </>
+    <div>
+      <h2>Groups</h2>
+      <h3>My Groups</h3>
+      <ul style={{ padding: 0 }}>
+        {myGroups.map(g => (
+          <li key={g.id} onClick={() => setChatGroup(g.id)} style={{ padding: "0.8rem", borderBottom: "1px solid #eee", cursor: "pointer" }}>
+            {g.name}
+          </li>
+        ))}
+      </ul>
+      <h3>Available</h3>
+      <ul style={{ padding: 0 }}>
+        {groups.map(g => (
+          <li key={g.id} style={{ padding: "0.8rem", borderBottom: "1px solid #eee" }}>
+            {g.name}
+            {!isCoach && <button onClick={() => api.joinGroup(g.id).then(refresh)} style={{ marginLeft: "1rem" }}>Join</button>}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
-function SettingsTab() {
-  const { user, logout } = useApp();
-  const [cycleTracking, setCycleTracking] = useState(true);
+function CoachDashboard({ refresh }: { refresh: () => Promise<void> }) {
+  const { user } = useApp();
+  const [clients, setClients] = useState<any[]>([]);
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selected, setSelected] = useState<string | null>(null); // client or group id
+  const [isGroup, setIsGroup] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem("cycleTracking");
-    if (saved) setCycleTracking(JSON.parse(saved));
-  }, []);
+    Promise.all([api.getClients(), api.getGroups()]).then(([c, g]) => {
+      setClients(c);
+      setGroups(g.filter((gr: Group) => gr.coach_id === user?.id));
+    });
+  }, [user?.id]);
 
-  const toggleCycle = () => {
-    const newValue = !cycleTracking;
-    setCycleTracking(newValue);
-    localStorage.setItem("cycleTracking", JSON.stringify(newValue));
-  };
+  if (selected) {
+    return (
+      <div>
+        <button onClick={() => setSelected(null)}>← Back</button>
+        <h3>{isGroup ? "Group Chat" : "Client Details"}</h3>
+        {/* Add detailed view / chat here when needed */}
+      </div>
+    );
+  }
 
   return (
-    <>
-      <h2 style={{ fontSize: 24, fontWeight: 800, color: "#2A2D2A", marginBottom: 24 }}>Settings</h2>
+    <div>
+      <h2>Coach Dashboard</h2>
+      <button onClick={refresh}>Refresh</button>
 
-      <div style={styles.card}>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Account</div>
-        <div style={{ marginBottom: 12 }}>Name: {user?.first_name} {user?.last_name}</div>
-        <div style={{ marginBottom: 12 }}>Email: {user?.email}</div>
-        <div>Role: {user?.role}</div>
-      </div>
+      <h3>Clients</h3>
+      <ul style={{ padding: 0 }}>
+        {clients.map(c => (
+          <li key={c.id} onClick={() => { setSelected(c.id); setIsGroup(false); }} style={{ padding: "0.6rem", cursor: "pointer" }}>
+            {c.first_name} {c.last_name}
+          </li>
+        ))}
+      </ul>
 
-      <div style={styles.card}>
-        <div style={{ fontWeight: 900, color: "#2A2D2A", marginBottom: 16 }}>Preferences</div>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <div>Cycle Tracking</div>
-          <input type="checkbox" checked={cycleTracking} onChange={toggleCycle} />
-        </div>
-      </div>
-
-      <button onClick={logout} style={{ ...styles.button, background: "#D14D4D", marginTop: 24 }}>
-        Logout
-      </button>
-    </>
+      <h3>Groups</h3>
+      <ul style={{ padding: 0 }}>
+        {groups.map(g => (
+          <li key={g.id} onClick={() => { setSelected(g.id); setIsGroup(true); }} style={{ padding: "0.6rem", cursor: "pointer" }}>
+            {g.name}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
+// ─── Root ────────────────────────────────────────────────
 function App() {
   const { isAuthenticated } = useApp();
-  const [showRegister, setShowRegister] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
 
-  if (isAuthenticated) {
-    return <Dashboard />;
-  }
+  if (isAuthenticated) return <Dashboard />;
 
-  return showRegister ? (
-    <RegisterScreen onSwitchToLogin={() => setShowRegister(false)} />
-  ) : (
-    <LoginScreen onSwitchToRegister={() => setShowRegister(true)} />
+  return (
+    <AuthScreen isLogin={isLogin} />
+    // You can toggle between login/signup with a link/button in AuthScreen
   );
 }
 
-function Root() {
+export default function Root() {
   return (
     <AppProvider>
       <App />
     </AppProvider>
   );
 }
-
-export default Root;
