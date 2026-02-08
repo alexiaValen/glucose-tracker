@@ -793,7 +793,35 @@ function RegisterScreen({ onSwitchToLogin }: { onSwitchToLogin: () => void }) {
 
 function Dashboard() {
   const { user, readings, symptoms, currentCycle, logout } = useApp();
-  const [view, setView] = useState<'dashboard' | 'glucose' | 'symptoms' | 'cycle'>('dashboard');
+  const [view, setView] =
+  useState<'dashboard' | 'glucose' | 'symptoms' | 'cycle' | 'chat'>('dashboard');
+  const [groups, setGroups] = useState<any[]>([]);
+const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
+const [loadingGroups, setLoadingGroups] = useState(false);
+
+const loadUserGroups = async () => {
+  setLoadingGroups(true);
+  try {
+    const token = localStorage.getItem("accessToken");
+    const res = await fetch(`${API_URL}/groups/my-groups`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    });
+
+    const data = await res.json();
+    setGroups(data.groups || []);
+  } catch (e) {
+    console.error("Failed to load user groups", e);
+  } finally {
+    setLoadingGroups(false);
+  }
+};
+
+useEffect(() => {
+  loadUserGroups();
+}, []);
 
   if (!user) {
     return (
@@ -865,6 +893,14 @@ function Dashboard() {
           Cycle
         </button>
         <div style={{ marginLeft: 'auto' }}>
+
+          <button
+  style={{ ...styles.navButton, ...(view === 'chat' ? styles.navButtonActive : {}) }}
+  onClick={() => setView('chat')}
+>
+  Chat
+</button>
+
           <button
             style={{ ...styles.navButton, color: '#C85A54' }}
             onClick={logout}
@@ -875,6 +911,37 @@ function Dashboard() {
       </nav>
 
       <div style={styles.dashboard}>
+        {view === 'chat' && (
+  <div
+    style={{
+      display: "grid",
+      gridTemplateColumns: "320px 1fr",
+      gap: 18,
+    }}
+  >
+    {/* Group list */}
+    <div style={styles.card}>
+      <strong>My Groups</strong>
+
+      <GroupList
+        groups={groups}
+        loading={loadingGroups}
+        onSelect={setSelectedGroup}
+      />
+    </div>
+
+    {/* Chat panel */}
+    <div style={styles.card}>
+      {selectedGroup ? (
+        <GroupChat group={selectedGroup} />
+      ) : (
+        <div style={{ textAlign: "center", padding: 40 }}>
+          <strong>Select a group to chat</strong>
+        </div>
+      )}
+    </div>
+  </div>
+)}
         {view === 'dashboard' && <DashboardView user={user} avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay} />}
         {view === 'glucose' && <GlucoseView />}
         {view === 'symptoms' && <SymptomsView />}
