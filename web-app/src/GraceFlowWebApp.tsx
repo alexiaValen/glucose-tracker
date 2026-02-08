@@ -1004,19 +1004,20 @@ function DashboardView({
 }: any) {
   // If no cycle or phase yet, default to menstrual
 
-//   const PHASE_MAP: Record<string, keyof typeof RHYTHMS> = {
-//   menstrual_phase: "menstrual",
-//   follicular_phase: "follicular",
-//   ovulation: "ovulatory",
-//   luteal_phase: "luteal",
-// };
+    //   const PHASE_MAP: Record<string, keyof typeof RHYTHMS> = {
+    //   menstrual_phase: "menstrual",
+    //   follicular_phase: "follicular",
+    //   ovulation: "ovulatory",
+    //   luteal_phase: "luteal",
+    // };
 
-  const phaseKey =
-  currentCycle?.phase && RHYTHMS[currentCycle.phase as keyof typeof RHYTHMS]
-    ? currentCycle.phase
-    : "menstrual"; // 👈 default for test mode
+  const safePhase =
+  currentCycle?.phase &&
+  RHYTHMS[currentCycle.phase as keyof typeof RHYTHMS]
+    ? (currentCycle.phase as keyof typeof RHYTHMS)
+    : "menstrual";
 
-const rhythm = RHYTHMS[phaseKey as keyof typeof RHYTHMS];
+const rhythm = RHYTHMS[safePhase];
 
   return (
     <>
