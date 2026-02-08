@@ -951,6 +951,7 @@ useEffect(() => {
         user={user} 
         avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay}
         currentCycle={currentCycle}
+
          />}
         {view === 'glucose' && <GlucoseView />}
         {view === 'symptoms' && <SymptomsView />}
@@ -999,11 +1000,14 @@ function DashboardView({
   todaySymptoms,
   cycleDay,
   currentCycle,
+
 }: any) {
 
-  const rhythm = currentCycle?.phase
-    ? RHYTHMS[currentCycle.phase as keyof typeof RHYTHMS]
-    : null;
+  const phaseKey = currentCycle?.phase?.toLowerCase();
+
+const rhythm = phaseKey
+  ? RHYTHMS[phaseKey as keyof typeof RHYTHMS] || null
+  : null;
 
   return (
     <>
@@ -1071,6 +1075,14 @@ function DashboardView({
           <p style={{ marginTop: 12 }}>
             <strong>Practice:</strong> {rhythm.practice}
           </p>
+
+          {!currentCycle && (
+  <div style={{ ...styles.card, marginTop: 24, textAlign: "center" }}>
+    <div style={{ fontSize: 14, color: "#6B6B6B" }}>
+      Start your cycle to see your spiritual rhythm
+    </div>
+  </div>
+)}
         </div>
       )}
 
