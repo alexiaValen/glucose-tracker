@@ -43,6 +43,9 @@ interface Cycle {
   phase?: string;
 }
 
+
+
+
 // ==================== API BASE ====================
 const API_URL =
   (import.meta as any).env.VITE_API_URL || "http://localhost:3000/api/v1";
@@ -861,6 +864,7 @@ useEffect(() => {
     return date.toDateString() === today.toDateString();
   });
 
+
   const cycleDay = currentCycle
     ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
     : 0;
@@ -942,62 +946,174 @@ useEffect(() => {
     </div>
   </div>
 )}
-        {view === 'dashboard' && <DashboardView user={user} avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay} />}
+        {view === 'dashboard' && 
+        <DashboardView 
+        user={user} 
+        avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay}
+        currentCycle={currentCycle}
+         />}
         {view === 'glucose' && <GlucoseView />}
         {view === 'symptoms' && <SymptomsView />}
         {view === 'cycle' && <CycleView />}
+        
       </div>
     </div>
   );
 }
 
-function DashboardView({ user, avgGlucose, todayReadings, todaySymptoms, cycleDay }: any) {
+const RHYTHMS = {
+  menstrual: {
+    name: "Reawaken",
+    emoji: "🌱",
+    scripture: "Isaiah 43:19",
+    verse: "I am about to do a new thing...",
+    practice: "Surrender. Rest. Make space for what God is preparing.",
+  },
+  follicular: {
+    name: "Renew",
+    emoji: "🍃",
+    scripture: "Proverbs 16:3",
+    verse: "Commit your work to the Lord...",
+    practice: "Set intentions. Partner with God in fresh beginnings.",
+  },
+  ovulatory: {
+    name: "Radiant",
+    emoji: "🌞",
+    scripture: "Psalm 34:5",
+    verse: "Those who look to Him will be radiant...",
+    practice: "Shine. Encourage others. Bless from abundance.",
+  },
+  luteal: {
+    name: "Rooted",
+    emoji: "🌾",
+    scripture: "Psalm 46:10",
+    verse: "Be still and know that I am God.",
+    practice: "Simplify. Create boundaries. Prioritize stillness.",
+  },
+};
+
+function DashboardView({
+  user,
+  avgGlucose,
+  todayReadings,
+  todaySymptoms,
+  cycleDay,
+  currentCycle,
+}: any) {
+
+  const rhythm = currentCycle?.phase
+    ? RHYTHMS[currentCycle.phase as keyof typeof RHYTHMS]
+    : null;
+
   return (
     <>
       <div style={styles.header}>
-        <h1 style={styles.greeting}>Welcome back, {user.first_name}!</h1>
-        <p style={{ color: '#6B6B6B', fontSize: '15px' }}>
-          {cycleDay > 0 ? `Day ${cycleDay} of your cycle` : 'Start tracking your cycle'}
+        <h1 style={styles.greeting}>
+          Welcome back, {user.first_name}!
+        </h1>
+        <p style={{ color: "#6B6B6B", fontSize: "15px" }}>
+          {cycleDay > 0
+            ? `Day ${cycleDay} of your cycle`
+            : "Start tracking your cycle"}
         </p>
       </div>
 
       <div style={styles.grid}>
         <div style={styles.card}>
           <div style={styles.stat}>
-            <div style={styles.statValue}>{avgGlucose || 'â€”'}</div>
-            <div style={styles.statLabel}>Average Glucose (mg/dL)</div>
+            <div style={styles.statValue}>
+              {avgGlucose || "—"}
+            </div>
+            <div style={styles.statLabel}>
+              Average Glucose (mg/dL)
+            </div>
           </div>
         </div>
 
         <div style={styles.card}>
           <div style={styles.stat}>
-            <div style={styles.statValue}>{todayReadings.length}</div>
-            <div style={styles.statLabel}>Readings Today</div>
+            <div style={styles.statValue}>
+              {todayReadings.length}
+            </div>
+            <div style={styles.statLabel}>
+              Readings Today
+            </div>
           </div>
         </div>
 
         <div style={styles.card}>
           <div style={styles.stat}>
-            <div style={styles.statValue}>{todaySymptoms.length}</div>
-            <div style={styles.statLabel}>Symptoms Today</div>
+            <div style={styles.statValue}>
+              {todaySymptoms.length}
+            </div>
+            <div style={styles.statLabel}>
+              Symptoms Today
+            </div>
           </div>
         </div>
       </div>
 
+      {/* 🌿 Rhythm Card */}
+      {rhythm && (
+        <div style={{ ...styles.card, marginTop: 24 }}>
+          <div style={{ fontSize: 14, color: "#6B6B6B" }}>
+            Your current rhythm
+          </div>
+
+          <h3 style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
+            {rhythm.emoji} {rhythm.name}
+          </h3>
+
+          <p style={{ marginTop: 8, fontStyle: "italic" }}>
+            “{rhythm.verse}”
+          </p>
+
+          <p style={{ marginTop: 12 }}>
+            <strong>Practice:</strong> {rhythm.practice}
+          </p>
+        </div>
+      )}
+
       {todayReadings.length === 0 && todaySymptoms.length === 0 && (
-        <div style={{ ...styles.card, textAlign: 'center', padding: '48px 24px' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>ðŸŒ±</div>
-          <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#2A2D2A', marginBottom: '12px' }}>
+        <div
+          style={{
+            ...styles.card,
+            textAlign: "center",
+            padding: "48px 24px",
+          }}
+        >
+          <div style={{ fontSize: "48px", marginBottom: "16px" }}>
+            🌱
+          </div>
+          <h3
+            style={{
+              fontSize: "24px",
+              fontWeight: "600",
+              color: "#2A2D2A",
+              marginBottom: "12px",
+            }}
+          >
             Your wellness journey begins
           </h3>
-          <p style={{ color: '#6B6B6B', fontSize: '15px', lineHeight: '22px', maxWidth: '400px', margin: '0 auto' }}>
-            Start by logging your first glucose reading or symptom to see patterns emerge.
+          <p
+            style={{
+              color: "#6B6B6B",
+              fontSize: "15px",
+              lineHeight: "22px",
+              maxWidth: "400px",
+              margin: "0 auto",
+            }}
+          >
+            Start by logging your first glucose reading or symptom to
+            see patterns emerge.
           </p>
         </div>
       )}
     </>
   );
 }
+
+
 
 function GlucoseView() {
   const { readings, addGlucoseReading } = useApp();
