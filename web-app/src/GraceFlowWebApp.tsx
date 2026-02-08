@@ -1003,13 +1003,20 @@ function DashboardView({
 
 }: any) {
   // If no cycle or phase yet, default to menstrual
-  const phaseKey = (currentCycle?.phase as keyof typeof RHYTHMS) || "menstrual";
 
-// const rhythm = phaseKey
-//   ? RHYTHMS[phaseKey as keyof typeof RHYTHMS] || null
-//   : null;
+//   const PHASE_MAP: Record<string, keyof typeof RHYTHMS> = {
+//   menstrual_phase: "menstrual",
+//   follicular_phase: "follicular",
+//   ovulation: "ovulatory",
+//   luteal_phase: "luteal",
+// };
 
-const rhythm = RHYTHMS[phaseKey];
+  const phaseKey =
+  currentCycle?.phase && RHYTHMS[currentCycle.phase as keyof typeof RHYTHMS]
+    ? currentCycle.phase
+    : "menstrual"; // 👈 default for test mode
+
+const rhythm = RHYTHMS[phaseKey as keyof typeof RHYTHMS];
 
   return (
     <>
@@ -1061,30 +1068,27 @@ const rhythm = RHYTHMS[phaseKey];
 
       {/* 🌿 Rhythm Card */}
       <div style={styles.card}>
-        <div style={{ textAlign: "center", marginBottom: 12 }}>
-          <div style={{ fontSize: 36 }}>{rhythm.emoji}</div>
-          <h2 style={{ margin: "8px 0" }}>{rhythm.name}</h2>
-          <p style={{ color: "#6B6B6B", fontSize: 14 }}>
-            {rhythm.scripture}
-          </p>
-        </div>
+  <div style={{ fontSize: 32, marginBottom: 8 }}>
+    {rhythm.emoji} {rhythm.name}
+  </div>
 
-        <p style={{ fontStyle: "italic", marginBottom: 12 }}>
-          “{rhythm.verse}”
-        </p>
+  <p style={{ color: "#6B6B6B", marginBottom: 12 }}>
+    {currentCycle?.phase
+      ? "Aligned with your current cycle phase"
+      : "Shown in test mode"}
+  </p>
 
-        <div
-          style={{
-            padding: "12px 16px",
-            borderRadius: 14,
-            background: "rgba(107,127,110,0.08)",
-            fontSize: 14,
-          }}
-        >
-          <strong>Practice:</strong> {rhythm.practice}
-        </div>
-      </div>
-      
+  <strong>{rhythm.scripture}</strong>
+  <p style={{ fontStyle: "italic", marginTop: 6 }}>
+    {rhythm.verse}
+  </p>
+
+  <p style={{ marginTop: 12 }}>
+    <strong>Practice:</strong> {rhythm.practice}
+  </p>
+</div>
+
+
 
       {todayReadings.length === 0 && todaySymptoms.length === 0 && (
         <div
