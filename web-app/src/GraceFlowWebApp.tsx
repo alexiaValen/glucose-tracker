@@ -991,7 +991,7 @@ const RHYTHMS = {
     verse: "Be still and know that I am God.",
     practice: "Simplify. Create boundaries. Prioritize stillness.",
   },
-};
+} as const;
 
 function DashboardView({
   user,
@@ -1002,26 +1002,28 @@ function DashboardView({
   currentCycle,
 
 }: any) {
+  // If no cycle or phase yet, default to menstrual
+  const phaseKey = (currentCycle?.phase as keyof typeof RHYTHMS) || "menstrual";
 
-  const phaseKey = currentCycle?.phase?.toLowerCase();
+// const rhythm = phaseKey
+//   ? RHYTHMS[phaseKey as keyof typeof RHYTHMS] || null
+//   : null;
 
-const rhythm = phaseKey
-  ? RHYTHMS[phaseKey as keyof typeof RHYTHMS] || null
-  : null;
+const rhythm = RHYTHMS[phaseKey];
 
   return (
     <>
+      {/* HEADER */}
       <div style={styles.header}>
-        <h1 style={styles.greeting}>
-          Welcome back, {user.first_name}!
-        </h1>
+        <h1 style={styles.greeting}>Welcome back, {user.first_name}!</h1>
         <p style={{ color: "#6B6B6B", fontSize: "15px" }}>
-          {cycleDay > 0
-            ? `Day ${cycleDay} of your cycle`
-            : "Start tracking your cycle"}
+          {currentCycle
+            ? `Day ${cycleDay} · ${rhythm.name} phase`
+            : "Test mode · Spiritual rhythm preview"}
         </p>
       </div>
 
+      {/* STATS GRID */}
       <div style={styles.grid}>
         <div style={styles.card}>
           <div style={styles.stat}>
@@ -1058,33 +1060,31 @@ const rhythm = phaseKey
       </div>
 
       {/* 🌿 Rhythm Card */}
-      {rhythm && (
-        <div style={{ ...styles.card, marginTop: 24 }}>
-          <div style={{ fontSize: 14, color: "#6B6B6B" }}>
-            Your current rhythm
-          </div>
-
-          <h3 style={{ fontSize: 22, fontWeight: 800, marginTop: 6 }}>
-            {rhythm.emoji} {rhythm.name}
-          </h3>
-
-          <p style={{ marginTop: 8, fontStyle: "italic" }}>
-            “{rhythm.verse}”
+      <div style={styles.card}>
+        <div style={{ textAlign: "center", marginBottom: 12 }}>
+          <div style={{ fontSize: 36 }}>{rhythm.emoji}</div>
+          <h2 style={{ margin: "8px 0" }}>{rhythm.name}</h2>
+          <p style={{ color: "#6B6B6B", fontSize: 14 }}>
+            {rhythm.scripture}
           </p>
-
-          <p style={{ marginTop: 12 }}>
-            <strong>Practice:</strong> {rhythm.practice}
-          </p>
-
-          {!currentCycle && (
-  <div style={{ ...styles.card, marginTop: 24, textAlign: "center" }}>
-    <div style={{ fontSize: 14, color: "#6B6B6B" }}>
-      Start your cycle to see your spiritual rhythm
-    </div>
-  </div>
-)}
         </div>
-      )}
+
+        <p style={{ fontStyle: "italic", marginBottom: 12 }}>
+          “{rhythm.verse}”
+        </p>
+
+        <div
+          style={{
+            padding: "12px 16px",
+            borderRadius: 14,
+            background: "rgba(107,127,110,0.08)",
+            fontSize: 14,
+          }}
+        >
+          <strong>Practice:</strong> {rhythm.practice}
+        </div>
+      </div>
+      
 
       {todayReadings.length === 0 && todaySymptoms.length === 0 && (
         <div
