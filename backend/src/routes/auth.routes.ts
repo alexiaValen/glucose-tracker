@@ -7,7 +7,7 @@ const router = Router();
 // POST /api/v1/auth/request-reset
 router.post(
   '/request-reset',
-  [body('email').isEmail().normalizeEmail()],
+  [body('email').isEmail().normalizeEmail({ gmail_remove_dots: false })],
   async (req: Request, res: Response) => {
     try {
       const errors = validationResult(req);
@@ -29,7 +29,7 @@ router.post(
 router.post(
   '/verify-reset-code',
   [
-    body('email').isEmail().normalizeEmail(),
+    body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('resetCode').isLength({ min: 6, max: 6 }),
   ],
   async (req: Request, res: Response) => {
@@ -53,7 +53,7 @@ router.post(
 router.post(
   '/reset-password',
   [
-    body('email').isEmail().normalizeEmail(),
+    body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('resetCode').isLength({ min: 6, max: 6 }),
     body('newPassword').isLength({ min: 8 }),
   ],
@@ -78,10 +78,10 @@ router.post(
 router.post(
   '/register',
   [
-    body('email').isEmail().normalizeEmail(),
+    body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('password').isLength({ min: 8 }),
     body('role').optional().isIn(['user', 'coach']),
-    body('phone').optional(), // ADD validation
+    body('phone').optional(),
     body('dateOfBirth').optional().isISO8601(),
   ],
   async (req: Request, res: Response) => {
@@ -91,15 +91,16 @@ router.post(
         return res.status(400).json({ errors: errors.array() });
       }
 
-      const { 
-        email, 
-        password, 
-        role = 'user', 
-        firstName, 
+      const {
+        email,
+        password,
+        role = 'user',
+        firstName,
         lastName,
         phone,
         dateOfBirth
-       } = req.body;
+      } = req.body;
+
       const result = await authService.register(
         email,
         password,
@@ -107,7 +108,8 @@ router.post(
         firstName,
         lastName,
         phone,
-        dateOfBirth);
+        dateOfBirth
+      );
 
       res.status(201).json(result);
     } catch (error: any) {
@@ -119,7 +121,10 @@ router.post(
 // POST /api/v1/auth/login
 router.post(
   '/login',
-  [body('email').isEmail().normalizeEmail(), body('password').notEmpty()],
+  [
+    body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
+    body('password').notEmpty(),
+  ],
   async (req: Request, res: Response) => {
     try {
       const errors = validationResult(req);
