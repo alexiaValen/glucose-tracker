@@ -11,7 +11,7 @@ import cycleRoutes from "./routes/cycle.routes";
 import symptomRoutes from "./routes/symptom.routes";
 import messagesRoutes from "./routes/messages";
 import groupRoutes from "./routes/group.routes";
-
+import conversationRoutes from "./routes/conversation.routes";
 
 
 dotenv.config();
@@ -67,6 +67,8 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
+app.use("/api/v1/conversations", conversationRoutes);
+
 // ==================== ROUTES ====================
 app.get("/health", (_req, res) => {
   res.json({
@@ -89,6 +91,7 @@ app.use("/api/v1/coach", coachRoutes);
 app.use("/api/v1/symptoms", symptomRoutes);
 app.use("/api/v1/cycle", cycleRoutes);  // FIXED: singular to match mobile app
 app.use("/api/v1/messages", messagesRoutes);
+app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/groups", groupRoutes);
 
 // ==================== ERROR HANDLERS ====================

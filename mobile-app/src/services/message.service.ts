@@ -1,29 +1,20 @@
-// mobile-app/src/services/message.service.ts
+// /mnt/project/src/services/message_service.ts
 import { api } from '../config/api';
+import {
+  Message,
+  ConversationGroup,
+  MessagesResponse,
+  ConversationListResponse,
+  LegacyMessage,
+  LegacyConversation,
+  ConversationUser,
+} from '../types/conversation';
 
-export interface Message {
-  id: string;
-  sender_id: string;
-  recipient_id: string;
-  message: string;
-  read: boolean;
-  created_at: string;
-}
+// ============================================================================
+// LEGACY SUPPORT (for existing MessagingScreen & ConversationsScreen)
+// ============================================================================
 
-export interface ConversationUser {
-  id: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  email?: string | null;
-}
-
-export interface Conversation {
-  user?: ConversationUser | null;
-  lastMessage?: Message | null;
-  unreadCount?: number | null;
-}
-
-const normalizeConversation = (c: any): Conversation => {
+const normalizeConversation = (c: any): LegacyConversation => {
   const user = c?.user ?? null;
 
   return {
@@ -41,8 +32,10 @@ const normalizeConversation = (c: any): Conversation => {
 };
 
 export const messageService = {
+  // ========== LEGACY API (current screens use these) ==========
+  
   // Get all conversations for current user
-  async getConversations(): Promise<Conversation[]> {
+  async getConversations(): Promise<LegacyConversation[]> {
     const response = await api.get('/messages/conversations');
     const raw = response.data?.conversations ?? response.data;
 
@@ -51,7 +44,7 @@ export const messageService = {
   },
 
   // Get messages between current user and another user
-  async getMessages(userId: string, limit = 50): Promise<Message[]> {
+  async getMessages(userId: string, limit = 50): Promise<LegacyMessage[]> {
     const response = await api.get(`/messages/${userId}`, {
       params: { limit },
     });
@@ -59,8 +52,8 @@ export const messageService = {
     return Array.isArray(raw) ? raw : [];
   },
 
-  // Send a message
-  async sendMessage(recipientId: string, message: string): Promise<Message> {
+  // Send a message (legacy direct message)
+  async sendMessage(recipientId: string, message: string): Promise<LegacyMessage> {
     const response = await api.post('/messages', {
       recipientId,
       message,
@@ -78,4 +71,61 @@ export const messageService = {
     const response = await api.get('/messages/unread-count');
     return response.data?.count ?? 0;
   },
+
+  // ========== NEW GROUP CONVERSATION API ==========
+  
+  // Get all group conversations
+  async getGroupConversations(): Promise<ConversationGroup[]> {
+    const response = await api.get('/conversations');
+    return response.data?.conversations ?? [];
+  },
+
+  // Get messages for a specific conversation
+  async getConversationMessages(conversationId: string): Promise<MessagesResponse> {
+    const response = await api.get(`/messages?conversation_id=${conversationId}`);
+    return {
+      messages: response.data?.messages ?? [],
+      conversation: response.data?.conversation,
+    };
+  },
+
+  // Send message to a conversation
+  async sendConversationMessage(conversationId: string, content: string): Promise<Message> {
+    const response = await api.post('/messages', {
+      conversation_id: conversationId,
+      content,
+    });
+    return response.data?.message ?? response.data;
+  },
+
+  // Create a new conversation (coach creates group)
+  async createConversation(coachId: string, clientIds: string[], isPrivate = true): Promise<ConversationGroup> {
+    const response = await api.post('/conversations/create', {
+      coach_id: coachId,
+      client_ids: clientIds,
+      is_private: isPrivate,
+    });
+    return response.data?.conversation ?? response.data;
+  },
+
+  // Update conversation privacy
+  async updateConversationPrivacy(conversationId: string, isPrivate: boolean): Promise<void> {
+    await api.patch(`/conversations/${conversationId}`, {
+      is_private: isPrivate,
+    });
+  },
+
+  // Check if conversation exists between coach and client
+  async getOrCreateCoachConversation(coachId: string, clientId: string): Promise<ConversationGroup> {
+    const response = await api.post('/conversations/get-or-create', {
+      coach_id: coachId,
+      client_id: clientId,
+    });
+    return response.data?.conversation ?? response.data;
+  },
 };
+
+// Named exports for backward compatibility
+export type { LegacyMessage as Message };
+export type { ConversationUser };
+export type { LegacyConversation as Conversation };

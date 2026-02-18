@@ -1,4 +1,4 @@
-// mobile-app/src/screens/ConversationsScreen.tsx
+// /mnt/project/src/screens/ConversationsScreen.tsx
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
-import { messageService, Conversation } from '../services/message.service';
+import { messageService, Conversation } from '../services/message.service'; // ← updated import
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme/colors';
+
 
 type ConversationsScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,

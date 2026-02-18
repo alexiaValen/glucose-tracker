@@ -153,13 +153,13 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
               style={styles.iconButton}
               onPress={() => navigation.navigate('Conversations')}
             >
-              <Text style={styles.iconGlyph}>💬</Text>
+              <Text style={styles.iconGlyph}>ðŸ’¬</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Text style={styles.iconGlyph}>⚙️</Text>
+              <Text style={styles.iconGlyph}>âš™ï¸</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -201,13 +201,13 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
               onPress={() => navigation.navigate('JoinGroup')}
             >
               <View style={styles.joinGroupIcon}>
-                <Text style={styles.joinGroupEmoji}>👥</Text>
+                <Text style={styles.joinGroupEmoji}>ðŸ‘¥</Text>
               </View>
               <View style={styles.joinGroupContent}>
                 <Text style={styles.joinGroupTitle}>Join a Group Program</Text>
                 <Text style={styles.joinGroupSubtitle}>Enter your access code</Text>
               </View>
-              <Text style={styles.joinGroupArrow}>→</Text>
+              <Text style={styles.joinGroupArrow}>â†’</Text>
             </TouchableOpacity>
           ) : (
             // Enrolled - show program card with Session 1
@@ -225,7 +225,7 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
                 <Text style={styles.enrolledTitle}>
                   {groupMembership.group_name || 'Group Program'}
                 </Text>
-                <Text style={styles.enrolledSubtitle}>Tap to view all sessions →</Text>
+                <Text style={styles.enrolledSubtitle}>Tap to view all sessions â†’</Text>
               </TouchableOpacity>
 
               {/* Session 1 Quick Access */}
@@ -240,17 +240,67 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
                   activeOpacity={0.85}
                 >
                   <View style={styles.sessionQuickIcon}>
-                    <Text style={styles.sessionQuickIconText}>✨</Text>
+                    <Text style={styles.sessionQuickIconText}>âœ¨</Text>
                   </View>
                   <View style={styles.sessionQuickInfo}>
                     <Text style={styles.sessionQuickNumber}>WEEK 1</Text>
                     <Text style={styles.sessionQuickTitle}>Holy - Set Apart by Christ</Text>
                   </View>
-                  <Text style={styles.sessionQuickArrow}>→</Text>
+                  <Text style={styles.sessionQuickArrow}>â†’</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
+
+          {/* Coach Chat Card - only shows when coach is assigned */}
+{myCoach && (
+  <TouchableOpacity
+    style={styles.coachChatCard}
+    onPress={async () => {
+      try {
+        const token = await AsyncStorage.getItem('accessToken');
+        const response = await fetch(`${API_BASE}/conversations/get-or-create`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            coach_id: myCoach.id,
+            client_id: user?.id,
+          }),
+        });
+        const data = await response.json();
+        navigation.navigate('Messaging', {
+          conversationId: data.conversation?.id,
+          userName: (`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || 'Your Coach',
+        });
+      } catch (error) {
+        // Fallback to legacy direct message if conversations table not set up yet
+        navigation.navigate('Messaging', {
+          userId: myCoach.id,
+          userName: (`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || 'Your Coach',
+        });
+      }
+    }}
+    activeOpacity={0.85}
+  >
+    <View style={styles.coachChatAvatar}>
+      <Text style={styles.coachChatAvatarText}>
+        {(myCoach.firstName?.charAt(0) || '?').toUpperCase()}
+      </Text>
+    </View>
+    <View style={styles.coachChatContent}>
+      <Text style={styles.coachChatLabel}>YOUR COACH</Text>
+      <Text style={styles.coachChatName}>
+        {(`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || myCoach.email}
+      </Text>
+    </View>
+    <View style={styles.coachChatAction}>
+      <Text style={styles.coachChatArrow}>💬</Text>
+    </View>
+  </TouchableOpacity>
+)}
 
           {/* Glucose Overview Card */}
           <View style={styles.card}>
@@ -790,7 +840,61 @@ const styles = StyleSheet.create({
     color: 'rgba(42,45,42,0.65)',
   },
 
+  // Coach Chat Card
+  coachChatCard: {
+  backgroundColor: 'rgba(255,255,255,0.95)',
+  borderRadius: 20,
+  padding: 16,
+  marginBottom: 16,
+  flexDirection: 'row',
+  alignItems: 'center',
+  borderWidth: 1,
+  borderColor: 'rgba(107,127,110,0.2)',
+  shadowColor: '#000',
+  shadowOffset: { width: 0, height: 4 },
+  shadowOpacity: 0.06,
+  shadowRadius: 8,
+  elevation: 2,
+},
+coachChatAvatar: {
+  width: 44,
+  height: 44,
+  borderRadius: 22,
+  backgroundColor: 'rgba(107,127,110,0.15)',
+  alignItems: 'center',
+  justifyContent: 'center',
+  marginRight: 14,
+},
+coachChatAvatarText: {
+  fontSize: 18,
+  fontWeight: '700',
+  color: '#6B7F6E',
+},
+coachChatContent: {
+  flex: 1,
+},
+coachChatLabel: {
+  fontSize: 10,
+  fontWeight: '600',
+  color: 'rgba(107,127,110,0.7)',
+  letterSpacing: 0.8,
+  marginBottom: 3,
+},
+coachChatName: {
+  fontSize: 15,
+  fontWeight: '600',
+  color: '#2B2B2B',
+},
+coachChatAction: {
+  paddingLeft: 8,
+},
+coachChatArrow: {
+  fontSize: 20,
+},
+
+
   // Join Group Button
+
   joinGroupButton: {
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 20,

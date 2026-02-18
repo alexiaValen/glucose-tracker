@@ -26,8 +26,12 @@ export type RootStackParamList = {
 
 
   // Messaging screens 
-  Conversations: undefined;  // NEW: Inbox/conversations list
-  Messaging: { userId: string; userName: string };
+  Conversations: undefined;
+  Messaging: { 
+    userId?: string;          // legacy 1:1 direct message
+    userName: string;         // display name always required
+    conversationId?: string;  // new coach-client conversation
+  };
   HealthSync: undefined;
 
   // ========================================

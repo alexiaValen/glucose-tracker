@@ -70,8 +70,8 @@ router.post('/', requireCoach, async (req, res) => {
 
     if (error) throw error;
 
-    console.log('âœ… Group created:', group);
-    console.log('ðŸ”‘ Access code:', accessCode);
+    console.log('Ã¢Å“â€¦ Group created:', group);
+    console.log('Ã°Å¸â€â€˜ Access code:', accessCode);
 
     res.status(201).json({ 
       group,

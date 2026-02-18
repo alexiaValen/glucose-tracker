@@ -10,6 +10,8 @@ router.get('/conversations', authenticateToken, async (req, res) => {
   try {
     const userId = req.user!.userId;
 
+    console.log('📬 Fetching conversations for user:', userId);
+
     const { data: conversations, error } = await supabase
       .from('messages')
       .select(
@@ -36,7 +38,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
       const partnerId = isSender ? msg.recipient_id : msg.sender_id;
       const partner = isSender ? msg.recipient : msg.sender;
 
-      // ✅ Safe partner fields (joins can be null)
+      // âœ… Safe partner fields (joins can be null)
       const partnerFirst = (partner?.first_name ?? '').toString();
       const partnerLast = (partner?.last_name ?? '').toString();
       const partnerEmail = (partner?.email ?? '').toString();
@@ -75,7 +77,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ IMPORTANT: this must come BEFORE "/:userId"
+// âœ… IMPORTANT: this must come BEFORE "/:userId"
 router.get('/unread-count', authenticateToken, async (req, res) => {
   try {
     const userId = req.user!.userId;
@@ -92,6 +94,55 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
   } catch (error) {
     console.error('Error getting unread count:', error);
     res.status(500).json({ error: 'Failed to get unread count' });
+  }
+});
+
+// Get messages by conversation_id (NEW - supports conversation-based messaging)
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user!.userId;
+    const { conversation_id, limit = 50 } = req.query;
+
+    if (!conversation_id) {
+      return res.status(400).json({ error: 'conversation_id required' });
+    }
+
+    // Verify user is participant
+    const { data: conversation } = await supabase
+      .from('conversations')
+      .select('coach_id, client_ids')
+      .eq('id', conversation_id as string)
+      .single();
+
+    if (!conversation) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    const isParticipant =
+      conversation.coach_id === userId ||
+      conversation.client_ids.includes(userId);
+
+    if (!isParticipant) {
+      return res.status(403).json({ error: 'Not a participant in this conversation' });
+    }
+
+    // Fetch messages
+    const { data: messages, error } = await supabase
+      .from('conversation_messages')
+      .select('*')
+      .eq('conversation_id', conversation_id as string)
+      .order('created_at', { ascending: true })
+      .limit(parseInt(limit as string));
+
+    if (error) throw error;
+
+    res.json({ 
+      messages: messages || [],
+      conversation: conversation,
+    });
+  } catch (error) {
+    console.error('Error fetching conversation messages:', error);
+    res.status(500).json({ error: 'Failed to fetch messages' });
   }
 });
 
@@ -120,14 +171,66 @@ router.get('/:userId', authenticateToken, async (req, res) => {
   }
 });
 
-// Send a message
+// Send a message (supports both legacy recipientId and new conversation_id)
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const senderId = req.user!.userId;
-    const { recipientId, message } = req.body;
+    const { recipientId, message, conversation_id, content } = req.body;
 
-    if (!recipientId || !message) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    // Support both old and new API
+    const messageText = content || message;
+    
+    if (!messageText) {
+      return res.status(400).json({ error: 'Missing message content' });
+    }
+
+    // NEW: conversation-based messaging
+    if (conversation_id) {
+      // Verify user is participant
+      const { data: conversation } = await supabase
+        .from('conversations')
+        .select('coach_id, client_ids')
+        .eq('id', conversation_id)
+        .single();
+
+      if (!conversation) {
+        return res.status(404).json({ error: 'Conversation not found' });
+      }
+
+      const isParticipant =
+        conversation.coach_id === senderId ||
+        conversation.client_ids.includes(senderId);
+
+      if (!isParticipant) {
+        return res.status(403).json({ error: 'Not a participant in this conversation' });
+      }
+
+      // Insert into conversation_messages table
+      const { data, error } = await supabase
+        .from('conversation_messages')
+        .insert({
+          conversation_id: conversation_id,
+          sender_id: senderId,
+          content: String(messageText).trim(),
+          created_at: new Date().toISOString(),
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Update conversation timestamp
+      await supabase
+        .from('conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', conversation_id);
+
+      return res.status(201).json({ message: data });
+    }
+
+    // LEGACY: direct user-to-user messaging
+    if (!recipientId) {
+      return res.status(400).json({ error: 'Missing recipientId or conversation_id' });
     }
 
     const { data, error } = await supabase
@@ -135,7 +238,7 @@ router.post('/', authenticateToken, async (req, res) => {
       .insert({
         sender_id: senderId,
         recipient_id: recipientId,
-        message: String(message).trim(),
+        message: String(messageText).trim(),
         read: false,
       })
       .select()

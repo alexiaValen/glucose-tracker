@@ -19,6 +19,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
 import { messageService, Message } from '../services/message.service';
+import { conversationService } from '../services/conversation.service';
 import { useAuthStore } from '../stores/authStore';
 import { colors } from '../theme/colors';
 
@@ -38,7 +39,7 @@ interface AttachedFile {
 }
 
 export default function MessagingScreen({ navigation, route }: Props) {
-  const { userId, userName } = route.params;
+  const { userId, userName, conversationId } = route.params;
   const { user } = useAuthStore();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -48,16 +49,23 @@ export default function MessagingScreen({ navigation, route }: Props) {
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const scrollViewRef = useRef<ScrollView>(null);
 
+  // Use conversationId (new) or userId (legacy)
+  const isConversationMode = !!conversationId;
+
   useEffect(() => {
     loadMessages();
-    
+
     // Mark messages as read
-    messageService.markAsRead(userId);
+    if (isConversationMode && conversationId) {
+      conversationService.markAsRead(conversationId);
+    } else if (userId) {
+      messageService.markAsRead(userId);
+    }
 
     // Poll for new messages every 5 seconds
     const interval = setInterval(loadMessages, 5000);
     return () => clearInterval(interval);
-  }, [userId]);
+  }, [conversationId, userId]);
 
   useEffect(() => {
     // Request permissions on mount
@@ -71,11 +79,19 @@ export default function MessagingScreen({ navigation, route }: Props) {
 
   const loadMessages = async () => {
     try {
-      const data = await messageService.getMessages(userId);
+      let data: Message[] = [];
+
+      if (isConversationMode && conversationId) {
+        // New conversation-based API
+        data = await conversationService.getMessages(conversationId) as any;
+      } else if (userId) {
+        // Legacy direct message API
+        data = await messageService.getMessages(userId);
+      }
+
       setMessages(data);
       setIsLoading(false);
-      
-      // Scroll to bottom when new messages arrive
+
       setTimeout(() => {
         scrollViewRef.current?.scrollToEnd({ animated: true });
       }, 100);
@@ -172,11 +188,18 @@ export default function MessagingScreen({ navigation, route }: Props) {
       if (attachedFile) {
         // Placeholder for file upload
         // In production, upload to Supabase Storage and get URL
-        messageText += `\n📎 [Attachment: ${attachedFile.name}]`;
+        messageText += `\nðŸ“Ž [Attachment: ${attachedFile.name}]`;
       }
 
-      const message = await messageService.sendMessage(userId, messageText);
-      setMessages([...messages, message]);
+      let message;
+      if (isConversationMode && conversationId) {
+        // New conversation-based API
+        message = await conversationService.sendMessage(conversationId, messageText) as any;
+      } else if (userId) {
+        // Legacy direct message API
+        message = await messageService.sendMessage(userId, messageText);
+      }
+      if (message) setMessages([...messages, message]);
       setNewMessage('');
       setAttachedFile(null);
       
@@ -216,9 +239,9 @@ export default function MessagingScreen({ navigation, route }: Props) {
 
   const getFileIcon = (type: string) => {
     switch (type) {
-      case 'image': return '🖼️';
-      case 'document': return '📄';
-      default: return '📎';
+      case 'image': return 'ðŸ–¼ï¸';
+      case 'document': return 'ðŸ“„';
+      default: return 'ðŸ“Ž';
     }
   };
 
@@ -239,7 +262,7 @@ export default function MessagingScreen({ navigation, route }: Props) {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={styles.backText}>â† Back</Text>
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{userName}</Text>
         <View style={{ width: 60 }} />
@@ -316,7 +339,7 @@ export default function MessagingScreen({ navigation, route }: Props) {
             </View>
           </View>
           <TouchableOpacity onPress={removeAttachment} style={styles.removeButton}>
-            <Text style={styles.removeButtonText}>✕</Text>
+            <Text style={styles.removeButtonText}>âœ•</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -325,15 +348,15 @@ export default function MessagingScreen({ navigation, route }: Props) {
       {showAttachmentMenu && (
         <View style={styles.attachmentMenu}>
           <TouchableOpacity style={styles.menuItem} onPress={handleTakePhoto}>
-            <Text style={styles.menuIcon}>📷</Text>
+            <Text style={styles.menuIcon}>ðŸ“·</Text>
             <Text style={styles.menuText}>Take Photo</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={handlePickImage}>
-            <Text style={styles.menuIcon}>🖼️</Text>
+            <Text style={styles.menuIcon}>ðŸ–¼ï¸</Text>
             <Text style={styles.menuText}>Choose Photo</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.menuItem} onPress={handlePickDocument}>
-            <Text style={styles.menuIcon}>📄</Text>
+            <Text style={styles.menuIcon}>ðŸ“„</Text>
             <Text style={styles.menuText}>Choose Document</Text>
           </TouchableOpacity>
           <TouchableOpacity 
@@ -351,7 +374,7 @@ export default function MessagingScreen({ navigation, route }: Props) {
           style={styles.attachButton}
           onPress={() => setShowAttachmentMenu(!showAttachmentMenu)}
         >
-          <Text style={styles.attachButtonText}>📎</Text>
+          <Text style={styles.attachButtonText}>ðŸ“Ž</Text>
         </TouchableOpacity>
         <TextInput
           style={styles.input}
