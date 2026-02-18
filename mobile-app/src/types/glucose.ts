@@ -28,6 +28,10 @@ export interface GlucoseStats {
   min: number;
   max: number;
   count: number;
+  total_readings?: number;  // Backend returns this
+  min_value?: number;       // Backend returns this
+  max_value?: number;       // Backend returns this
+  std_dev?: number;         // Backend returns this
   in_range_percentage?: number;
   target_range?: {
     min: number;

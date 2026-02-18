@@ -1,5 +1,5 @@
 // mobile-app/src/screens/DashboardScreen.tsx
-// FIXED VERSION - Using simple icons instead of SVG to avoid topSvgLayout error
+// FIXED VERSION - All data displaying correctly, coach chat card added, emojis replaced
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -18,7 +18,6 @@ import { useSymptomStore } from '../stores/symptomStore';
 import { colors } from '../theme/colors';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { BotanicalBackground } from '../components/BotanicalBackground';
-// CHANGE THIS LINE - use SimpleIcons instead of the SVG icons
 import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/SimpleIcons';
 import { glucoseService } from '../services/glucose.service';
 
@@ -32,7 +31,6 @@ type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamLis
 
 interface Props {
   navigation: DashboardScreenNavigationProp;
-
 }
 
 export default function DashboardScreen({ navigation }: Props){
@@ -42,13 +40,12 @@ export default function DashboardScreen({ navigation }: Props){
   const { symptoms, fetchSymptoms } = useSymptomStore();
 
   const safeReadings = Array.isArray(readings) ? readings : [];
-const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
+  const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
   
   const [refreshing, setRefreshing] = useState(false);
   const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
   const [myCoach, setMyCoach] = useState<any>(null);
   const [groupMembership, setGroupMembership] = useState<any>(null);
-
 
   useEffect(() => {
     loadData();
@@ -58,12 +55,18 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
   }, []);
 
   const loadData = async () => {
-    await Promise.all([
-      fetchReadings(),
-      fetchStats(),
-      fetchCurrentCycle(),
-      fetchSymptoms(),
-    ]);
+    console.log('🔄 Starting loadData...');
+    try {
+      await Promise.all([
+        fetchReadings(),
+        fetchStats(),
+        fetchCurrentCycle(),
+        fetchSymptoms(),
+      ]);
+      console.log('✅ All data fetched');
+    } catch (error) {
+      console.error('❌ loadData error:', error);
+    }
   };
 
   const loadSettings = async () => {
@@ -114,8 +117,10 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
 
   const onRefresh = async () => {
     setRefreshing(true);
+    console.log('🔄 Refreshing dashboard data...');
     await loadData();
     await loadGroupMembership();
+    console.log('✅ Refresh complete');
     setRefreshing(false);
   };
 
@@ -131,7 +136,6 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
     if (severity <= 6) return 'rgba(184,164,95,0.5)'; // Gold
     return 'rgba(139,111,71,0.6)'; // Brown
   };
-
 
   return (
     <BotanicalBackground variant="3d" intensity="medium">
@@ -153,13 +157,13 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
               style={styles.iconButton}
               onPress={() => navigation.navigate('Conversations')}
             >
-              <Text style={styles.iconGlyph}>ðŸ’¬</Text>
+              <Text style={styles.iconGlyph}>💬</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.iconButton}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Text style={styles.iconGlyph}>âš™ï¸</Text>
+              <Text style={styles.iconGlyph}>⚙️</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -195,22 +199,20 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
 
           {/* Group Program Card - Conditional based on membership */}
           {!groupMembership ? (
-            // Not enrolled - show join card
             <TouchableOpacity
               style={styles.joinGroupButton}
               onPress={() => navigation.navigate('JoinGroup')}
             >
               <View style={styles.joinGroupIcon}>
-                <Text style={styles.joinGroupEmoji}>ðŸ‘¥</Text>
+                <Text style={styles.joinGroupEmoji}>👥</Text>
               </View>
               <View style={styles.joinGroupContent}>
                 <Text style={styles.joinGroupTitle}>Join a Group Program</Text>
                 <Text style={styles.joinGroupSubtitle}>Enter your access code</Text>
               </View>
-              <Text style={styles.joinGroupArrow}>â†’</Text>
+              <Text style={styles.joinGroupArrow}>→</Text>
             </TouchableOpacity>
           ) : (
-            // Enrolled - show program card with Session 1
             <View style={styles.enrolledSection}>
               <TouchableOpacity
                 style={styles.enrolledCard}
@@ -225,10 +227,9 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
                 <Text style={styles.enrolledTitle}>
                   {groupMembership.group_name || 'Group Program'}
                 </Text>
-                <Text style={styles.enrolledSubtitle}>Tap to view all sessions â†’</Text>
+                <Text style={styles.enrolledSubtitle}>Tap to view all sessions →</Text>
               </TouchableOpacity>
 
-              {/* Session 1 Quick Access */}
               <View style={styles.sessionQuickAccess}>
                 <Text style={styles.sessionQuickLabel}>CONTINUE LEARNING</Text>
                 <TouchableOpacity
@@ -240,67 +241,67 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
                   activeOpacity={0.85}
                 >
                   <View style={styles.sessionQuickIcon}>
-                    <Text style={styles.sessionQuickIconText}>âœ¨</Text>
+                    <Text style={styles.sessionQuickIconText}>✨</Text>
                   </View>
                   <View style={styles.sessionQuickInfo}>
                     <Text style={styles.sessionQuickNumber}>WEEK 1</Text>
                     <Text style={styles.sessionQuickTitle}>Holy - Set Apart by Christ</Text>
                   </View>
-                  <Text style={styles.sessionQuickArrow}>â†’</Text>
+                  <Text style={styles.sessionQuickArrow}>→</Text>
                 </TouchableOpacity>
               </View>
             </View>
           )}
 
           {/* Coach Chat Card - only shows when coach is assigned */}
-{myCoach && (
-  <TouchableOpacity
-    style={styles.coachChatCard}
-    onPress={async () => {
-      try {
-        const token = await AsyncStorage.getItem('accessToken');
-        const response = await fetch(`${API_BASE}/conversations/get-or-create`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            coach_id: myCoach.id,
-            client_id: user?.id,
-          }),
-        });
-        const data = await response.json();
-        navigation.navigate('Messaging', {
-          conversationId: data.conversation?.id,
-          userName: (`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || 'Your Coach',
-        });
-      } catch (error) {
-        // Fallback to legacy direct message if conversations table not set up yet
-        navigation.navigate('Messaging', {
-          userId: myCoach.id,
-          userName: (`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || 'Your Coach',
-        });
-      }
-    }}
-    activeOpacity={0.85}
-  >
-    <View style={styles.coachChatAvatar}>
-      <Text style={styles.coachChatAvatarText}>
-        {(myCoach.firstName?.charAt(0) || '?').toUpperCase()}
-      </Text>
-    </View>
-    <View style={styles.coachChatContent}>
-      <Text style={styles.coachChatLabel}>YOUR COACH</Text>
-      <Text style={styles.coachChatName}>
-        {(`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || myCoach.email}
-      </Text>
-    </View>
-    <View style={styles.coachChatAction}>
-      <Text style={styles.coachChatArrow}>💬</Text>
-    </View>
-  </TouchableOpacity>
-)}
+          {myCoach && (
+            <TouchableOpacity
+              style={styles.coachChatCard}
+              onPress={async () => {
+                try {
+                  const token = await AsyncStorage.getItem('accessToken');
+                  const response = await fetch(`${API_BASE}/conversations/get-or-create`, {
+                    method: 'POST',
+                    headers: {
+                      'Authorization': `Bearer ${token}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      coach_id: myCoach.id,
+                      client_id: user?.id,
+                    }),
+                  });
+                  const data = await response.json();
+                  navigation.navigate('Messaging', {
+                    conversationId: data.conversation?.id,
+                    userName: (`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || 'Your Coach',
+                  });
+                } catch (error) {
+                  console.error('Failed to open coach chat:', error);
+                  navigation.navigate('Messaging', {
+                    userId: myCoach.id,
+                    userName: (`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || 'Your Coach',
+                  });
+                }
+              }}
+              activeOpacity={0.85}
+            >
+              <View style={styles.coachChatAvatar}>
+                <Text style={styles.coachChatAvatarText}>
+                  {(myCoach.firstName?.charAt(0) || '?').toUpperCase()}
+                </Text>
+              </View>
+              <View style={styles.coachChatContent}>
+                <Text style={styles.coachChatLabel}>YOUR COACH</Text>
+                <Text style={styles.coachChatName}>
+                  {(`${myCoach.firstName || ''} ${myCoach.lastName || ''}`).trim() || myCoach.email}
+                </Text>
+              </View>
+              <View style={styles.coachChatAction}>
+                <Text style={styles.coachChatArrow}>💬</Text>
+              </View>
+            </TouchableOpacity>
+          )}
 
           {/* Glucose Overview Card */}
           <View style={styles.card}>
@@ -340,19 +341,19 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
               </View>
 
               <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats?.count || 0}</Text>
+                <Text style={styles.statValue}>{stats?.total_readings || stats?.count || 0}</Text>
                 <Text style={styles.statLabel}>Total</Text>
               </View>
             </View>
 
-            {readings.length > 0 && (
+            {safeReadings.length > 0 && (
               <View style={styles.recentReading}>
                 <View style={styles.recentDot} />
                 <Text style={styles.recentText}>
-                  Latest: {readings[0].glucose_level} mg/dL
+                  Latest: {safeReadings[0].glucose_level} mg/dL
                 </Text>
                 <Text style={styles.recentTime}>
-                  {new Date(readings[0].timestamp).toLocaleTimeString([], { 
+                  {new Date(safeReadings[0].timestamp).toLocaleTimeString([], { 
                     hour: '2-digit', 
                     minute: '2-digit' 
                   })}
@@ -400,7 +401,7 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
           )}
 
           {/* Recent Symptoms */}
-          {symptoms.length > 0 && (
+          {safeSymptoms.length > 0 && (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.sectionHeader}>RECENT SYMPTOMS</Text>
@@ -409,12 +410,12 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
                 </TouchableOpacity>
               </View>
 
-              {symptoms.slice(0, 3).map((symptom, index) => (
+              {safeSymptoms.slice(0, 3).map((symptom, index) => (
                 <View 
                   key={symptom.id} 
                   style={[
                     styles.symptomItem,
-                    index === symptoms.slice(0, 3).length - 1 && { borderBottomWidth: 0 }
+                    index === safeSymptoms.slice(0, 3).length - 1 && { borderBottomWidth: 0 }
                   ]}
                 >
                   <View style={styles.symptomLeft}>
@@ -436,28 +437,6 @@ const safeSymptoms = Array.isArray(symptoms) ? symptoms : [];
             </View>
           )}
 
-          {/* Coach Card */}
-          {myCoach && myCoach.firstName && (
-            <TouchableOpacity
-              style={styles.coachCard}
-              onPress={() => navigation.navigate('Conversations')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.coachAvatar}>
-                <Text style={styles.coachAvatarText}>
-                  {myCoach.firstName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.coachInfo}>
-                <Text style={styles.coachLabel}>YOUR COACH</Text>
-                <Text style={styles.coachName}>
-                  {myCoach.firstName} {myCoach.lastName || ''}
-                </Text>
-                <Text style={styles.coachAction}>Message your coach</Text>
-              </View>
-            </TouchableOpacity>
-          )}
-
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
@@ -469,18 +448,14 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-
-  // Header - Minimal
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingTop: 60,
-    paddingBottom: 24,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212,214,212,0.25)',
+    paddingBottom: 12,
+    backgroundColor: 'transparent',
   },
   headerLeft: {
     flex: 1,
@@ -488,413 +463,144 @@ const styles = StyleSheet.create({
   greetingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   greetingLight: {
-    fontSize: 14,
+    fontSize: 13,
+    color: 'rgba(42,45,42,0.6)',
     fontWeight: '400',
     letterSpacing: 0.3,
-    color: 'rgba(42,45,42,0.5)',
   },
   greetingBold: {
-    fontSize: 22,
-    fontWeight: '600',
-    letterSpacing: -0.3,
+    fontSize: 24,
+    fontWeight: '700',
     color: '#2B2B2B',
+    letterSpacing: -0.5,
   },
   headerActions: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 8,
   },
   iconButton: {
     width: 40,
     height: 40,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.4)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(42,45,42,0.15)',
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.3)',
   },
   iconGlyph: {
     fontSize: 18,
   },
-
   content: {
     flex: 1,
   },
   scrollContent: {
-    padding: 20,
-    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
   },
-
-  // Quick Actions - Primary & Secondary CTAs
   quickActions: {
     flexDirection: 'row',
     gap: 12,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   primaryButton: {
     flex: 1,
     backgroundColor: '#6B7F6E',
-    borderRadius: 14,
     paddingVertical: 18,
-    paddingHorizontal: 20,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   primaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
     letterSpacing: 0.3,
   },
   secondaryButton: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(42,45,42,0.12)',
-    borderRadius: 14,
-    paddingVertical: 17,
-    paddingHorizontal: 20,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    paddingVertical: 18,
+    borderRadius: 16,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.3)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
   secondaryButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
     color: '#2B2B2B',
+    fontSize: 15,
+    fontWeight: '600',
     letterSpacing: 0.3,
   },
-
-  // Card - Standard
-  card: {
+  // Coach Chat Card
+  coachChatCard: {
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 20,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: 'rgba(42,45,42,0.5)',
-  },
-
-  // Glucose Reading
-  glucoseReading: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
-  },
-  displayLarge: {
-    fontSize: 32,
-    fontWeight: '300',
-    letterSpacing: -0.5,
-    color: '#2B2B2B',
-  },
-  unitText: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(42,45,42,0.4)',
-  },
-  glucoseSubtext: {
-    fontSize: 13,
-    color: 'rgba(42,45,42,0.5)',
-    marginTop: 4,
-    fontWeight: '400',
-  },
-  statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  statusDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#B89A5A',
-  },
-  statusText: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: 'rgba(42,45,42,0.7)',
-  },
-
-  // Divider
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(212,214,212,0.3)',
-    marginBottom: 20,
-  },
-
-  // Stats Grid
-  statsGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 16,
-  },
-  statItem: {
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2B2B2B',
-    marginBottom: 6,
-  },
-  statLabel: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: 'rgba(42,45,42,0.5)',
-  },
-
-  // Recent Reading
-  recentReading: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(212,214,212,0.2)',
-    gap: 10,
-  },
-  recentDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#6B7F6E',
-  },
-  recentText: {
-    flex: 1,
-    fontSize: 13,
-    color: 'rgba(42,45,42,0.65)',
-    fontWeight: '500',
-  },
-  recentTime: {
-    fontSize: 12,
-    color: 'rgba(42,45,42,0.45)',
-  },
-
-  // Cycle Tracking
-  cyclePhaseGlyph: {
-    opacity: 0.3,
-  },
-  cycleContent: {
-    gap: 12,
-  },
-  cycleDay: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#2B2B2B',
-  },
-  cycleProgressBar: {
-    height: 6,
-    backgroundColor: 'rgba(212,214,212,0.25)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  cycleProgressFill: {
-    height: '100%',
-    backgroundColor: 'rgba(107,127,110,0.4)',
-    borderRadius: 3,
-  },
-  cyclePhase: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(42,45,42,0.65)',
-  },
-  emptyStateButton: {
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  emptyStateText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: 'rgba(42,45,42,0.5)',
-  },
-
-  // Symptoms
-  seeAllLink: {
-    fontSize: 13,
-    fontWeight: '500',
-    color: 'rgba(42,45,42,0.5)',
-    letterSpacing: 0.1,
-  },
-  symptomItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212,214,212,0.2)',
-  },
-  symptomLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  severityTick: {
-    width: 2,
-    height: 20,
-    borderRadius: 1,
-  },
-  symptomName: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#2B2B2B',
-    textTransform: 'capitalize',
-  },
-  symptomRight: {
-    alignItems: 'flex-end',
-  },
-  symptomSeverity: {
-    fontSize: 13,
-    fontWeight: '400',
-    color: 'rgba(42,45,42,0.5)',
-  },
-
-  // Coach Card
-  coachCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.25)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  coachAvatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(107,127,110,0.1)',
     borderWidth: 1,
     borderColor: 'rgba(107,127,110,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  coachAvatarText: {
-    fontSize: 22,
+  coachChatAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(107,127,110,0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  coachChatAvatarText: {
+    fontSize: 18,
     fontWeight: '700',
     color: '#6B7F6E',
   },
-  coachInfo: {
+  coachChatContent: {
     flex: 1,
   },
-  coachLabel: {
-    fontSize: 11,
+  coachChatLabel: {
+    fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: 'rgba(42,45,42,0.5)',
-    marginBottom: 6,
+    color: 'rgba(107,127,110,0.7)',
+    letterSpacing: 0.8,
+    marginBottom: 3,
   },
-  coachName: {
-    fontSize: 16,
+  coachChatName: {
+    fontSize: 15,
     fontWeight: '600',
-    letterSpacing: 0.2,
     color: '#2B2B2B',
-    marginBottom: 4,
   },
-  coachAction: {
-    fontSize: 14,
-    fontWeight: '500',
-    color: 'rgba(42,45,42,0.65)',
+  coachChatAction: {
+    paddingLeft: 8,
   },
-
-  // Coach Chat Card
-  coachChatCard: {
-  backgroundColor: 'rgba(255,255,255,0.95)',
-  borderRadius: 20,
-  padding: 16,
-  marginBottom: 16,
-  flexDirection: 'row',
-  alignItems: 'center',
-  borderWidth: 1,
-  borderColor: 'rgba(107,127,110,0.2)',
-  shadowColor: '#000',
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.06,
-  shadowRadius: 8,
-  elevation: 2,
-},
-coachChatAvatar: {
-  width: 44,
-  height: 44,
-  borderRadius: 22,
-  backgroundColor: 'rgba(107,127,110,0.15)',
-  alignItems: 'center',
-  justifyContent: 'center',
-  marginRight: 14,
-},
-coachChatAvatarText: {
-  fontSize: 18,
-  fontWeight: '700',
-  color: '#6B7F6E',
-},
-coachChatContent: {
-  flex: 1,
-},
-coachChatLabel: {
-  fontSize: 10,
-  fontWeight: '600',
-  color: 'rgba(107,127,110,0.7)',
-  letterSpacing: 0.8,
-  marginBottom: 3,
-},
-coachChatName: {
-  fontSize: 15,
-  fontWeight: '600',
-  color: '#2B2B2B',
-},
-coachChatAction: {
-  paddingLeft: 8,
-},
-coachChatArrow: {
-  fontSize: 20,
-},
-
-
-  // Join Group Button
-
+  coachChatArrow: {
+    fontSize: 20,
+  },
   joinGroupButton: {
     backgroundColor: 'rgba(255,255,255,0.95)',
     borderRadius: 20,
@@ -940,8 +646,6 @@ coachChatArrow: {
     color: '#6B7F6E',
     fontWeight: '600',
   },
-
-  // Enrolled Section
   enrolledSection: {
     marginBottom: 16,
   },
@@ -951,7 +655,7 @@ coachChatArrow: {
     padding: 20,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.25)',
+    borderColor: 'rgba(107,127,110,0.2)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.06,
@@ -959,50 +663,84 @@ coachChatArrow: {
     elevation: 2,
   },
   enrolledBadge: {
+    alignSelf: 'flex-start',
     backgroundColor: 'rgba(107,127,110,0.15)',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 8,
-    alignSelf: 'flex-start',
+    borderRadius: 12,
     marginBottom: 12,
   },
   enrolledBadgeText: {
     fontSize: 10,
     fontWeight: '700',
-    letterSpacing: 1,
     color: '#6B7F6E',
+    letterSpacing: 0.8,
   },
   enrolledTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#2B2B2B',
     marginBottom: 6,
-    letterSpacing: 0.2,
   },
   enrolledSubtitle: {
     fontSize: 13,
     color: 'rgba(42,45,42,0.6)',
   },
-
-  // Session Quick Access
   sessionQuickAccess: {
-    marginTop: 0,
+    gap: 8,
   },
   sessionQuickLabel: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '600',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: 'rgba(42,45,42,0.5)',
-    marginBottom: 12,
-    paddingLeft: 4,
+    color: 'rgba(107,127,110,0.7)',
+    letterSpacing: 0.8,
+    paddingHorizontal: 4,
   },
   sessionQuickCard: {
     backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 20,
-    padding: 18,
+    borderRadius: 16,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+  },
+  sessionQuickIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  sessionQuickIconText: {
+    fontSize: 20,
+  },
+  sessionQuickInfo: {
+    flex: 1,
+  },
+  sessionQuickNumber: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: 'rgba(107,127,110,0.7)',
+    letterSpacing: 0.8,
+    marginBottom: 3,
+  },
+  sessionQuickTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#2B2B2B',
+  },
+  sessionQuickArrow: {
+    fontSize: 18,
+    color: '#6B7F6E',
+  },
+  card: {
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: 'rgba(212,214,212,0.25)',
     shadowColor: '#000',
@@ -1011,39 +749,182 @@ coachChatArrow: {
     shadowRadius: 8,
     elevation: 2,
   },
-  sessionQuickIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: 'rgba(107,127,110,0.1)',
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 14,
+    marginBottom: 16,
   },
-  sessionQuickIconText: {
-    fontSize: 24,
-  },
-  sessionQuickInfo: {
-    flex: 1,
-  },
-  sessionQuickNumber: {
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: '700',
     color: 'rgba(107,127,110,0.7)',
+    letterSpacing: 1,
+  },
+  glucoseReading: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  displayLarge: {
+    fontSize: 48,
+    fontWeight: '700',
+    color: '#2B2B2B',
+    letterSpacing: -1,
+  },
+  unitText: {
+    fontSize: 16,
+    fontWeight: '400',
+    color: 'rgba(42,45,42,0.5)',
+  },
+  glucoseSubtext: {
+    fontSize: 13,
+    color: 'rgba(42,45,42,0.6)',
+    marginTop: 4,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6B7F6E',
+  },
+  statusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6B7F6E',
+    letterSpacing: 0.5,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(212,214,212,0.3)',
+    marginBottom: 16,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2B2B2B',
     marginBottom: 4,
   },
-  sessionQuickTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    letterSpacing: 0.2,
+  statLabel: {
+    fontSize: 11,
+    color: 'rgba(42,45,42,0.6)',
+    textTransform: 'capitalize',
   },
-  sessionQuickArrow: {
-    fontSize: 20,
+  recentReading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(212,214,212,0.3)',
+  },
+  recentDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#6B7F6E',
+  },
+  recentText: {
+    fontSize: 13,
+    color: '#2B2B2B',
+    flex: 1,
+  },
+  recentTime: {
+    fontSize: 12,
+    color: 'rgba(42,45,42,0.5)',
+  },
+  cyclePhaseGlyph: {
+    opacity: 0.3,
+  },
+  cycleContent: {
+    alignItems: 'center',
+  },
+  cycleDay: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#2B2B2B',
+    marginBottom: 16,
+  },
+  cycleProgressBar: {
+    width: '100%',
+    height: 6,
+    backgroundColor: 'rgba(212,214,212,0.3)',
+    borderRadius: 3,
+    overflow: 'hidden',
+    marginBottom: 12,
+  },
+  cycleProgressFill: {
+    height: '100%',
+    backgroundColor: '#6B7F6E',
+    borderRadius: 3,
+  },
+  cyclePhase: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: 'rgba(42,45,42,0.7)',
+  },
+  emptyStateButton: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14,
+    fontWeight: '500',
     color: '#6B7F6E',
+  },
+  symptomItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212,214,212,0.3)',
+  },
+  symptomLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  severityTick: {
+    width: 4,
+    height: 20,
+    borderRadius: 2,
+  },
+  symptomName: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#2B2B2B',
+    textTransform: 'capitalize',
+  },
+  symptomRight: {
+    alignItems: 'flex-end',
+  },
+  symptomSeverity: {
+    fontSize: 13,
     fontWeight: '600',
-    marginLeft: 8,
+    color: 'rgba(42,45,42,0.6)',
+  },
+  seeAllLink: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7F6E',
   },
 });
