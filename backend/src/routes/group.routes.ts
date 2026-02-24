@@ -5,18 +5,48 @@ import { authMiddleware, requireCoach } from '../middleware/auth.middleware';
 import { GroupService } from '../services/group.service';
 
 const router = Router();
-
-// Initialize group service
-// Note: You'll need to pass your database pool here
-// For Supabase, we'll adapt the service to work with Supabase client
 const groupService = new GroupService(supabase);
 
 // All routes require authentication
 router.use(authMiddleware);
 
-// ===========================================
-// COACH ROUTES - Create and manage groups
-// ===========================================
+// ─────────────────────────────────────────────────────────────
+// HELPER FUNCTIONS
+// ─────────────────────────────────────────────────────────────
+
+function generateAccessCode(): string {
+  const prefix = 'HFR';
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars[Math.floor(Math.random() * chars.length)];
+  }
+  return `${prefix}-${code}`;
+}
+
+async function verifyGroupMembership(groupId: string, userId: string): Promise<boolean> {
+  const { data: membership } = await supabase
+    .from('group_memberships')
+    .select('id')
+    .eq('group_id', groupId)
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .single();
+
+  if (membership) return true;
+
+  const { data: group } = await supabase
+    .from('coaching_groups')
+    .select('coach_id')
+    .eq('id', groupId)
+    .single();
+
+  return group?.coach_id === userId;
+}
+
+// ─────────────────────────────────────────────────────────────
+// COACH ROUTES
+// ─────────────────────────────────────────────────────────────
 
 // POST /api/v1/groups - Create a new coaching group (Coach only)
 router.post('/', requireCoach, async (req, res) => {
@@ -24,19 +54,14 @@ router.post('/', requireCoach, async (req, res) => {
     const coachId = req.user!.userId;
     const groupData = req.body;
 
-    console.log('Creating group:', groupData);
-
-    // Generate unique access code
     let accessCode = generateAccessCode();
     let codeExists = true;
-    
     while (codeExists) {
       const { data: existing } = await supabase
         .from('coaching_groups')
         .select('id')
         .eq('access_code', accessCode)
         .single();
-      
       if (!existing) {
         codeExists = false;
       } else {
@@ -44,12 +69,10 @@ router.post('/', requireCoach, async (req, res) => {
       }
     }
 
-    // Calculate end date
     const startDate = new Date(groupData.startDate);
     const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + (groupData.durationWeeks * 7));
+    endDate.setDate(endDate.getDate() + groupData.durationWeeks * 7);
 
-    // Create group
     const { data: group, error } = await supabase
       .from('coaching_groups')
       .insert({
@@ -63,37 +86,28 @@ router.post('/', requireCoach, async (req, res) => {
         max_members: groupData.maxMembers,
         pricing: groupData.pricing,
         meeting_schedule: groupData.meetingSchedule,
-        status: groupData.status || 'draft' // Default to draft
+        status: groupData.status || 'draft',
       })
       .select()
       .single();
 
     if (error) throw error;
 
-    console.log('Ã¢Å“â€¦ Group created:', group);
-    console.log('Ã°Å¸â€â€˜ Access code:', accessCode);
-
-    res.status(201).json({ 
-      group,
-      accessCode // Return code so coach can share it
-    });
+    res.status(201).json({ group, accessCode });
   } catch (error) {
     console.error('Error creating group:', error);
     res.status(500).json({ error: 'Failed to create group' });
   }
 });
 
-// GET /api/v1/groups/coach/my-groups - Get all groups for the current coach
+// GET /api/v1/groups/coach/my-groups - Get all groups for current coach
 router.get('/coach/my-groups', requireCoach, async (req, res) => {
   try {
     const coachId = req.user!.userId;
 
     const { data: groups, error } = await supabase
       .from('coaching_groups')
-      .select(`
-        *,
-        memberships:group_memberships(count)
-      `)
+      .select(`*, memberships:group_memberships(count)`)
       .eq('coach_id', coachId)
       .order('start_date', { ascending: false });
 
@@ -117,7 +131,6 @@ router.patch('/:groupId/status', requireCoach, async (req, res) => {
       return res.status(400).json({ error: 'Invalid status' });
     }
 
-    // Verify coach owns this group
     const { data: group } = await supabase
       .from('coaching_groups')
       .select('coach_id')
@@ -128,7 +141,6 @@ router.patch('/:groupId/status', requireCoach, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // Update status
     const { data: updated, error } = await supabase
       .from('coaching_groups')
       .update({ status })
@@ -151,7 +163,6 @@ router.delete('/:groupId', requireCoach, async (req, res) => {
     const { groupId } = req.params;
     const coachId = req.user!.userId;
 
-    // Verify coach owns this group
     const { data: group } = await supabase
       .from('coaching_groups')
       .select('coach_id')
@@ -162,7 +173,6 @@ router.delete('/:groupId', requireCoach, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // Delete group (cascade will handle memberships, messages, etc.)
     const { error } = await supabase
       .from('coaching_groups')
       .delete()
@@ -177,14 +187,13 @@ router.delete('/:groupId', requireCoach, async (req, res) => {
   }
 });
 
-// POST /api/v1/groups/:groupId/sessions - Create session for group (Coach only)
+// POST /api/v1/groups/:groupId/sessions - Create session (Coach only)
 router.post('/:groupId/sessions', requireCoach, async (req, res) => {
   try {
     const { groupId } = req.params;
     const coachId = req.user!.userId;
     const sessionData = req.body;
 
-    // Verify coach owns this group
     const { data: group } = await supabase
       .from('coaching_groups')
       .select('coach_id')
@@ -195,7 +204,6 @@ router.post('/:groupId/sessions', requireCoach, async (req, res) => {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // Create session
     const { data: session, error } = await supabase
       .from('group_sessions')
       .insert({
@@ -207,7 +215,7 @@ router.post('/:groupId/sessions', requireCoach, async (req, res) => {
         zoom_link: sessionData.zoomLink,
         homework: sessionData.homework,
         materials: sessionData.materials || [],
-        status: 'upcoming'
+        status: 'upcoming',
       })
       .select()
       .single();
@@ -221,67 +229,24 @@ router.post('/:groupId/sessions', requireCoach, async (req, res) => {
   }
 });
 
-// POST /api/v1/groups/:groupId/messages - Post message to group (Coach only - announcements)
-router.post('/:groupId/messages', async (req, res) => {
+// GET /api/v1/groups/:groupId/members - Get group members
+// Coach gets all members; members can see the list too (for group chat context)
+router.get('/:groupId/members', async (req, res) => {
   try {
     const { groupId } = req.params;
     const userId = req.user!.userId;
-    const { message, messageType = 'text' } = req.body;
 
-    // Verify user is member or coach of this group
     const isMember = await verifyGroupMembership(groupId, userId);
     if (!isMember) {
-      return res.status(403).json({ error: 'Not a member of this group' });
-    }
-
-    // Create message
-    const { data: newMessage, error } = await supabase
-      .from('group_messages')
-      .insert({
-        group_id: groupId,
-        sender_id: userId,
-        message: message,
-        message_type: messageType
-      })
-      .select(`
-        *,
-        sender:users!group_messages_sender_id_fkey(
-          id, first_name, last_name, role
-        )
-      `)
-      .single();
-
-    if (error) throw error;
-
-    res.status(201).json({ message: newMessage });
-  } catch (error) {
-    console.error('Error sending message:', error);
-    res.status(500).json({ error: 'Failed to send message' });
-  }
-});
-
-// GET /api/v1/groups/:groupId/members - Get group members (Coach only)
-router.get('/:groupId/members', requireCoach, async (req, res) => {
-  try {
-    const { groupId } = req.params;
-    const coachId = req.user!.userId;
-
-    // Verify coach owns this group
-    const { data: group } = await supabase
-      .from('coaching_groups')
-      .select('coach_id')
-      .eq('id', groupId)
-      .single();
-
-    if (!group || group.coach_id !== coachId) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // Get members
     const { data: members, error } = await supabase
       .from('group_memberships')
       .select(`
-        *,
+        id,
+        joined_at,
+        membership_type,
         user:users!group_memberships_user_id_fkey(
           id, first_name, last_name, email, role
         )
@@ -292,32 +257,132 @@ router.get('/:groupId/members', requireCoach, async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ members: members || [] });
+    // Flatten user fields to top level for easier consumption
+    const flat = (members || []).map((m: any) => ({
+      membershipId: m.id,
+      joinedAt: m.joined_at,
+      membershipType: m.membership_type,
+      ...m.user,
+    }));
+
+    res.json({ members: flat });
   } catch (error) {
     console.error('Error fetching members:', error);
     res.status(500).json({ error: 'Failed to fetch members' });
   }
 });
 
-// ===========================================
-// USER ROUTES - Join and participate in groups
-// ===========================================
+// POST /api/v1/groups/:groupId/members - Coach adds a member by email
+router.post('/:groupId/members', requireCoach, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const coachId = req.user!.userId;
+    const { email } = req.body;
 
-// GET /api/v1/groups - Get all available groups (active only)
+    const { data: group } = await supabase
+      .from('coaching_groups')
+      .select('coach_id')
+      .eq('id', groupId)
+      .single();
+
+    if (!group || group.coach_id !== coachId) {
+      return res.status(403).json({ error: 'Only the coach can add members' });
+    }
+
+    const { data: targetUser, error: userErr } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email')
+      .eq('email', email.toLowerCase().trim())
+      .maybeSingle();
+
+    if (userErr) throw userErr;
+    if (!targetUser) {
+      return res.status(404).json({ error: 'No account found with that email' });
+    }
+
+    const { data: existing } = await supabase
+      .from('group_memberships')
+      .select('id, status')
+      .eq('group_id', groupId)
+      .eq('user_id', targetUser.id)
+      .maybeSingle();
+
+    if (existing?.status === 'active') {
+      return res.status(409).json({ error: 'User is already a member' });
+    }
+
+    if (existing) {
+      await supabase
+        .from('group_memberships')
+        .update({ status: 'active' })
+        .eq('id', existing.id);
+    } else {
+      await supabase.from('group_memberships').insert({
+        group_id: groupId,
+        user_id: targetUser.id,
+        status: 'active',
+        membership_type: 'added_by_coach',
+        joined_at: new Date().toISOString(),
+      });
+    }
+
+    res.status(201).json({ member: targetUser });
+  } catch (error) {
+    console.error('Error adding member:', error);
+    res.status(500).json({ error: 'Failed to add member' });
+  }
+});
+
+// DELETE /api/v1/groups/:groupId/members/:memberId - Coach removes a member
+router.delete('/:groupId/members/:memberId', requireCoach, async (req, res) => {
+  try {
+    const { groupId, memberId } = req.params;
+    const coachId = req.user!.userId;
+
+    const { data: group } = await supabase
+      .from('coaching_groups')
+      .select('coach_id')
+      .eq('id', groupId)
+      .single();
+
+    if (!group || group.coach_id !== coachId) {
+      return res.status(403).json({ error: 'Only the coach can remove members' });
+    }
+
+    const { error } = await supabase
+      .from('group_memberships')
+      .update({ status: 'removed' })
+      .eq('group_id', groupId)
+      .eq('user_id', memberId);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing member:', error);
+    res.status(500).json({ error: 'Failed to remove member' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// USER ROUTES  (must all come BEFORE /:groupId catch-all)
+// ─────────────────────────────────────────────────────────────
+
+// GET /api/v1/groups - Get all active available groups
 router.get('/', async (req, res) => {
   try {
     const { data: groups, error } = await supabase
       .from('coaching_groups')
       .select('*')
-      .eq('status', 'active') // Only show active groups
-      .gte('end_date', new Date().toISOString()) // Only future/ongoing groups
+      .eq('status', 'active')
+      .gte('end_date', new Date().toISOString())
       .order('start_date', { ascending: true });
 
     if (error) throw error;
 
     res.json({ groups: groups || [] });
   } catch (error) {
-    console.error('Error fetching available groups:', error);
+    console.error('Error fetching groups:', error);
     res.status(500).json({ error: 'Failed to fetch groups' });
   }
 });
@@ -342,7 +407,6 @@ router.post('/verify-code', async (req, res) => {
       return res.json({ valid: false, message: 'Invalid access code' });
     }
 
-    // Check if group is full
     const { count } = await supabase
       .from('group_memberships')
       .select('*', { count: 'exact', head: true })
@@ -353,8 +417,8 @@ router.post('/verify-code', async (req, res) => {
       return res.json({ valid: false, message: 'Group is full' });
     }
 
-    res.json({ 
-      valid: true, 
+    res.json({
+      valid: true,
       group: {
         id: group.id,
         name: group.name,
@@ -362,8 +426,8 @@ router.post('/verify-code', async (req, res) => {
         startDate: group.start_date,
         durationWeeks: group.duration_weeks,
         pricing: group.pricing,
-        meetingSchedule: group.meeting_schedule
-      }
+        meetingSchedule: group.meeting_schedule,
+      },
     });
   } catch (error) {
     console.error('Error verifying code:', error);
@@ -371,17 +435,16 @@ router.post('/verify-code', async (req, res) => {
   }
 });
 
-// POST /api/v1/groups/join - Join group with access code
+// POST /api/v1/groups/join - Join group (access code required; paymentType optional)
 router.post('/join', async (req, res) => {
   try {
     const userId = req.user!.userId;
-    const { accessCode, paymentType } = req.body;
+    const { accessCode, paymentType = 'founding' } = req.body;
 
-    if (!accessCode || !paymentType) {
-      return res.status(400).json({ error: 'Access code and payment type required' });
+    if (!accessCode) {
+      return res.status(400).json({ error: 'Access code required' });
     }
 
-    // Get group by code
     const { data: group, error: groupError } = await supabase
       .from('coaching_groups')
       .select('*')
@@ -393,7 +456,7 @@ router.post('/join', async (req, res) => {
       return res.status(404).json({ error: 'Invalid access code' });
     }
 
-    // Check if already member
+    // Already a member?
     const { data: existing } = await supabase
       .from('group_memberships')
       .select('id')
@@ -405,7 +468,7 @@ router.post('/join', async (req, res) => {
       return res.status(400).json({ error: 'Already a member of this group' });
     }
 
-    // Check if group is full
+    // Group full?
     const { count } = await supabase
       .from('group_memberships')
       .select('*', { count: 'exact', head: true })
@@ -416,12 +479,11 @@ router.post('/join', async (req, res) => {
       return res.status(400).json({ error: 'Group is full' });
     }
 
-    // Determine payment amount
-    const paymentAmount = paymentType === 'founding' 
-      ? group.pricing.founding 
-      : group.pricing.paymentPlan;
+    const paymentAmount =
+      paymentType === 'founding'
+        ? group.pricing?.founding
+        : group.pricing?.paymentPlan;
 
-    // Create membership
     const { data: membership, error: memberError } = await supabase
       .from('group_memberships')
       .insert({
@@ -429,23 +491,20 @@ router.post('/join', async (req, res) => {
         user_id: userId,
         membership_type: 'founding',
         payment_status: 'pending',
-        payment_amount: paymentAmount
+        payment_amount: paymentAmount ?? null,
+        status: 'active',
+        joined_at: new Date().toISOString(),
       })
       .select()
       .single();
 
     if (memberError) throw memberError;
 
-    // Update group member count
-    await supabase.rpc('increment_group_members', { group_id: group.id });
-
-    res.status(201).json({ 
+    // Best-effort increment (non-blocking)
+   try { await supabase.rpc('increment_group_members', { group_id: group.id }); } catch {}
+    res.status(201).json({
       membership,
-      group: {
-        id: group.id,
-        name: group.name,
-        description: group.description
-      }
+      group: { id: group.id, name: group.name, description: group.description },
     });
   } catch (error) {
     console.error('Error joining group:', error);
@@ -453,7 +512,7 @@ router.post('/join', async (req, res) => {
   }
 });
 
-// GET /api/v1/groups/my-groups - Get user's groups (MUST BE BEFORE /:groupId)
+// GET /api/v1/groups/my-groups - Get all groups the user belongs to
 router.get('/my-groups', async (req, res) => {
   try {
     const userId = req.user!.userId;
@@ -470,20 +529,69 @@ router.get('/my-groups', async (req, res) => {
 
     if (error) throw error;
 
-    res.json({ groups: memberships?.map(m => m.group) || [] });
+    res.json({ groups: memberships?.map((m: any) => m.group) || [] });
   } catch (error) {
     console.error('Error fetching user groups:', error);
     res.status(500).json({ error: 'Failed to fetch groups' });
   }
 });
 
-// GET /api/v1/groups/:groupId - Get group details
+// GET /api/v1/groups/my-membership - First active membership (used by dashboard)
+router.get('/my-membership', async (req, res) => {
+  try {
+    const userId = req.user!.userId;
+
+    const { data, error } = await supabase
+      .from('group_memberships')
+      .select(`
+        id,
+        group_id,
+        membership_type,
+        status,
+        joined_at,
+        group:coaching_groups!group_memberships_group_id_fkey(
+          id, name, description, duration_weeks, start_date, status
+        )
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('joined_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      return res.json({ membership: null });
+    }
+
+    res.json({
+      membership: {
+        id: data.id,
+        group_id: data.group_id,
+        membership_type: data.membership_type,
+        group_name: (data.group as any)?.name ?? null,
+        group_description: (data.group as any)?.description ?? null,
+        duration_weeks: (data.group as any)?.duration_weeks ?? null,
+        joined_at: data.joined_at,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching membership:', error);
+    res.status(500).json({ error: 'Failed to fetch membership' });
+  }
+});
+
+// ─────────────────────────────────────────────────────────────
+// PARAMETERISED ROUTES  (must come LAST)
+// ─────────────────────────────────────────────────────────────
+
+// GET /api/v1/groups/:groupId - Group details
 router.get('/:groupId', async (req, res) => {
   try {
     const { groupId } = req.params;
     const userId = req.user!.userId;
 
-    // Verify user is member or coach
     const isMember = await verifyGroupMembership(groupId, userId);
     if (!isMember) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -504,13 +612,12 @@ router.get('/:groupId', async (req, res) => {
   }
 });
 
-// GET /api/v1/groups/:groupId/sessions - Get group sessions
+// GET /api/v1/groups/:groupId/sessions - Sessions with user progress
 router.get('/:groupId/sessions', async (req, res) => {
   try {
     const { groupId } = req.params;
     const userId = req.user!.userId;
 
-    // Verify user is member
     const isMember = await verifyGroupMembership(groupId, userId);
     if (!isMember) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -524,18 +631,17 @@ router.get('/:groupId/sessions', async (req, res) => {
 
     if (error) throw error;
 
-    // Get user's progress for each session
     const { data: progress } = await supabase
       .from('user_progress')
       .select('session_id, completed, homework_submitted')
       .eq('user_id', userId)
       .eq('group_id', groupId);
 
-    const progressMap = new Map(progress?.map(p => [p.session_id, p]) || []);
+    const progressMap = new Map(progress?.map((p) => [p.session_id, p]) || []);
 
-    const sessionsWithProgress = sessions?.map(session => ({
+    const sessionsWithProgress = sessions?.map((session) => ({
       ...session,
-      userProgress: progressMap.get(session.id) || null
+      userProgress: progressMap.get(session.id) || null,
     }));
 
     res.json({ sessions: sessionsWithProgress || [] });
@@ -545,20 +651,18 @@ router.get('/:groupId/sessions', async (req, res) => {
   }
 });
 
-// POST /api/v1/groups/:groupId/sessions/:sessionId/complete - Mark session complete
+// POST /api/v1/groups/:groupId/sessions/:sessionId/complete
 router.post('/:groupId/sessions/:sessionId/complete', async (req, res) => {
   try {
     const { groupId, sessionId } = req.params;
     const userId = req.user!.userId;
     const { notes, homeworkSubmitted } = req.body;
 
-    // Verify user is member
     const isMember = await verifyGroupMembership(groupId, userId);
     if (!isMember) {
       return res.status(403).json({ error: 'Not authorized' });
     }
 
-    // Upsert progress
     const { data: progress, error } = await supabase
       .from('user_progress')
       .upsert({
@@ -567,8 +671,8 @@ router.post('/:groupId/sessions/:sessionId/complete', async (req, res) => {
         session_id: sessionId,
         completed: true,
         homework_submitted: homeworkSubmitted,
-        notes: notes,
-        completed_at: new Date().toISOString()
+        notes,
+        completed_at: new Date().toISOString(),
       })
       .select()
       .single();
@@ -582,15 +686,14 @@ router.post('/:groupId/sessions/:sessionId/complete', async (req, res) => {
   }
 });
 
-// GET /api/v1/groups/:groupId/messages - Get group messages
+// GET /api/v1/groups/:groupId/messages - Group chat messages
 router.get('/:groupId/messages', async (req, res) => {
   try {
     const { groupId } = req.params;
     const userId = req.user!.userId;
-    const limit = parseInt(req.query.limit as string) || 50;
-    const before = req.query.before as string;
+    const limit = parseInt(req.query.limit as string) || 100;
+    const before = req.query.before as string | undefined;
 
-    // Verify user is member
     const isMember = await verifyGroupMembership(groupId, userId);
     if (!isMember) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -599,13 +702,16 @@ router.get('/:groupId/messages', async (req, res) => {
     let query = supabase
       .from('group_messages')
       .select(`
-        *,
+        id,
+        content,
+        created_at,
+        sender_id,
         sender:users!group_messages_sender_id_fkey(
-          id, first_name, last_name, role
+          id, first_name, last_name, email
         )
       `)
       .eq('group_id', groupId)
-      .order('created_at', { ascending: false })
+      .order('created_at', { ascending: true })
       .limit(limit);
 
     if (before) {
@@ -623,40 +729,82 @@ router.get('/:groupId/messages', async (req, res) => {
   }
 });
 
-// ===========================================
-// HELPER FUNCTIONS
-// ===========================================
+// POST /api/v1/groups/:groupId/messages - Send a group message
+router.post('/:groupId/messages', async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user!.userId;
+    const { content } = req.body;
 
-function generateAccessCode(): string {
-  const prefix = 'HFR';
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
+    if (!content?.trim()) {
+      return res.status(400).json({ error: 'Message content required' });
+    }
+
+    const isMember = await verifyGroupMembership(groupId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Not a member of this group' });
+    }
+
+    const { data: message, error } = await supabase
+      .from('group_messages')
+      .insert({
+        group_id: groupId,
+        sender_id: userId,
+        content: content.trim(),
+      })
+      .select(`
+        id,
+        content,
+        created_at,
+        sender_id,
+        sender:users!group_messages_sender_id_fkey(
+          id, first_name, last_name, email
+        )
+      `)
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ message });
+  } catch (error) {
+    console.error('Error sending message:', error);
+    res.status(500).json({ error: 'Failed to send message' });
   }
-  return `${prefix}-${code}`;
-}
+});
 
-async function verifyGroupMembership(groupId: string, userId: string): Promise<boolean> {
-  // Check if user is member
-  const { data: membership } = await supabase
-    .from('group_memberships')
-    .select('id')
-    .eq('group_id', groupId)
-    .eq('user_id', userId)
-    .eq('status', 'active')
-    .single();
+// DELETE /api/v1/groups/:groupId/messages/:messageId
+router.delete('/:groupId/messages/:messageId', async (req, res) => {
+  try {
+    const { groupId, messageId } = req.params;
+    const userId = req.user!.userId;
 
-  if (membership) return true;
+    const { data: group } = await supabase
+      .from('coaching_groups')
+      .select('coach_id')
+      .eq('id', groupId)
+      .single();
 
-  // Check if user is coach
-  const { data: group } = await supabase
-    .from('coaching_groups')
-    .select('coach_id')
-    .eq('id', groupId)
-    .single();
+    const isCoach = group?.coach_id === userId;
 
-  return group?.coach_id === userId;
-}
+    const query = supabase
+      .from('group_messages')
+      .delete()
+      .eq('id', messageId)
+      .eq('group_id', groupId);
+
+    // Non-coaches can only delete their own messages
+    if (!isCoach) {
+      query.eq('sender_id', userId);
+    }
+
+    const { error } = await query;
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting message:', error);
+    res.status(500).json({ error: 'Failed to delete message' });
+  }
+});
 
 export default router;

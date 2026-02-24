@@ -109,7 +109,27 @@ export default function DashboardScreen({ navigation }: Props) {
         headers: { 'Authorization': `Bearer ${token}` },
       });
       const data = await response.json();
-      if (data.membership) setGroupMembership(data.membership);
+
+      if (data.membership) {
+        setGroupMembership(data.membership);
+      } else {
+        // Auto-enroll into the 12-Week Metabolic Reset Program silently
+        try {
+          await fetch(`${API_BASE}/groups/join`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ accessCode: 'HFR-FEB2025', paymentType: 'founding' }),
+          });
+          // Re-fetch after joining
+          const retry = await fetch(`${API_BASE}/groups/my-membership`, {
+            headers: { 'Authorization': `Bearer ${token}` },
+          });
+          const retryData = await retry.json();
+          if (retryData.membership) setGroupMembership(retryData.membership);
+        } catch {
+          // Silent fail — user sees fallback card
+        }
+      }
     } catch (error) {
       setGroupMembership(null);
     }
@@ -194,8 +214,69 @@ export default function DashboardScreen({ navigation }: Props) {
             </TouchableOpacity>
           </View>
 
-          {/* Group Program Card */}
-          {!groupMembership ? (
+          {/* Group Program Card — auto-enrolled into 12-Week Metabolic Reset */}
+          {groupMembership ? (
+            <View style={styles.enrolledSection}>
+
+              {/* Group Chat — navigates to root stack screen */}
+              <TouchableOpacity
+                style={styles.groupChatCard}
+                onPress={() => {
+                  const parent = navigation.getParent<any>();
+                  parent?.navigate('GroupChat', {
+                    groupId: groupMembership.group_id,
+                    groupName: '12-Week Metabolic Reset',
+                  });
+                }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.groupChatEmoji}>💬</Text>
+                <View style={styles.groupChatContent}>
+                  <Text style={styles.groupChatLabel}>GROUP CHAT</Text>
+                  <Text style={styles.groupChatName}>12-Week Metabolic Reset</Text>
+                </View>
+                <Text style={styles.groupChatArrow}>→</Text>
+              </TouchableOpacity>
+
+              {/* Program card — commented out group name display for now */}
+              {/* <TouchableOpacity
+                style={styles.enrolledCard}
+                onPress={() => navigation.navigate('GroupDashboard', { groupId: groupMembership.group_id })}
+                activeOpacity={0.85}
+              >
+                <View style={styles.enrolledBadge}>
+                  <Text style={styles.enrolledBadgeText}>ENROLLED</Text>
+                </View>
+                <Text style={styles.enrolledTitle}>
+                  {groupMembership.group_name || '12-Week Metabolic Reset'}
+                </Text>
+                <Text style={styles.enrolledSubtitle}>Tap to view all sessions →</Text>
+              </TouchableOpacity> */}
+
+              {/* Continue learning */}
+              <View style={styles.sessionQuickAccess}>
+                <Text style={styles.sessionQuickLabel}>CONTINUE LEARNING</Text>
+                <TouchableOpacity
+                  style={styles.sessionQuickCard}
+                  onPress={() => navigation.navigate('SessionDetail', {
+                    groupId: groupMembership.group_id,
+                    sessionId: '1',
+                  })}
+                  activeOpacity={0.85}
+                >
+                  <View style={styles.sessionQuickIcon}>
+                    <Text style={styles.sessionQuickIconText}>✨</Text>
+                  </View>
+                  <View style={styles.sessionQuickInfo}>
+                    <Text style={styles.sessionQuickNumber}>WEEK 1</Text>
+                    <Text style={styles.sessionQuickTitle}>Holy — Set Apart by Christ</Text>
+                  </View>
+                  <Text style={styles.sessionQuickArrow}>→</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            // Fallback while auto-enroll runs or if it fails
             <TouchableOpacity
               style={styles.joinGroupButton}
               onPress={() => navigation.navigate('JoinGroup')}
@@ -204,42 +285,11 @@ export default function DashboardScreen({ navigation }: Props) {
                 <Text style={styles.joinGroupEmoji}>👥</Text>
               </View>
               <View style={styles.joinGroupContent}>
-                <Text style={styles.joinGroupTitle}>Join a Group Program</Text>
-                <Text style={styles.joinGroupSubtitle}>Enter your access code</Text>
+                <Text style={styles.joinGroupTitle}>12-Week Metabolic Reset</Text>
+                <Text style={styles.joinGroupSubtitle}>Tap to join your program</Text>
               </View>
               <Text style={styles.joinGroupArrow}>→</Text>
             </TouchableOpacity>
-          ) : (
-            <View style={styles.enrolledSection}>
-              <TouchableOpacity
-                style={styles.enrolledCard}
-                onPress={() => navigation.navigate('GroupDashboard', { groupId: groupMembership.group_id })}
-                activeOpacity={0.85}
-              >
-                <View style={styles.enrolledBadge}>
-                  <Text style={styles.enrolledBadgeText}>ENROLLED</Text>
-                </View>
-                <Text style={styles.enrolledTitle}>{groupMembership.group_name || 'Group Program'}</Text>
-                <Text style={styles.enrolledSubtitle}>Tap to view all sessions →</Text>
-              </TouchableOpacity>
-              <View style={styles.sessionQuickAccess}>
-                <Text style={styles.sessionQuickLabel}>CONTINUE LEARNING</Text>
-                <TouchableOpacity
-                  style={styles.sessionQuickCard}
-                  onPress={() => navigation.navigate('SessionDetail', { groupId: groupMembership.group_id, sessionId: '1' })}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.sessionQuickIcon}>
-                    <Text style={styles.sessionQuickIconText}>✨</Text>
-                  </View>
-                  <View style={styles.sessionQuickInfo}>
-                    <Text style={styles.sessionQuickNumber}>WEEK 1</Text>
-                    <Text style={styles.sessionQuickTitle}>Holy - Set Apart by Christ</Text>
-                  </View>
-                  <Text style={styles.sessionQuickArrow}>→</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
           )}
 
           {/* Coach Card */}
@@ -539,6 +589,16 @@ const styles = StyleSheet.create({
   joinGroupTitle: { fontSize: 16, fontWeight: '600', color: '#2B2B2B', marginBottom: 4 },
   joinGroupSubtitle: { fontSize: 13, color: 'rgba(42,45,42,0.6)' },
   joinGroupArrow: { fontSize: 20, color: '#6B7F6E', fontWeight: '600' },
+  groupChatCard: {
+    backgroundColor: colors.forestGreen, borderRadius: 18, padding: 16, marginBottom: 10,
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3,
+  },
+  groupChatEmoji: { fontSize: 22 },
+  groupChatContent: { flex: 1 },
+  groupChatLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
+  groupChatName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
+  groupChatArrow: { fontSize: 18, color: 'rgba(255,255,255,0.8)' },
   enrolledSection: { marginBottom: 16 },
   enrolledCard: {
     backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 20, marginBottom: 12,

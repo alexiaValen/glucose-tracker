@@ -12,7 +12,7 @@ import symptomRoutes from "./routes/symptom.routes";
 import messagesRoutes from "./routes/messages";
 import groupRoutes from "./routes/group.routes";
 import conversationRoutes from "./routes/conversation.routes";
-
+import groupMessageRoutes from "./routes/group_message_routes"; // NEW: group messages
 
 dotenv.config();
 
@@ -93,6 +93,8 @@ app.use("/api/v1/cycle", cycleRoutes);  // FIXED: singular to match mobile app
 app.use("/api/v1/messages", messagesRoutes);
 app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/groups", groupRoutes);
+
+
 
 // ==================== ERROR HANDLERS ====================
 app.use((_req, res) => {

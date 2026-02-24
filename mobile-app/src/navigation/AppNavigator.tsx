@@ -31,6 +31,8 @@ import CoachDashboardScreen from '../screens/CoachDashboardScreen';
 import ClientDetailScreen from '../screens/ClientDetailScreen';
 import ConversationsScreen from '../screens/ConversationsScreen';
 
+import GroupChatScreen from '../screens/GroupChatScreen';
+
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
@@ -79,6 +81,7 @@ export default function AppNavigator() {
               <Stack.Screen name="HealthSync" component={HealthSyncScreen} />
               <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
               <Stack.Screen name="GroupDashboard" component={GroupDashboardScreen} />
+              <Stack.Screen name="GroupChat" component={GroupChatScreen} />
               <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
               <Stack.Screen name="Conversations" component={ConversationsScreen} />
             </>

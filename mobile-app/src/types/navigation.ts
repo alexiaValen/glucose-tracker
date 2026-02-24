@@ -1,38 +1,40 @@
-// src/types/navigation.ts
+// mobile-app/src/types/navigation.ts
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 export type RootStackParamList = {
-  // Auth screens
+  // Auth
   Login: undefined;
   Register: undefined;
-  ForgotPassword: undefined; 
-  
-  // User screens
+  ForgotPassword: undefined;
+
+  // Root (tabs)
   Dashboard: undefined;
+
+  // User screens
   AddGlucose: undefined;
   AddSymptom: undefined;
   LogCycle: undefined;
-  
+
   // Coach screens
   CoachDashboard: undefined;
   ClientDetail: { clientId: string };
 
-  // Common screens
+  // Common
   Settings: undefined;
   Profile: undefined;
   RhythmProfile: undefined;
 
-  // Messaging screens 
+  // Messaging
   Conversations: undefined;
   Messaging: { userId?: string; userName: string; conversationId?: string };
   HealthSync: undefined;
 
-  // Group coaching screens
+  // Group screens
   JoinGroup: undefined;
   GroupDashboard: { groupId: string };
   GroupSessions: { groupId: string };
   SessionDetail: { groupId?: string; sessionId: string };
-  GroupChat: { groupId: string };
+  GroupChat: { groupId: string; groupName: string };
   GroupMembers: { groupId: string };
 };
 
