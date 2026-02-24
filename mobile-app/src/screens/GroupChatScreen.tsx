@@ -189,7 +189,7 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
     const senderName = item.sender
       ? `${item.sender.first_name} ${item.sender.last_name}`.trim()
       : 'Unknown';
-    const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
     const canDelete = isMe || isCoach;
 
     return (
