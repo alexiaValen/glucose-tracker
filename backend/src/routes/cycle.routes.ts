@@ -61,7 +61,7 @@ router.get('/current', async (req: Request, res: Response) => {
     const startDate = new Date(cycle.cycle_start_date);
     const today = new Date();
     const diffTime = Math.abs(today.getTime() - startDate.getTime());
-    const currentDay = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    const currentDay = Math.min(Math.ceil(diffTime / (1000 * 60 * 60 * 24)), 28);
     
     // Update current day and phase
     const phase = calculatePhase(currentDay);

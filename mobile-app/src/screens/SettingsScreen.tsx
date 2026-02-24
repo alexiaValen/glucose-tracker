@@ -23,10 +23,47 @@ interface Props {
 }
 
 const CYCLE_TRACKING_KEY = 'cycleTrackingEnabled';
+const CYCLE_PROFILE_KEY = 'cycleProfile';
+
+export type CycleProfile = 'regular' | 'irregular' | 'perimenopause' | 'menopause' | 'unknown';
+
+const CYCLE_PROFILES: { id: CycleProfile; label: string; description: string; emoji: string }[] = [
+  {
+    id: 'regular',
+    label: 'Regular Cycle',
+    description: 'My cycle is fairly predictable',
+    emoji: '🌿',
+  },
+  {
+    id: 'irregular',
+    label: 'Irregular / PCOS',
+    description: 'My cycle is unpredictable or absent',
+    emoji: '🌱',
+  },
+  {
+    id: 'perimenopause',
+    label: 'Perimenopause',
+    description: 'My cycle is changing or becoming irregular',
+    emoji: '🍂',
+  },
+  {
+    id: 'menopause',
+    label: 'Menopause',
+    description: 'I no longer have a menstrual cycle',
+    emoji: '🌾',
+  },
+  {
+    id: 'unknown',
+    label: 'Not Sure',
+    description: "I'd rather not say or I'm figuring it out",
+    emoji: '🌸',
+  },
+];
 
 export default function SettingsScreen({ navigation }: Props) {
   const { user, logout } = useAuthStore();
   const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
+  const [cycleProfile, setCycleProfile] = useState<CycleProfile>('regular');
 
   useEffect(() => {
     loadSettings();
@@ -35,9 +72,10 @@ export default function SettingsScreen({ navigation }: Props) {
   const loadSettings = async () => {
     try {
       const enabled = await AsyncStorage.getItem(CYCLE_TRACKING_KEY);
-      if (enabled !== null) {
-        setCycleTrackingEnabled(enabled === 'true');
-      }
+      if (enabled !== null) setCycleTrackingEnabled(enabled === 'true');
+
+      const profile = await AsyncStorage.getItem(CYCLE_PROFILE_KEY);
+      if (profile !== null) setCycleProfile(profile as CycleProfile);
     } catch (error) {
       console.error('Error loading settings:', error);
     }
@@ -47,7 +85,6 @@ export default function SettingsScreen({ navigation }: Props) {
     try {
       await AsyncStorage.setItem(CYCLE_TRACKING_KEY, value.toString());
       setCycleTrackingEnabled(value);
-
       if (!value) {
         Alert.alert(
           'Cycle Tracking Disabled',
@@ -55,15 +92,22 @@ export default function SettingsScreen({ navigation }: Props) {
         );
       }
     } catch (error) {
-      console.error('Error saving setting:', error);
       Alert.alert('Error', 'Failed to save setting');
+    }
+  };
+
+  const selectCycleProfile = async (profile: CycleProfile) => {
+    try {
+      await AsyncStorage.setItem(CYCLE_PROFILE_KEY, profile);
+      setCycleProfile(profile);
+    } catch (error) {
+      Alert.alert('Error', 'Failed to save profile');
     }
   };
 
   return (
     <BotanicalBackground variant="green" intensity="light">
       <View style={styles.container}>
-        {/* Minimal Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backText}>← Back</Text>
@@ -72,10 +116,13 @@ export default function SettingsScreen({ navigation }: Props) {
           <View style={{ width: 60 }} />
         </View>
 
-        <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.content}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           {/* Profile Section */}
           <Text style={styles.sectionHeader}>PROFILE</Text>
-          
           <View style={styles.card}>
             <View style={styles.profileRow}>
               <View style={styles.profileAvatar}>
@@ -92,15 +139,56 @@ export default function SettingsScreen({ navigation }: Props) {
             </View>
           </View>
 
+          {/* Cycle Profile Section */}
+          <Text style={styles.sectionHeader}>MY RHYTHM PROFILE</Text>
+          <Text style={styles.sectionDescription}>
+            This helps us show you the most relevant content for where you are in life.
+          </Text>
+
+          <View style={styles.card}>
+            {CYCLE_PROFILES.map((profile, index) => {
+              const isSelected = cycleProfile === profile.id;
+              const isLast = index === CYCLE_PROFILES.length - 1;
+              return (
+                <View key={profile.id}>
+                  <TouchableOpacity
+                    style={styles.profileOptionRow}
+                    onPress={() => selectCycleProfile(profile.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.profileOptionEmoji}>{profile.emoji}</Text>
+                    <View style={styles.profileOptionContent}>
+                      <Text style={[
+                        styles.profileOptionLabel,
+                        isSelected && { color: colors.forestGreen },
+                      ]}>
+                        {profile.label}
+                      </Text>
+                      <Text style={styles.profileOptionDescription}>
+                        {profile.description}
+                      </Text>
+                    </View>
+                    <View style={[
+                      styles.radioOuter,
+                      isSelected && { borderColor: colors.forestGreen },
+                    ]}>
+                      {isSelected && <View style={styles.radioInner} />}
+                    </View>
+                  </TouchableOpacity>
+                  {!isLast && <View style={styles.divider} />}
+                </View>
+              );
+            })}
+          </View>
+
           {/* Features Section */}
           <Text style={styles.sectionHeader}>FEATURES</Text>
-
           <View style={styles.card}>
             <View style={styles.settingRow}>
               <View style={styles.settingLeft}>
-                <Text style={styles.settingLabel}>Cycle Tracking</Text>
+                <Text style={styles.settingLabel}>Rhythm Tracking</Text>
                 <Text style={styles.settingDescription}>
-                  Track your cycle and see how it affects glucose
+                  Show spiritual rhythm content on your dashboard
                 </Text>
               </View>
               <Switch
@@ -111,11 +199,10 @@ export default function SettingsScreen({ navigation }: Props) {
                 ios_backgroundColor="rgba(212,214,212,0.5)"
               />
             </View>
-
             {cycleTrackingEnabled && (
               <View style={styles.helperBox}>
                 <Text style={styles.helperText}>
-                  ✓ Cycle tracking enabled. Cycle card visible on dashboard.
+                  ✓ Rhythm tracking enabled. Content visible on dashboard.
                 </Text>
               </View>
             )}
@@ -123,7 +210,6 @@ export default function SettingsScreen({ navigation }: Props) {
 
           {/* Account Section */}
           <Text style={styles.sectionHeader}>ACCOUNT</Text>
-
           <View style={styles.card}>
             <TouchableOpacity
               style={styles.actionRow}
@@ -140,13 +226,7 @@ export default function SettingsScreen({ navigation }: Props) {
 
             <TouchableOpacity
               style={styles.actionRow}
-              onPress={() => {
-                Alert.alert(
-                  'Change Password',
-                  'Password change feature coming soon',
-                  [{ text: 'OK' }]
-                );
-              }}
+              onPress={() => Alert.alert('Change Password', 'Password change feature coming soon', [{ text: 'OK' }])}
             >
               <View style={styles.actionLeft}>
                 <Text style={styles.actionLabel}>Change Password</Text>
@@ -157,18 +237,16 @@ export default function SettingsScreen({ navigation }: Props) {
 
             <View style={styles.divider} />
 
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.actionRow}
-              onPress={() => {
-                Alert.alert(
-                  'Logout',
-                  'Are you sure you want to logout?',
-                  [
-                    { text: 'Cancel', style: 'cancel' },
-                    { text: 'Logout', style: 'destructive', onPress: logout }
-                  ]
-                );
-              }}
+              onPress={() => Alert.alert(
+                'Logout',
+                'Are you sure you want to logout?',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Logout', style: 'destructive', onPress: logout },
+                ]
+              )}
             >
               <View style={styles.actionLeft}>
                 <Text style={[styles.actionLabel, { color: '#EF4444' }]}>Logout</Text>
@@ -185,9 +263,7 @@ export default function SettingsScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -199,156 +275,62 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212,214,212,0.25)',
   },
-  backButton: {
-    paddingVertical: 8,
-  },
-  backText: {
-    color: '#6B7F6E',
-    fontSize: 15,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    letterSpacing: -0.2,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    paddingTop: 24,
-  },
+  backButton: { paddingVertical: 8 },
+  backText: { color: '#6B7F6E', fontSize: 15, fontWeight: '500', letterSpacing: 0.2 },
+  headerTitle: { fontSize: 20, fontWeight: '600', color: '#2B2B2B', letterSpacing: -0.2 },
+  content: { flex: 1 },
+  scrollContent: { padding: 20, paddingTop: 24 },
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: 'rgba(42,45,42,0.5)',
+    fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
+    textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)',
+    marginBottom: 6, marginTop: 16,
+  },
+  sectionDescription: {
+    fontSize: 13, color: 'rgba(42,45,42,0.5)', lineHeight: 18,
     marginBottom: 12,
-    marginTop: 16,
   },
-
-  // Card
   card: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 20, marginBottom: 16,
+    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
   },
-
-  // Profile
-  profileRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-  },
+  profileRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   profileAvatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 64, height: 64, borderRadius: 32,
     backgroundColor: 'rgba(107,127,110,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(107,127,110,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderWidth: 1, borderColor: 'rgba(107,127,110,0.2)',
+    justifyContent: 'center', alignItems: 'center',
   },
-  profileAvatarText: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: '#6B7F6E',
+  profileAvatarText: { fontSize: 26, fontWeight: '700', color: '#6B7F6E' },
+  profileInfo: { flex: 1 },
+  profileName: { fontSize: 20, fontWeight: '600', color: '#2B2B2B', marginBottom: 4, letterSpacing: 0.2 },
+  profileEmail: { fontSize: 14, color: 'rgba(42,45,42,0.5)', fontWeight: '400' },
+  profileOptionRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10,
   },
-  profileInfo: {
-    flex: 1,
+  profileOptionEmoji: { fontSize: 22, width: 32 },
+  profileOptionContent: { flex: 1 },
+  profileOptionLabel: { fontSize: 15, fontWeight: '600', color: '#2B2B2B', marginBottom: 2 },
+  profileOptionDescription: { fontSize: 12, color: 'rgba(42,45,42,0.5)', lineHeight: 16 },
+  radioOuter: {
+    width: 20, height: 20, borderRadius: 10,
+    borderWidth: 2, borderColor: 'rgba(212,214,212,0.8)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  profileName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 4,
-    letterSpacing: 0.2,
+  radioInner: {
+    width: 10, height: 10, borderRadius: 5,
+    backgroundColor: colors.forestGreen,
   },
-  profileEmail: {
-    fontSize: 14,
-    color: 'rgba(42,45,42,0.5)',
-    fontWeight: '400',
-  },
-
-  // Setting Row
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 14,
-  },
-  settingLeft: {
-    flex: 1,
-  },
-  settingLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 4,
-    letterSpacing: 0.2,
-  },
-  settingDescription: {
-    fontSize: 13,
-    color: 'rgba(42,45,42,0.5)',
-    lineHeight: 18,
-    fontWeight: '400',
-  },
-  helperBox: {
-    backgroundColor: 'rgba(107,127,110,0.08)',
-    borderRadius: 12,
-    padding: 14,
-    marginTop: 16,
-  },
-  helperText: {
-    fontSize: 13,
-    color: 'rgba(42,45,42,0.7)',
-    lineHeight: 18,
-    fontWeight: '400',
-  },
-
-  // Action Row
-  actionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 4,
-  },
-  actionLeft: {
-    flex: 1,
-  },
-  actionLabel: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#2B2B2B',
-    marginBottom: 4,
-    letterSpacing: 0.2,
-  },
-  actionDescription: {
-    fontSize: 13,
-    color: 'rgba(42,45,42,0.5)',
-    fontWeight: '400',
-  },
-  arrow: {
-    fontSize: 20,
-    color: 'rgba(42,45,42,0.3)',
-    fontWeight: '300',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(212,214,212,0.3)',
-    marginVertical: 16,
-  },
+  settingRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 },
+  settingLeft: { flex: 1 },
+  settingLabel: { fontSize: 16, fontWeight: '600', color: '#2B2B2B', marginBottom: 4, letterSpacing: 0.2 },
+  settingDescription: { fontSize: 13, color: 'rgba(42,45,42,0.5)', lineHeight: 18, fontWeight: '400' },
+  helperBox: { backgroundColor: 'rgba(107,127,110,0.08)', borderRadius: 12, padding: 14, marginTop: 16 },
+  helperText: { fontSize: 13, color: 'rgba(42,45,42,0.7)', lineHeight: 18, fontWeight: '400' },
+  actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 4 },
+  actionLeft: { flex: 1 },
+  actionLabel: { fontSize: 16, fontWeight: '600', color: '#2B2B2B', marginBottom: 4, letterSpacing: 0.2 },
+  actionDescription: { fontSize: 13, color: 'rgba(42,45,42,0.5)', fontWeight: '400' },
+  arrow: { fontSize: 20, color: 'rgba(42,45,42,0.3)', fontWeight: '300' },
+  divider: { height: 1, backgroundColor: 'rgba(212,214,212,0.3)', marginVertical: 16 },
 });
