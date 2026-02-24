@@ -25,7 +25,7 @@ const API_BASE = process.env.EXPO_PUBLIC_API_URL;
 
 interface Message {
   id: string;
-  content: string;
+  message: string;
   created_at: string;
   sender_id: string;
   sender: { id: string; first_name: string; last_name: string; email: string } | null;
@@ -201,7 +201,7 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
         )}
         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
           {!isMe && <Text style={styles.senderName}>{senderName}</Text>}
-          <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.content}</Text>
+          <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.message}</Text>
           <View style={styles.messageMeta}>
             <Text style={[styles.timeText, isMe && styles.timeTextMe]}>{time}</Text>
             {canDelete && (

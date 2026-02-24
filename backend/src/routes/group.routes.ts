@@ -501,7 +501,8 @@ router.post('/join', async (req, res) => {
     if (memberError) throw memberError;
 
     // Best-effort increment (non-blocking)
-   try { await supabase.rpc('increment_group_members', { group_id: group.id }); } catch {}
+    try { await supabase.rpc('increment_group_members', { group_id: group.id }); } catch {}
+
     res.status(201).json({
       membership,
       group: { id: group.id, name: group.name, description: group.description },
@@ -703,7 +704,7 @@ router.get('/:groupId/messages', async (req, res) => {
       .from('group_messages')
       .select(`
         id,
-        content,
+        message,
         created_at,
         sender_id,
         sender:users!group_messages_sender_id_fkey(
@@ -750,11 +751,11 @@ router.post('/:groupId/messages', async (req, res) => {
       .insert({
         group_id: groupId,
         sender_id: userId,
-        content: content.trim(),
+        message: content.trim(),
       })
       .select(`
         id,
-        content,
+        message,
         created_at,
         sender_id,
         sender:users!group_messages_sender_id_fkey(
