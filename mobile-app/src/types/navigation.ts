@@ -12,35 +12,26 @@ export type RootStackParamList = {
   AddGlucose: undefined;
   AddSymptom: undefined;
   LogCycle: undefined;
-  // Profile: undefined;
-  // HealthSync: undefined;    
   
   // Coach screens
   CoachDashboard: undefined;
   ClientDetail: { clientId: string };
 
-  
-  // Common screens navigated to from both user and coach
+  // Common screens
   Settings: undefined;
   Profile: undefined;
-
+  RhythmProfile: undefined;
 
   // Messaging screens 
   Conversations: undefined;
-  Messaging: { 
-    userId?: string;          // legacy 1:1 direct message
-    userName: string;         // display name always required
-    conversationId?: string;  // new coach-client conversation
-  };
+  Messaging: { userId?: string; userName: string; conversationId?: string };
   HealthSync: undefined;
 
-  // ========================================
-  // GROUP COACHING SCREENS (NEW - ADD THESE)
-  // ========================================
+  // Group coaching screens
   JoinGroup: undefined;
   GroupDashboard: { groupId: string };
   GroupSessions: { groupId: string };
-  SessionDetail: { groupId?: string; sessionId: string }; // groupId optional for standalone sessions
+  SessionDetail: { groupId?: string; sessionId: string };
   GroupChat: { groupId: string };
   GroupMembers: { groupId: string };
 };

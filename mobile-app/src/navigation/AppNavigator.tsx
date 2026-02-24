@@ -1,41 +1,35 @@
+// mobile-app/src/navigation/AppNavigator.tsx
 import React, { useEffect, useState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { useAuthStore } from '../stores/authStore';
 import type { RootStackParamList } from '../types/navigation';
-import { HealthSyncScreen } from '../screens/HealthSyncScreen';
+
+// Navigators
+import TabNavigator from './TabNavigator';
 
 // Auth Screens
 import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
-// User Screens
-import DashboardScreen from '../screens/DashboardScreen';
+// Stack screens pushed on top of tabs
 import AddGlucoseScreen from '../screens/AddGlucoseScreen';
 import AddSymptomScreen from '../screens/AddSymptomScreen';
 import { LogCycleScreen } from '../screens/LogCycleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
-
-// Coach Screens
-import CoachDashboardScreen from '../screens/CoachDashboardScreen';
-import ClientDetailScreen from '../screens/ClientDetailScreen';
-
-// Shared Screens
-import ConversationsScreen from '../screens/ConversationsScreen';
+import RhythmProfileScreen from '../screens/RhythmProfileScreen';
 import MessagingScreen from '../screens/MessagingScreen';
-
-// group coaching screens
+import { HealthSyncScreen } from '../screens/HealthSyncScreen';
 import JoinGroupScreen from '../screens/JoinGroupScreen';
 import GroupDashboardScreen from '../screens/GroupDashboardScreen';
 import SessionDetailScreen from '../screens/SessionDetailScreen';
 
-// Colors matching Dashboard
-const colors = {
-  sage: '#7A8B6F',
-  cream: '#FAF8F4',
-};
+// Coach Screens
+import CoachDashboardScreen from '../screens/CoachDashboardScreen';
+import ClientDetailScreen from '../screens/ClientDetailScreen';
+import ConversationsScreen from '../screens/ConversationsScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -44,127 +38,57 @@ export default function AppNavigator() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const initializeAuth = async () => {
-      await checkAuth();
-      setIsLoading(false);
-    };
-    
-    initializeAuth();
+    checkAuth().finally(() => setIsLoading(false));
   }, [checkAuth]);
 
-  // Loading screen
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.sage} />
+      <View style={styles.loading}>
+        <ActivityIndicator size="large" color="#6B7F6E" />
       </View>
     );
   }
 
-  // Determine if user is a coach
-  const isCoach = user?.role === 'coach' || false;
+  const isCoach = user?.role === 'coach';
 
   return (
     <NavigationContainer>
-      <Stack.Navigator
-        screenOptions={{
-          headerShown: false,
-          animation: 'slide_from_right',
-          contentStyle: { backgroundColor: colors.cream },
-        }}
-      >
+      <Stack.Navigator screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         {isAuthenticated ? (
-          // Authenticated Stack - Different based on role
           isCoach ? (
-            // Coach Stack
+            // ── Coach stack (unchanged) ──────────────────────────────
             <>
-              <Stack.Screen 
-                name="CoachDashboard" 
-                component={CoachDashboardScreen}
-              />
-              <Stack.Screen 
-                name="ClientDetail" 
-                component={ClientDetailScreen}
-              />
-              <Stack.Screen 
-                name="Conversations" 
-                component={ConversationsScreen}
-              />
-              <Stack.Screen 
-                name="Messaging" 
-                component={MessagingScreen}
-              />
+              <Stack.Screen name="CoachDashboard" component={CoachDashboardScreen} />
+              <Stack.Screen name="ClientDetail" component={ClientDetailScreen} />
+              <Stack.Screen name="Conversations" component={ConversationsScreen} />
+              <Stack.Screen name="Messaging" component={MessagingScreen} />
             </>
           ) : (
-            // User Stack
+            // ── User stack with tabs as root ─────────────────────────
             <>
-              <Stack.Screen 
-                name="Dashboard" 
-                component={DashboardScreen}
-              />
-              <Stack.Screen 
-                name="AddGlucose" 
-                component={AddGlucoseScreen}
-              />
-              <Stack.Screen 
-                name="AddSymptom" 
-                component={AddSymptomScreen}
-              />
-              <Stack.Screen 
-                name="LogCycle" 
-                component={LogCycleScreen}
-              />
-              <Stack.Screen 
-                name="Settings"
-                component={SettingsScreen}
-              />
-              <Stack.Screen 
-                name="Conversations" 
-                component={ConversationsScreen}
-              />
-              <Stack.Screen 
-                name="Messaging" 
-                component={MessagingScreen}
-              />
-              <Stack.Screen 
-                name="HealthSync" 
-                component={HealthSyncScreen}
-                options={{ title: 'Apple Health Sync' }}
-              />
-              <Stack.Screen 
-  name="JoinGroup" 
-  component={JoinGroupScreen}
-  options={{ headerShown: false }}
-/>
+              {/* Tabs live at root — no header */}
+              <Stack.Screen name="Dashboard" component={TabNavigator} />
 
-<Stack.Screen 
-  name="GroupDashboard" 
-  component={GroupDashboardScreen}
-  options={{ headerShown: false }}
-/>
-
-<Stack.Screen 
-  name="SessionDetail" 
-  component={SessionDetailScreen}
-  options={{ headerShown: false }}
-/>
+              {/* All modal/push screens sit on top of the tabs */}
+              <Stack.Screen name="AddGlucose" component={AddGlucoseScreen} />
+              <Stack.Screen name="AddSymptom" component={AddSymptomScreen} />
+              <Stack.Screen name="LogCycle" component={LogCycleScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="RhythmProfile" component={RhythmProfileScreen} />
+              <Stack.Screen name="Messaging" component={MessagingScreen} />
+              <Stack.Screen name="HealthSync" component={HealthSyncScreen} />
+              <Stack.Screen name="JoinGroup" component={JoinGroupScreen} />
+              <Stack.Screen name="GroupDashboard" component={GroupDashboardScreen} />
+              <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
+              <Stack.Screen name="Conversations" component={ConversationsScreen} />
             </>
           )
         ) : (
-          // Unauthenticated Stack - ForgotPassword belongs HERE ONLY
+          // ── Auth stack ───────────────────────────────────────────
           <>
-            <Stack.Screen 
-              name="Login" 
-              component={LoginScreen}
-            />
-            <Stack.Screen 
-              name="Register" 
-              component={RegisterScreen}
-            />
-            <Stack.Screen
-              name="ForgotPassword"
-              component={ForgotPasswordScreen}
-            />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           </>
         )}
       </Stack.Navigator>
@@ -173,10 +97,5 @@ export default function AppNavigator() {
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.cream,
-  },
+  loading: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FAF8F4' },
 });

@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { getRhythmForPhase, RHYTHM_PHASES, RhythmPhase } from '../data/rhythmData';
 import { colors } from '../theme/colors';
-import { CycleProfile } from '../screens/SettingsScreen';
+import { CycleProfile } from '../screens/RhythmProfileScreen';
 
 if (Platform.OS === 'android') {
   UIManager.setLayoutAnimationEnabledExperimental?.(true);
