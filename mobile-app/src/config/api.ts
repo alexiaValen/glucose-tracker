@@ -1,10 +1,12 @@
+// src/config/api.ts
 import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { authEvents, AUTH_LOGOUT_EVENT } from './authEvents';
 
 // Read from EAS / .env
 const API_URL = process.env.EXPO_PUBLIC_API_URL;
 
-// Fail fast if missing (prevents “silently calls localhost”)
+// Fail fast if missing (prevents "silently calls localhost")
 if (!API_URL) {
   throw new Error(
     'Missing EXPO_PUBLIC_API_URL. Set it in mobile-app/eas.json (production env) or mobile-app/.env (local dev).'
@@ -22,11 +24,11 @@ export const api = axios.create({
   timeout: 15000,
 });
 
-// Request interceptor
+// Request interceptor — reads from SecureStore (same place authService writes)
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
+      const token = await SecureStore.getItemAsync('accessToken');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }
@@ -63,26 +65,27 @@ api.interceptors.response.use(
       console.error(`❌ ${method} ${url}:`, error.message);
     }
 
-    // Handle 401 - token refresh
+    // Handle 401 — attempt token refresh once
     if (error.response?.status === 401 && !error.config?._retry) {
       error.config._retry = true;
 
       try {
-        const refreshToken = await AsyncStorage.getItem('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token');
+        const refreshToken = await SecureStore.getItemAsync('refreshToken');
+        if (!refreshToken) throw new Error('No refresh token available');
 
         const refreshRes = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
         const { accessToken } = refreshRes.data;
 
-        await AsyncStorage.setItem('accessToken', accessToken);
+        await SecureStore.setItemAsync('accessToken', accessToken);
 
         error.config.headers = error.config.headers ?? {};
         error.config.headers.Authorization = `Bearer ${accessToken}`;
 
         return api(error.config);
       } catch (refreshError) {
-        console.error('Token refresh failed:', refreshError);
+        console.error('Token refresh failed — forcing logout:', refreshError);
         await clearAuthToken();
+        authEvents.emit(AUTH_LOGOUT_EVENT);
         return Promise.reject(refreshError);
       }
     }
@@ -91,14 +94,15 @@ api.interceptors.response.use(
   }
 );
 
-// Helper functions
+// ─── Helper functions ─────────────────────────────────────────────────────────
+
 export const setAuthToken = async (token: string | null) => {
   try {
     if (token) {
-      await AsyncStorage.setItem('accessToken', token);
+      await SecureStore.setItemAsync('accessToken', token);
       console.log('✅ Auth token saved');
     } else {
-      await AsyncStorage.removeItem('accessToken');
+      await SecureStore.deleteItemAsync('accessToken');
       console.log('🗑️ Auth token removed');
     }
   } catch (error) {
@@ -108,7 +112,9 @@ export const setAuthToken = async (token: string | null) => {
 
 export const clearAuthToken = async () => {
   try {
-    await AsyncStorage.multiRemove(['accessToken', 'refreshToken', 'user']);
+    await SecureStore.deleteItemAsync('accessToken');
+    await SecureStore.deleteItemAsync('refreshToken');
+    await SecureStore.deleteItemAsync('user');
     console.log('🗑️ Auth tokens cleared');
   } catch (error) {
     console.error('Error clearing auth tokens:', error);
@@ -117,7 +123,7 @@ export const clearAuthToken = async () => {
 
 export const getAuthToken = async (): Promise<string | null> => {
   try {
-    return await AsyncStorage.getItem('accessToken');
+    return await SecureStore.getItemAsync('accessToken');
   } catch (error) {
     console.error('Error getting auth token:', error);
     return null;

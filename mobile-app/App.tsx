@@ -1,35 +1,19 @@
-// import { StatusBar } from 'expo-status-bar';
-// import { StyleSheet, Text, View } from 'react-native';
-
-// export default function App() {
-//   return (
-//     <View style={styles.container}>
-//       <Text>Open up App.tsx to start working on your app!</Text>
-//       <StatusBar style="auto" />
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#fff',
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-// });
-
-
-import React from 'react';
+// App.tsx
+import React, { useEffect } from 'react';
 import AppNavigator from './src/navigation/AppNavigator';
-// import { LogBox } from 'react-native';
-
-// // Ignore specific log notifications
-// LogBox.ignoreLogs([
-//   'Setting a timer for a long period of time',
-//   'VirtualizedLists should never be nested',
-// ]);
+import { authEvents, AUTH_LOGOUT_EVENT } from './src/config/authEvents';
+import { useAuthStore } from './src/stores/authStore';
 
 export default function App() {
+  useEffect(() => {
+    const handler = () => {
+      // Called when refresh token fails — clears zustand, navigator reacts to isAuthenticated: false
+      useAuthStore.getState().logout();
+    };
+
+    authEvents.on(AUTH_LOGOUT_EVENT, handler);
+    return () => { authEvents.off(AUTH_LOGOUT_EVENT, handler); };
+  }, []);
+
   return <AppNavigator />;
 }

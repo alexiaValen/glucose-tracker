@@ -21,17 +21,34 @@ export interface ClientDetail {
   email: string;
 }
 
+// Normalize the backend's snake_case response to the camelCase shape the app expects
+function normalizeClient(c: any): ClientSummary {
+  return {
+    id: c.id,
+    firstName: c.first_name ?? c.firstName ?? '',
+    lastName: c.last_name ?? c.lastName ?? '',
+    email: c.email ?? '',
+    lastActive: c.last_reading_at ?? c.lastActive ?? c.created_at ?? '',
+    recentStats: {
+      avgGlucose: c.recent_stats?.avg_glucose ?? c.recentStats?.avgGlucose ?? 0,
+      lastReading: c.recent_stats?.last_reading ?? c.recentStats?.lastReading ?? 0,
+      timeInRange: c.recent_stats?.time_in_range ?? c.recentStats?.timeInRange ?? 0,
+    },
+  };
+}
+
 export const coachService = {
   async getClients(): Promise<ClientSummary[]> {
     const response = await api.get('/coach/clients');
-    return response.data.clients || response.data;
+    const raw: any[] = response.data.clients ?? response.data ?? [];
+    return raw.map(normalizeClient);
   },
 
   async getClientGlucose(clientId: string, limit = 50) {
     const response = await api.get(`/coach/clients/${clientId}/glucose`, {
       params: { limit },
     });
-    return response.data.readings || response.data;
+    return response.data.readings ?? response.data;
   },
 
   async getClientStats(clientId: string, startDate?: string, endDate?: string) {
@@ -45,7 +62,7 @@ export const coachService = {
     const response = await api.get(`/coach/clients/${clientId}/symptoms`, {
       params: { limit },
     });
-    return response.data.symptoms || response.data;
+    return response.data.symptoms ?? response.data;
   },
 
   async getClientCycle(clientId: string) {
