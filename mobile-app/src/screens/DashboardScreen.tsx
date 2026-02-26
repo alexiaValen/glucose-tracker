@@ -15,7 +15,7 @@ import { useGlucoseStore } from '../stores/glucoseStore';
 import { useCycleStore } from '../stores/cycleStore';
 import { useSymptomStore } from '../stores/symptomStore';
 import { colors } from '../theme/colors';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/SimpleIcons';
 import { RhythmCard } from '../components/RhythmCard';
@@ -75,15 +75,15 @@ export default function DashboardScreen({ navigation }: Props) {
   };
 
   const loadSettings = async () => {
-    const enabled = await AsyncStorage.getItem('cycleTrackingEnabled');
+    const enabled = await SecureStore.getItemAsync('cycleTrackingEnabled');
     setCycleTrackingEnabled(enabled !== 'false');
-    const profile = await AsyncStorage.getItem(CYCLE_PROFILE_KEY);
+    const profile = await SecureStore.getItemAsync(CYCLE_PROFILE_KEY);
     if (profile) setCycleProfile(profile as CycleProfile);
   };
 
   const loadMyCoach = async () => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
+      const token = await SecureStore.getItemAsync('accessToken');
       const response = await fetch(`${API_BASE}/coach/my-coach`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -104,7 +104,7 @@ export default function DashboardScreen({ navigation }: Props) {
 
   const loadGroupMembership = async () => {
     try {
-      const token = await AsyncStorage.getItem('accessToken');
+      const token = await SecureStore.getItemAsync('accessToken');
       const response = await fetch(`${API_BASE}/groups/my-membership`, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
@@ -153,6 +153,16 @@ export default function DashboardScreen({ navigation }: Props) {
     if (severity <= 3) return 'rgba(107,127,110,0.4)';
     if (severity <= 6) return 'rgba(184,164,95,0.5)';
     return 'rgba(139,111,71,0.6)';
+  };
+
+  // Navigate to group chat — works from both group card and coach card
+  const navigateToGroupChat = () => {
+    if (!groupMembership) return;
+    const parent = navigation.getParent<any>();
+    parent?.navigate('GroupChat', {
+      groupId: groupMembership.group_id,
+      groupName: '12-Week Metabolic Reset',
+    });
   };
 
   return (
@@ -218,16 +228,10 @@ export default function DashboardScreen({ navigation }: Props) {
           {groupMembership ? (
             <View style={styles.enrolledSection}>
 
-              {/* Group Chat — navigates to root stack screen */}
+              {/* Group Chat */}
               <TouchableOpacity
                 style={styles.groupChatCard}
-                onPress={() => {
-                  const parent = navigation.getParent<any>();
-                  parent?.navigate('GroupChat', {
-                    groupId: groupMembership.group_id,
-                    groupName: '12-Week Metabolic Reset',
-                  });
-                }}
+                onPress={navigateToGroupChat}
                 activeOpacity={0.85}
               >
                 <Text style={styles.groupChatEmoji}>💬</Text>
@@ -237,21 +241,6 @@ export default function DashboardScreen({ navigation }: Props) {
                 </View>
                 <Text style={styles.groupChatArrow}>→</Text>
               </TouchableOpacity>
-
-              {/* Program card — commented out group name display for now */}
-              {/* <TouchableOpacity
-                style={styles.enrolledCard}
-                onPress={() => navigation.navigate('GroupDashboard', { groupId: groupMembership.group_id })}
-                activeOpacity={0.85}
-              >
-                <View style={styles.enrolledBadge}>
-                  <Text style={styles.enrolledBadgeText}>ENROLLED</Text>
-                </View>
-                <Text style={styles.enrolledTitle}>
-                  {groupMembership.group_name || '12-Week Metabolic Reset'}
-                </Text>
-                <Text style={styles.enrolledSubtitle}>Tap to view all sessions →</Text>
-              </TouchableOpacity> */}
 
               {/* Continue learning */}
               <View style={styles.sessionQuickAccess}>
@@ -292,32 +281,11 @@ export default function DashboardScreen({ navigation }: Props) {
             </TouchableOpacity>
           )}
 
-          {/* Coach Card */}
+          {/* Coach Card — taps into the group chat (same channel as the program) */}
           {myCoach && myCoach.firstName && (
             <TouchableOpacity
               style={styles.coachCard}
-              onPress={async () => {
-                try {
-                  const token = await AsyncStorage.getItem('accessToken');
-                  const response = await fetch(`${API_BASE}/conversations/get-or-create`, {
-                    method: 'POST',
-                    headers: {
-                      'Authorization': `Bearer ${token}`,
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ coach_id: myCoach.id, client_id: user?.id }),
-                  });
-                  const data = await response.json();
-                  navigation.navigate('Messaging', {
-                    conversationId: data.conversation?.id,
-                    userName: `${myCoach.firstName} ${myCoach.lastName || ''}`.trim(),
-                  });
-                } catch {
-                  navigation.navigate('Messaging', {
-                    userName: `${myCoach.firstName} ${myCoach.lastName || ''}`.trim(),
-                  });
-                }
-              }}
+              onPress={navigateToGroupChat}
               activeOpacity={0.85}
             >
               <View style={styles.coachAvatar}>
@@ -328,7 +296,7 @@ export default function DashboardScreen({ navigation }: Props) {
               <View style={styles.coachInfo}>
                 <Text style={styles.coachLabel}>YOUR COACH</Text>
                 <Text style={styles.coachName}>{myCoach.firstName} {myCoach.lastName || ''}</Text>
-                <Text style={styles.coachAction}>Message your coach</Text>
+                <Text style={styles.coachAction}>Message your coach →</Text>
               </View>
             </TouchableOpacity>
           )}
@@ -425,7 +393,6 @@ export default function DashboardScreen({ navigation }: Props) {
               )}
 
               {/* Rhythm Card — shows for everyone */}
-              {/* Regular: uses logged phase. Irregular/peri/menopause: feeling selector */}
               {(currentCycle || cycleProfile !== 'regular') && (
                 <RhythmCard
                   phase={currentCycle?.phase}
@@ -576,7 +543,7 @@ const styles = StyleSheet.create({
   coachInfo: { flex: 1 },
   coachLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)', marginBottom: 6 },
   coachName: { fontSize: 16, fontWeight: '600', letterSpacing: 0.2, color: '#2B2B2B', marginBottom: 4 },
-  coachAction: { fontSize: 14, fontWeight: '500', color: 'rgba(42,45,42,0.65)' },
+  coachAction: { fontSize: 14, fontWeight: '500', color: '#6B7F6E' },
   joinGroupButton: {
     backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 20, marginBottom: 16,
     flexDirection: 'row', alignItems: 'center',
