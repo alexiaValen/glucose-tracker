@@ -45,13 +45,11 @@ export default function DashboardScreen({ navigation }: Props) {
   const [refreshing, setRefreshing] = useState(false);
   const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
   const [cycleProfile, setCycleProfile] = useState<CycleProfile>('regular');
-  const [myCoach, setMyCoach] = useState<any>(null);
   const [groupMembership, setGroupMembership] = useState<any>(null);
 
   useEffect(() => {
     loadData();
     loadSettings();
-    loadMyCoach();
     loadGroupMembership();
   }, []);
 
@@ -79,27 +77,6 @@ export default function DashboardScreen({ navigation }: Props) {
     setCycleTrackingEnabled(enabled !== 'false');
     const profile = await SecureStore.getItemAsync(CYCLE_PROFILE_KEY);
     if (profile) setCycleProfile(profile as CycleProfile);
-  };
-
-  const loadMyCoach = async () => {
-    try {
-      const token = await SecureStore.getItemAsync('accessToken');
-      const response = await fetch(`${API_BASE}/coach/my-coach`, {
-        headers: { 'Authorization': `Bearer ${token}` },
-      });
-      const data = await response.json();
-      if (data.coach) {
-        setMyCoach({
-          id: data.coach.id,
-          email: data.coach.email,
-          firstName: data.coach.first_name,
-          lastName: data.coach.last_name,
-          role: data.coach.role,
-        });
-      }
-    } catch (error) {
-      console.log('No coach assigned');
-    }
   };
 
   const loadGroupMembership = async () => {
@@ -275,25 +252,7 @@ export default function DashboardScreen({ navigation }: Props) {
             </TouchableOpacity>
           )}
 
-          {/* Coach Card — taps into the group chat (same channel as the program) */}
-          {myCoach && myCoach.firstName && (
-            <TouchableOpacity
-              style={styles.coachCard}
-              onPress={navigateToGroupChat}
-              activeOpacity={0.85}
-            >
-              <View style={styles.coachAvatar}>
-                <Text style={styles.coachAvatarText}>
-                  {myCoach.firstName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.coachInfo}>
-                <Text style={styles.coachLabel}>YOUR COACH</Text>
-                <Text style={styles.coachName}>{myCoach.firstName} {myCoach.lastName || ''}</Text>
-                <Text style={styles.coachAction}>Message your coach →</Text>
-              </View>
-            </TouchableOpacity>
-          )}
+
 
           {/* Glucose Overview Card */}
           <View style={styles.card}>
