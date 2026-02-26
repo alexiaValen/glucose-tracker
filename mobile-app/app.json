@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "TLC",
-    "slug": "graceflow",
+    "slug": "tlc-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,7 +16,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.graceflow.app",
+      "bundleIdentifier": "com.tlc.app",
       "buildNumber": "3",
       "infoPlist": {
         "UIBackgroundModes": [
@@ -31,7 +31,7 @@
       }
     },
     "android": {
-      "package": "com.graceflow.app",
+      "package": "com.tlc.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#3D5540"
