@@ -183,12 +183,6 @@ export default function DashboardScreen({ navigation }: Props) {
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => navigation.navigate('Conversations')}
-            >
-              <Text style={styles.iconGlyph}>💬</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.iconButton}
               onPress={() => navigation.navigate('Settings')}
             >
               <Text style={styles.iconGlyph}>⚙️</Text>

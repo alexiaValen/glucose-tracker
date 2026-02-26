@@ -16,7 +16,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 import { colors } from '../theme/colors';
 import { useAuthStore } from '../stores/authStore';
@@ -59,12 +59,15 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
   useEffect(() => {
     checkRole();
     fetchMessages();
+    // Poll every 5s for new messages
+    const interval = setInterval(fetchMessages, 5000);
+    return () => clearInterval(interval);
   }, []);
 
-  const getToken = async () => AsyncStorage.getItem('accessToken');
+  // Read from SecureStore — same place tokens are written at login
+  const getToken = async () => SecureStore.getItemAsync('accessToken');
 
-  const checkRole = async () => {
-    // Coach is determined by user role from auth store
+  const checkRole = () => {
     setIsCoach(user?.role === 'coach');
   };
 
@@ -74,6 +77,10 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
       const res = await fetch(`${API_BASE}/groups/${groupId}/messages`, {
         headers: { Authorization: `Bearer ${token}` },
       });
+      if (!res.ok) {
+        console.error('fetchMessages failed:', res.status);
+        return;
+      }
       const data = await res.json();
       setMessages(data.messages || []);
     } catch (err) {
@@ -99,21 +106,31 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
     setSending(true);
+    const optimisticText = input.trim();
+    setInput('');
     try {
       const token = await getToken();
       const res = await fetch(`${API_BASE}/groups/${groupId}/messages`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: input.trim() }),
+        body: JSON.stringify({ content: optimisticText }),
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        console.error('Send failed:', res.status, err);
+        Alert.alert('Error', 'Failed to send message. Please try again.');
+        setInput(optimisticText); // restore text on failure
+        return;
+      }
       const data = await res.json();
       if (data.message) {
         setMessages((prev) => [...prev, data.message]);
-        setInput('');
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       }
     } catch (err) {
+      console.error('Send error:', err);
       Alert.alert('Error', 'Failed to send message');
+      setInput(optimisticText);
     } finally {
       setSending(false);
     }
@@ -189,7 +206,10 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
     const senderName = item.sender
       ? `${item.sender.first_name} ${item.sender.last_name}`.trim()
       : 'Unknown';
-    const time = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone });
+    const time = new Date(item.created_at).toLocaleTimeString([], {
+      hour: '2-digit', minute: '2-digit', hour12: true,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    });
     const canDelete = isMe || isCoach;
 
     return (
@@ -419,7 +439,6 @@ const styles = StyleSheet.create({
   },
   sendBtnDisabled: { backgroundColor: 'rgba(107,127,110,0.3)' },
   sendBtnText: { fontSize: 18, color: '#FFFFFF', fontWeight: '700' },
-  // Modal
   modal: { flex: 1, backgroundColor: '#FAF8F4' },
   modalHeader: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
