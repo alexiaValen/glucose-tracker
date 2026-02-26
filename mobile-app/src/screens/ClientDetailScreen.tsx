@@ -170,10 +170,10 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
                   <View style={styles.readingLeft}>
                     <Text style={[
                       styles.readingValue,
-                      { color: reading.glucose_level < 70 ? colors.red : 
-                                reading.glucose_level > 180 ? colors.warning : colors.sage }
+                      { color: (reading.value || reading.glucose_level) < 70 ? colors.red : 
+                                (reading.value || reading.glucose_level) > 180 ? colors.warning : colors.sage }
                     ]}>
-                      {reading.glucose_level}
+                      {reading.value || reading.glucose_level || '—'}
                     </Text>
                     <Text style={styles.readingUnit}>mg/dL</Text>
                   </View>

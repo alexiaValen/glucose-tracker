@@ -64,6 +64,9 @@ export default function AppNavigator() {
               <Stack.Screen name="ClientDetail" component={ClientDetailScreen} />
               <Stack.Screen name="Conversations" component={ConversationsScreen} />
               <Stack.Screen name="Messaging" component={MessagingScreen} />
+              <Stack.Screen name="GroupChat" component={GroupChatScreen} />
+              <Stack.Screen name="GroupDashboard" component={GroupDashboardScreen} />
+              <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
             </>
           ) : (
             // ── User stack with tabs as root ─────────────────────────
