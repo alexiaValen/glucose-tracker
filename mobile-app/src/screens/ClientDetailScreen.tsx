@@ -113,6 +113,15 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
             <Text style={styles.headerSubtitle}>{clientInfo?.email}</Text>
           </View>
           <TouchableOpacity
+            style={styles.previewButton}
+            onPress={() => navigation.navigate('ClientPreview', {
+              clientId,
+              clientName: `${clientInfo?.firstName || ''} ${clientInfo?.lastName || ''}`.trim(),
+            })}
+          >
+            <Text style={styles.previewButtonText}>👁 Preview</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
             style={styles.messageButton}
             onPress={() => navigation.navigate('Messaging', { 
               userId: clientId,
@@ -293,6 +302,16 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     fontSize: 13,
     color: colors.textLight,
+  },
+  previewButton: {
+    paddingHorizontal: 12, paddingVertical: 7,
+    borderRadius: 14,
+    backgroundColor: 'rgba(107,127,110,0.12)',
+    borderWidth: 1, borderColor: 'rgba(107,127,110,0.25)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  previewButtonText: {
+    fontSize: 12, fontWeight: '600', color: colors.forestGreen,
   },
   messageButton: {
     width: 44,

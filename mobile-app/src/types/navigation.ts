@@ -18,6 +18,7 @@ export type RootStackParamList = {
   // Coach screens
   CoachDashboard: undefined;
   ClientDetail: { clientId: string };
+  ClientPreview: { clientId: string; clientName: string };
 
   // Common
   Settings: undefined;

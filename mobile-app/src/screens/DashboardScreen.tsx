@@ -291,9 +291,9 @@ export default function DashboardScreen({ navigation }: Props) {
             {safeReadings.length > 0 && (
               <View style={styles.recentReading}>
                 <View style={styles.recentDot} />
-                <Text style={styles.recentText}>Latest: {safeReadings[0].glucose_level} mg/dL</Text>
+                <Text style={styles.recentText}>Latest: {safeReadings[0].value ?? safeReadings[0].glucose_level} mg/dL</Text>
                 <Text style={styles.recentTime}>
-                  {new Date(safeReadings[0].timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  {new Date(safeReadings[0].measured_at || safeReadings[0].timestamp || safeReadings[0].created_at || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </Text>
               </View>
             )}

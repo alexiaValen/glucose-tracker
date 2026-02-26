@@ -2,19 +2,29 @@
 export interface GlucoseReading {
   id: string;
   user_id: string;
-  glucose_level: number;
-  timestamp: string;
+  // API returns 'value'; legacy frontend used 'glucose_level'
+  value?: number;
+  glucose_level?: number;
+  // API returns 'measured_at'; legacy frontend used 'timestamp'
+  measured_at?: string;
+  timestamp?: string;
   notes?: string;
   source?: string;
+  unit?: string;
   meal_context?: string;
   created_at: string;
 }
 
 export interface CreateGlucoseRequest {
-  glucose_level: number;
-  timestamp: string;
+  // Accept both field name conventions
+  value?: number;
+  glucose_level?: number;
+  measuredAt?: string;
+  measured_at?: string;
+  timestamp?: string;
   notes?: string;
   source?: string;
+  unit?: string;
   meal_context?: string;
 }
 

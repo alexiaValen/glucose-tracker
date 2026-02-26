@@ -25,7 +25,8 @@ const API_BASE = process.env.EXPO_PUBLIC_API_URL;
 
 interface Message {
   id: string;
-  message: string;
+  content: string;
+  message?: string; // legacy fallback
   created_at: string;
   sender_id: string;
   sender: { id: string; first_name: string; last_name: string; email: string } | null;
@@ -225,10 +226,18 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
     const senderName = item.sender
       ? `${item.sender.first_name} ${item.sender.last_name}`.trim()
       : 'Unknown';
-    const time = new Date(item.created_at).toLocaleTimeString([], {
-      hour: '2-digit', minute: '2-digit', hour12: true,
-      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    });
+    const msgDate = new Date(item.created_at);
+    const now = new Date();
+    const diffMs = now.getTime() - msgDate.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+    let time: string;
+    if (diffMins < 1) time = 'Just now';
+    else if (diffMins < 60) time = `${diffMins}m ago`;
+    else if (diffHours < 24) time = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    else if (diffDays < 7) time = msgDate.toLocaleDateString([], { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
+    else time = msgDate.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
     const canDelete = isMe || isCoach;
 
     return (
@@ -255,7 +264,7 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
               </Text>
             </View>
           )}
-          <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.message}</Text>
+          <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.content || item.message}</Text>
           <View style={styles.messageMeta}>
             <Text style={[styles.timeText, isMe && styles.timeTextMe]}>{time}</Text>
             {canDelete && (
@@ -351,29 +360,10 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
               </TouchableOpacity>
             </View>
 
-            {/* Add member */}
-            <View style={styles.addMemberRow}>
-              <TextInput
-                style={styles.addMemberInput}
-                value={addEmail}
-                onChangeText={setAddEmail}
-                placeholder="Add by email address"
-                placeholderTextColor={colors.textMuted}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <TouchableOpacity
-                style={[styles.addBtn, (!addEmail.trim() || addingMember) && styles.addBtnDisabled]}
-                onPress={addMember}
-                disabled={!addEmail.trim() || addingMember}
-              >
-                <Text style={styles.addBtnText}>{addingMember ? '...' : 'Add'}</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.memberList}>
-              {members.length === 0 && (
-                <Text style={styles.noMembers}>No members yet</Text>
+            <ScrollView style={styles.memberList} contentContainerStyle={{ paddingBottom: 40 }}>
+              {/* Current members */}
+              {members.length > 0 && (
+                <Text style={styles.memberSectionLabel}>CURRENT MEMBERS</Text>
               )}
               {members.map((member) => (
                 <View key={member.id} style={styles.memberRow}>
@@ -396,6 +386,32 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
                   </TouchableOpacity>
                 </View>
               ))}
+
+              {/* Add member by email */}
+              <Text style={[styles.memberSectionLabel, { marginTop: members.length > 0 ? 24 : 8 }]}>
+                ADD MEMBER
+              </Text>
+              <View style={styles.addMemberRow}>
+                <TextInput
+                  style={styles.addMemberInput}
+                  value={addEmail}
+                  onChangeText={setAddEmail}
+                  placeholder="Email address"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  style={[styles.addBtn, (!addEmail.trim() || addingMember) && styles.addBtnDisabled]}
+                  onPress={addMember}
+                  disabled={!addEmail.trim() || addingMember}
+                >
+                  <Text style={styles.addBtnText}>{addingMember ? '...' : 'Add'}</Text>
+                </TouchableOpacity>
+              </View>
+              {members.length === 0 && (
+                <Text style={styles.noMembers}>No members yet — add someone above</Text>
+              )}
             </ScrollView>
           </View>
         </Modal>
@@ -514,6 +530,11 @@ const styles = StyleSheet.create({
   addBtnDisabled: { backgroundColor: 'rgba(107,127,110,0.3)' },
   addBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
   memberList: { flex: 1, padding: 16 },
+  memberSectionLabel: {
+    fontSize: 11, fontWeight: '600', letterSpacing: 1.1,
+    color: colors.textMuted, textTransform: 'uppercase',
+    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8,
+  },
   noMembers: { textAlign: 'center', color: colors.textMuted, marginTop: 40, fontSize: 15 },
   memberRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
