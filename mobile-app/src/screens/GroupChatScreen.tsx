@@ -48,6 +48,7 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
   const [members, setMembers] = useState<Member[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [coachId, setCoachId] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
   const [isCoach, setIsCoach] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
@@ -59,6 +60,7 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
   useEffect(() => {
     checkRole();
     fetchMessages();
+    fetchGroupDetails();
     // Poll every 5s for new messages
     const interval = setInterval(fetchMessages, 5000);
     return () => clearInterval(interval);
@@ -69,6 +71,22 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
 
   const checkRole = () => {
     setIsCoach(user?.role === 'coach');
+  };
+
+  const fetchGroupDetails = async () => {
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE}/groups/${groupId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      // group object has coach_id field
+      if (data.group?.coach_id) setCoachId(data.group.coach_id);
+      else if (data.coach_id) setCoachId(data.coach_id);
+    } catch (err) {
+      console.log('Could not fetch group details for coach highlight');
+    }
   };
 
   const fetchMessages = async () => {
@@ -203,6 +221,7 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
 
   const renderMessage = ({ item }: { item: Message }) => {
     const isMe = item.sender_id === user?.id;
+    const isCoachMessage = !isMe && coachId && item.sender_id === coachId;
     const senderName = item.sender
       ? `${item.sender.first_name} ${item.sender.last_name}`.trim()
       : 'Unknown';
@@ -215,12 +234,27 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
     return (
       <View style={[styles.messageRow, isMe && styles.messageRowMe]}>
         {!isMe && (
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{senderName.charAt(0).toUpperCase()}</Text>
+          <View style={[styles.avatar, isCoachMessage && styles.avatarCoach]}>
+            {isCoachMessage ? (
+              <Text style={styles.avatarLeaf}>🌿</Text>
+            ) : (
+              <Text style={styles.avatarText}>{senderName.charAt(0).toUpperCase()}</Text>
+            )}
           </View>
         )}
-        <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
-          {!isMe && <Text style={styles.senderName}>{senderName}</Text>}
+        <View style={[
+          styles.bubble,
+          isMe ? styles.bubbleMe : styles.bubbleThem,
+          isCoachMessage && styles.bubbleCoach,
+        ]}>
+          {!isMe && (
+            <View style={styles.senderRow}>
+              {isCoachMessage && <Text style={styles.coachLeafInline}>🌿 </Text>}
+              <Text style={[styles.senderName, isCoachMessage && styles.senderNameCoach]}>
+                {senderName}{isCoachMessage ? ' · Coach' : ''}
+              </Text>
+            </View>
+          )}
           <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.message}</Text>
           <View style={styles.messageMeta}>
             <Text style={[styles.timeText, isMe && styles.timeTextMe]}>{time}</Text>
@@ -401,6 +435,12 @@ const styles = StyleSheet.create({
     width: 32, height: 32, borderRadius: 16,
     backgroundColor: 'rgba(107,127,110,0.15)', alignItems: 'center', justifyContent: 'center',
   },
+  avatarCoach: {
+    backgroundColor: 'rgba(107,127,110,0.25)',
+    borderWidth: 1.5,
+    borderColor: colors.sage,
+  },
+  avatarLeaf: { fontSize: 16 },
   avatarText: { fontSize: 13, fontWeight: '700', color: colors.forestGreen },
   bubble: {
     maxWidth: '75%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
@@ -410,11 +450,20 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 4,
     borderWidth: 1, borderColor: 'rgba(212,214,212,0.3)',
   },
+  bubbleCoach: {
+    backgroundColor: 'rgba(107,127,110,0.08)',
+    borderColor: 'rgba(107,127,110,0.25)',
+    borderWidth: 1.5,
+    borderBottomLeftRadius: 4,
+  },
   bubbleMe: {
     backgroundColor: colors.forestGreen,
     borderBottomRightRadius: 4,
   },
-  senderName: { fontSize: 11, fontWeight: '700', color: colors.sage, marginBottom: 3 },
+  senderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
+  coachLeafInline: { fontSize: 11 },
+  senderName: { fontSize: 11, fontWeight: '700', color: colors.sage },
+  senderNameCoach: { color: colors.forestGreen },
   messageText: { fontSize: 15, color: colors.textDark, lineHeight: 21 },
   messageTextMe: { color: '#FFFFFF' },
   messageMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
