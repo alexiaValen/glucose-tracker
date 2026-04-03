@@ -9,16 +9,16 @@ import {
 
 const router = Router();
 
-// Coach assigns lesson
-router.post("/", requireUser, createLesson);
+// ✅ Coach assigns lesson
+router.post("/assign", requireUser, createLesson);
 
-// Client fetches their lessons
+// ✅ Client fetches their lessons
 router.get("/me", requireUser, getClientLessons);
 
-// Mark viewed
+// ✅ Mark viewed
 router.patch("/:id/viewed", requireUser, markLessonViewed);
 
-// Mark completed
+// ✅ Mark completed
 router.patch("/:id/completed", requireUser, markLessonCompleted);
 
 export default router;
