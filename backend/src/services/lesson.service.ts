@@ -3,7 +3,8 @@ import { supabase } from "../config/database";
 
 export const createLesson = async (req: Request, res: Response) => {
   const { title, description, content_url, client_id } = req.body;
-  const coach_id = (req as any).user.id;
+  const user = (req as any).user;
+const coach_id = user?.id ?? user?.userId;
 
   const { data, error } = await supabase
     .from("lessons")
@@ -19,17 +20,35 @@ export const createLesson = async (req: Request, res: Response) => {
 };
 
 export const getClientLessons = async (req: Request, res: Response) => {
-  const user_id = (req as any).user.id;
+  try {
+    const user = (req as any).user;
 
-  const { data, error } = await supabase
-    .from("lessons")
-    .select("*")
-    .eq("client_id", user_id)
-    .order("created_at", { ascending: false });
+    // 🔥 Handle both possible shapes safely
+    const user_id = user?.id ?? user?.userId;
 
-  if (error) return res.status(400).json({ error: error.message });
+    if (!user_id) {
+      console.error("❌ No user ID found in request:", user);
+      return res.status(401).json({ error: "Not authenticated" });
+    }
 
-  res.json(data);
+    console.log("👤 LESSON USER ID:", user_id);
+
+    const { data, error } = await supabase
+      .from("lessons")
+      .select("*")
+      .eq("client_id", user_id)
+      .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json(data);
+  } catch (err) {
+    console.error("❌ getClientLessons error:", err);
+    res.status(500).json({ error: "Failed to fetch lessons" });
+  }
 };
 
 export const markLessonViewed = async (req: Request, res: Response) => {
