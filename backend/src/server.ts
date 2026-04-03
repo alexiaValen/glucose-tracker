@@ -14,6 +14,7 @@ import messagesRoutes from "./routes/messages";
 import groupRoutes from "./routes/group.routes";
 import conversationRoutes from "./routes/conversation.routes";
 import groupMessageRoutes from "./routes/group_message_routes";
+import lessonRoutes from "./routes/lesson.routes";
 
 dotenv.config();
 
@@ -86,6 +87,7 @@ app.use("/api/v1/messages", messagesRoutes);
 app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/groups", groupRoutes);
 app.use("/api/v1/group-messages", groupMessageRoutes);
+app.use("/api/v1/lessons", lessonRoutes);
 
 // ==================== ERROR HANDLERS ====================
 app.use((_req, res) => {
