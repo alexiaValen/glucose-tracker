@@ -25,6 +25,19 @@ import { CYCLE_PROFILE_KEY, CycleProfile } from './RhythmProfileScreen';
 import { QuickLogActions } from '../components/QuickLogActions';
 import { ViewingBanner } from '../components/ViewingBanner';
 
+// === LESSON SYSTEM IMPORTS ===
+// Fetch lessons from backend
+import { getMyLessons } from "../services/lessonService";
+
+// UI component for displaying lesson
+//import LessonCard from "../components/LessonCard";
+
+// Type (optional but recommended)
+import { Lesson } from "../types/lesson";
+import LessonCard from '../components/LessonCard';
+
+
+
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
 if (!API_BASE) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
@@ -34,6 +47,14 @@ type Props = {
 
 export default function DashboardScreen({ navigation }: Props) {
   const { user } = useAuthStore();
+
+  // === LESSON STATE ===
+// Holds the latest lesson assigned to the user
+const [lesson, setLesson] = useState<Lesson | null>(null);
+
+// Optional loading state (useful later for skeletons/spinners)
+const [loadingLesson, setLoadingLesson] = useState(true);
+
   const { readings, stats, fetchReadings, fetchStats } = useGlucoseStore();
   const { currentCycle, fetchCurrentCycle } = useCycleStore();
   const { symptoms, fetchSymptoms } = useSymptomStore();
@@ -45,6 +66,26 @@ export default function DashboardScreen({ navigation }: Props) {
   const [cycleTrackingEnabled, setCycleTrackingEnabled] = useState(true);
   const [cycleProfile, setCycleProfile] = useState<CycleProfile>('regular');
   const [groupMembership, setGroupMembership] = useState<any>(null);
+
+  // === LOAD LATEST LESSON ===
+// This runs once when the screen mounts
+useEffect(() => {
+  if (!user) return;
+
+  const loadLesson = async () => {
+    try {
+      const res = await getMyLessons();
+      const latest = res.data?.[0];
+      setLesson(latest || null);
+    } catch (err) {
+      console.error("❌ Failed to load lesson:", err);
+    } finally {
+      setLoadingLesson(false);
+    }
+  };
+
+  loadLesson();
+}, [user]);
 
   useEffect(() => {
     loadAll();
@@ -199,55 +240,87 @@ export default function DashboardScreen({ navigation }: Props) {
             </View>
           )}
 
-          {/* ── SECONDARY: Program guidance ── */}
-          {groupMembership ? (
-            <View style={styles.programSection}>
-              {/* Current lesson — "what to do next" */}
-              <TouchableOpacity
-                style={styles.lessonCard}
-                onPress={() => navigation.navigate('SessionDetail', {
-                  groupId: groupMembership.group_id,
-                  sessionId: '1',
-                })}
-                activeOpacity={0.85}
-              >
-                <View style={styles.lessonIcon}>
-                  <Text style={styles.lessonIconText}>✨</Text>
-                </View>
-                <View style={styles.lessonContent}>
-                  <Text style={styles.lessonEyebrow}>CONTINUE · WEEK 1</Text>
-                  <Text style={styles.lessonTitle}>Holy — Set Apart by Christ</Text>
-                </View>
-                <Text style={styles.lessonArrow}>→</Text>
-              </TouchableOpacity>
+          {/* ── SECONDARY: Program / Guidance (LESSON SYSTEM) ── */}
+{groupMembership ? (
+  <View style={styles.programSection}>
 
-              {/* Group chat — smaller, secondary */}
-              <TouchableOpacity
-                style={styles.groupChatRow}
-                onPress={navigateToGroupChat}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.groupChatRowEmoji}>💬</Text>
-                <Text style={styles.groupChatRowText}>12-Week Metabolic Reset · Group Chat</Text>
-                <Text style={styles.groupChatRowArrow}>→</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.joinCard}
-              onPress={() => navigation.navigate('JoinGroup')}
-              activeOpacity={0.85}
-            >
-              <View style={styles.joinIcon}>
-                <Text style={styles.joinEmoji}>🌿</Text>
-              </View>
-              <View style={styles.joinContent}>
-                <Text style={styles.joinTitle}>12-Week Metabolic Reset</Text>
-                <Text style={styles.joinSub}>Join your program</Text>
-              </View>
-              <Text style={styles.joinArrow}>→</Text>
-            </TouchableOpacity>
-          )}
+
+{__DEV__ && (
+  <Text>
+    Lesson debug: {lesson ? "FOUND" : "NONE"}
+  </Text>
+)}
+
+
+    {/* 
+      🔥 LESSON CARD (PRIMARY ACTION)
+      This replaces the old hardcoded "lesson" card.
+
+      Behavior:
+      - Pulls from backend (Supabase via API)
+      - Always shows the MOST RECENT lesson
+      - Represents "what the user should do next"
+    */}
+    {lesson && (
+      <LessonCard
+        lesson={lesson}
+        onOpen={() => {
+          if (!lesson) return;
+          navigation.navigate("LessonDetail", { lesson });
+        }}
+      />
+    )}
+
+    {/* 
+      💬 GROUP CHAT (SECONDARY ACTION)
+      Lower priority than lesson
+    */}
+    <TouchableOpacity
+      style={styles.groupChatRow}
+      onPress={navigateToGroupChat}
+      activeOpacity={0.8}
+    >
+      <Text style={styles.groupChatRowEmoji}>💬</Text>
+      <Text style={styles.groupChatRowText}>
+        12-Week Metabolic Reset · Group Chat
+      </Text>
+      <Text style={styles.groupChatRowArrow}>→</Text>
+    </TouchableOpacity>
+
+  </View>
+) : (
+  /* 
+    🌿 NOT ENROLLED STATE
+    Show join CTA instead of lesson
+  */
+  <TouchableOpacity
+    style={styles.joinCard}
+    onPress={() => navigation.navigate('JoinGroup')}
+    activeOpacity={0.85}
+  >
+    <View style={styles.joinIcon}>
+      <Text style={styles.joinEmoji}>🌿</Text>
+    </View>
+    <View style={styles.joinContent}>
+      <Text style={styles.joinTitle}>12-Week Metabolic Reset</Text>
+      <Text style={styles.joinSub}>Join your program</Text>
+    </View>
+    <Text style={styles.joinArrow}>→</Text>
+  </TouchableOpacity>
+)}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
           {/* ── SECONDARY: Rhythm (cycle-aware, one card) ── */}
           {cycleTrackingEnabled && (

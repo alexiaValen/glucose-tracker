@@ -14,6 +14,7 @@ export type RootStackParamList = {
   AddGlucose: undefined;
   AddSymptom: undefined;
   LogCycle: undefined;
+  LessonDetail: { lesson: any };
 
   // Coach screens
   CoachDashboard: undefined;
