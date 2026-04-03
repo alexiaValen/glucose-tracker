@@ -1,4 +1,6 @@
 // mobile-app/src/screens/DashboardScreen.tsx
+// BUILD 3: Home screen hierarchy refactor
+// Primary → Log Today | Secondary → Program/Guidance | Tertiary → Stats
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -17,24 +19,21 @@ import { useSymptomStore } from '../stores/symptomStore';
 import { colors } from '../theme/colors';
 import * as SecureStore from 'expo-secure-store';
 import { BotanicalBackground } from '../components/BotanicalBackground';
-import { SignalRingThin, AxisMarker, SeverityContinuum } from '../components/SimpleIcons';
+import { SignalRingThin } from '../components/SimpleIcons';
 import { RhythmCard } from '../components/RhythmCard';
-import { CYCLE_PROFILE_KEY, CycleProfile } from '../screens/RhythmProfileScreen';
+import { CYCLE_PROFILE_KEY, CycleProfile } from './RhythmProfileScreen';
+import { QuickLogActions } from '../components/QuickLogActions';
+import { ViewingBanner } from '../components/ViewingBanner';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
+if (!API_BASE) throw new Error('Missing EXPO_PUBLIC_API_URL');
 
-if (!API_BASE) {
-  throw new Error('Missing EXPO_PUBLIC_API_URL');
-}
-
-type DashboardScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
-
-interface Props {
-  navigation: DashboardScreenNavigationProp;
-}
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'Dashboard'>;
+};
 
 export default function DashboardScreen({ navigation }: Props) {
-  const { user, logout } = useAuthStore();
+  const { user } = useAuthStore();
   const { readings, stats, fetchReadings, fetchStats } = useGlucoseStore();
   const { currentCycle, fetchCurrentCycle } = useCycleStore();
   const { symptoms, fetchSymptoms } = useSymptomStore();
@@ -48,28 +47,23 @@ export default function DashboardScreen({ navigation }: Props) {
   const [groupMembership, setGroupMembership] = useState<any>(null);
 
   useEffect(() => {
-    loadData();
-    loadSettings();
-    loadGroupMembership();
+    loadAll();
   }, []);
 
-  // Refresh settings when returning from Settings or RhythmProfile screens
   useEffect(() => {
     const unsub = navigation.addListener('focus', loadSettings);
     return unsub;
   }, [navigation]);
 
-  const loadData = async () => {
-    try {
-      await Promise.all([
-        fetchReadings(),
-        fetchStats(),
-        fetchCurrentCycle(),
-        fetchSymptoms(),
-      ]);
-    } catch (error) {
-      console.error('loadData error:', error);
-    }
+  const loadAll = async () => {
+    await Promise.all([
+      fetchReadings(),
+      fetchStats(),
+      fetchCurrentCycle(),
+      fetchSymptoms(),
+      loadSettings(),
+      loadGroupMembership(),
+    ]);
   };
 
   const loadSettings = async () => {
@@ -82,61 +76,60 @@ export default function DashboardScreen({ navigation }: Props) {
   const loadGroupMembership = async () => {
     try {
       const token = await SecureStore.getItemAsync('accessToken');
-      const response = await fetch(`${API_BASE}/groups/my-membership`, {
-        headers: { 'Authorization': `Bearer ${token}` },
+      const res = await fetch(`${API_BASE}/groups/my-membership`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await response.json();
-
+      const data = await res.json();
       if (data.membership) {
         setGroupMembership(data.membership);
-      } else {
-        // Auto-enroll into the 12-Week Metabolic Reset Program silently
-        try {
-          await fetch(`${API_BASE}/groups/join`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accessCode: 'HFR-FEB2025', paymentType: 'founding' }),
-          });
-          // Re-fetch after joining
-          const retry = await fetch(`${API_BASE}/groups/my-membership`, {
-            headers: { 'Authorization': `Bearer ${token}` },
-          });
-          const retryData = await retry.json();
-          if (retryData.membership) setGroupMembership(retryData.membership);
-        } catch {
-          // Silent fail — user sees fallback card
-        }
+        return;
       }
-    } catch (error) {
+      // Silent auto-enroll
+      try {
+        await fetch(`${API_BASE}/groups/join`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessCode: 'HFR-FEB2025', paymentType: 'founding' }),
+        });
+        const retry = await fetch(`${API_BASE}/groups/my-membership`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const retryData = await retry.json();
+        if (retryData.membership) setGroupMembership(retryData.membership);
+      } catch { /* silent fail */ }
+    } catch {
       setGroupMembership(null);
     }
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await loadData();
-    await loadGroupMembership();
+    await loadAll();
     setRefreshing(false);
   };
 
-  const getGlucoseStatusText = () => {
-    const avg = stats?.average || stats?.avgGlucose || 0;
-    if (avg < 70) return 'LOW';
-    if (avg > 180) return 'HIGH';
-    return 'IN RANGE';
-  };
+  // ── Derived values ────────────────────────────────────────────────────────
+  const avg = Math.round(stats?.average || stats?.avgGlucose || 0);
+  const inRange = Math.round(stats?.in_range_percentage || stats?.timeInRange || 0);
+  const latestReading = safeReadings[0];
+  const latestVal = latestReading
+    ? (latestReading.value ?? latestReading.glucose_level ?? 0)
+    : null;
 
-  const getSeverityColor = (severity: number) => {
-    if (severity <= 3) return 'rgba(107,127,110,0.4)';
-    if (severity <= 6) return 'rgba(184,164,95,0.5)';
-    return 'rgba(139,111,71,0.6)';
-  };
+  const glucoseColor =
+    latestVal == null ? colors.textMuted
+    : latestVal < 70  ? '#E05C5C'
+    : latestVal > 180 ? '#E09A3A'
+    : colors.forestGreen;
 
-  // Navigate to group chat — works from both group card and coach card
+  const getSeverityColor = (s: number) =>
+    s <= 3 ? 'rgba(107,127,110,0.5)'
+    : s <= 6 ? 'rgba(184,164,95,0.7)'
+    : 'rgba(139,111,71,0.8)';
+
   const navigateToGroupChat = () => {
     if (!groupMembership) return;
-    const parent = navigation.getParent<any>();
-    parent?.navigate('GroupChat', {
+    navigation.getParent<any>()?.navigate('GroupChat', {
       groupId: groupMembership.group_id,
       groupName: '12-Week Metabolic Reset',
     });
@@ -145,26 +138,23 @@ export default function DashboardScreen({ navigation }: Props) {
   return (
     <BotanicalBackground variant="3d" intensity="medium">
       <View style={styles.container}>
+        <ViewingBanner />
 
-        {/* Header */}
+        {/* ── Header ── */}
         <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <View style={styles.greetingContainer}>
-              <SignalRingThin size={20} muted="rgba(107,127,110,0.15)" />
-              <View>
-                <Text style={styles.greetingLight}>Hello</Text>
-                <Text style={styles.greetingBold}>{user?.firstName || 'there'}</Text>
-              </View>
+          <View style={styles.greetingContainer}>
+            <SignalRingThin size={20} muted="rgba(107,127,110,0.15)" />
+            <View>
+              <Text style={styles.greetingLight}>Hello</Text>
+              <Text style={styles.greetingBold}>{user?.firstName || 'there'}</Text>
             </View>
           </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              onPress={() => navigation.navigate('Settings')}
-            >
-              <Text style={styles.iconGlyph}>⚙️</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.iconButton}
+            onPress={() => navigation.navigate('Settings')}
+          >
+            <Text style={styles.iconGlyph}>⚙️</Text>
+          </TouchableOpacity>
         </View>
 
         <ScrollView
@@ -175,177 +165,103 @@ export default function DashboardScreen({ navigation }: Props) {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#6B7F6E" />
           }
         >
-          {/* Quick Actions */}
-          <View style={styles.quickActions}>
-            <TouchableOpacity
-              style={styles.primaryButton}
-              onPress={() => navigation.navigate('AddGlucose')}
-              activeOpacity={0.85}
-            >
-              <AxisMarker size={20} color="#FFFFFF" />
-              <Text style={styles.primaryButtonText}>Log glucose</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.secondaryButton}
-              onPress={() => navigation.navigate('AddSymptom')}
-              activeOpacity={0.85}
-            >
-              <SeverityContinuum size={20} color="#2B2B2B" muted="#CFC9BF" />
-              <Text style={styles.secondaryButtonText}>Log symptoms</Text>
-            </TouchableOpacity>
-          </View>
 
-          {/* Group Program Card — auto-enrolled into 12-Week Metabolic Reset */}
-          {groupMembership ? (
-            <View style={styles.enrolledSection}>
+          {/* ── PRIMARY: Log Today ── */}
+          <QuickLogActions
+            onLogGlucose={() => navigation.navigate('AddGlucose')}
+            onLogSymptoms={() => navigation.navigate('AddSymptom')}
+            onLogCycle={() => navigation.navigate('LogCycle')}
+          />
 
-              {/* Group Chat */}
-              <TouchableOpacity
-                style={styles.groupChatCard}
-                onPress={navigateToGroupChat}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.groupChatEmoji}>💬</Text>
-                <View style={styles.groupChatContent}>
-                  <Text style={styles.groupChatLabel}>GROUP CHAT</Text>
-                  <Text style={styles.groupChatName}>12-Week Metabolic Reset</Text>
+          {/* ── SECONDARY: Glucose snapshot — compact, not a full card ── */}
+          {(latestVal !== null || avg > 0) && (
+            <View style={styles.glucoseSnapshot}>
+              <View style={styles.snapshotLeft}>
+                <Text style={styles.snapshotLabel}>LATEST GLUCOSE</Text>
+                <View style={styles.snapshotValueRow}>
+                  <Text style={[styles.snapshotValue, { color: glucoseColor }]}>
+                    {latestVal ?? avg}
+                  </Text>
+                  <Text style={styles.snapshotUnit}>mg/dL</Text>
                 </View>
-                <Text style={styles.groupChatArrow}>→</Text>
-              </TouchableOpacity>
-
-              {/* Continue learning */}
-              <View style={styles.sessionQuickAccess}>
-                <Text style={styles.sessionQuickLabel}>CONTINUE LEARNING</Text>
-                <TouchableOpacity
-                  style={styles.sessionQuickCard}
-                  onPress={() => navigation.navigate('SessionDetail', {
-                    groupId: groupMembership.group_id,
-                    sessionId: '1',
-                  })}
-                  activeOpacity={0.85}
-                >
-                  <View style={styles.sessionQuickIcon}>
-                    <Text style={styles.sessionQuickIconText}>✨</Text>
-                  </View>
-                  <View style={styles.sessionQuickInfo}>
-                    <Text style={styles.sessionQuickNumber}>WEEK 1</Text>
-                    <Text style={styles.sessionQuickTitle}>Holy — Set Apart by Christ</Text>
-                  </View>
-                  <Text style={styles.sessionQuickArrow}>→</Text>
-                </TouchableOpacity>
+              </View>
+              <View style={styles.snapshotDivider} />
+              <View style={styles.snapshotRight}>
+                <View style={styles.snapshotStat}>
+                  <Text style={styles.snapshotStatValue}>{avg}</Text>
+                  <Text style={styles.snapshotStatLabel}>7-day avg</Text>
+                </View>
+                <View style={styles.snapshotStat}>
+                  <Text style={styles.snapshotStatValue}>{inRange}%</Text>
+                  <Text style={styles.snapshotStatLabel}>in range</Text>
+                </View>
               </View>
             </View>
+          )}
+
+          {/* ── SECONDARY: Program guidance ── */}
+          {groupMembership ? (
+            <View style={styles.programSection}>
+              {/* Current lesson — "what to do next" */}
+              <TouchableOpacity
+                style={styles.lessonCard}
+                onPress={() => navigation.navigate('SessionDetail', {
+                  groupId: groupMembership.group_id,
+                  sessionId: '1',
+                })}
+                activeOpacity={0.85}
+              >
+                <View style={styles.lessonIcon}>
+                  <Text style={styles.lessonIconText}>✨</Text>
+                </View>
+                <View style={styles.lessonContent}>
+                  <Text style={styles.lessonEyebrow}>CONTINUE · WEEK 1</Text>
+                  <Text style={styles.lessonTitle}>Holy — Set Apart by Christ</Text>
+                </View>
+                <Text style={styles.lessonArrow}>→</Text>
+              </TouchableOpacity>
+
+              {/* Group chat — smaller, secondary */}
+              <TouchableOpacity
+                style={styles.groupChatRow}
+                onPress={navigateToGroupChat}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.groupChatRowEmoji}>💬</Text>
+                <Text style={styles.groupChatRowText}>12-Week Metabolic Reset · Group Chat</Text>
+                <Text style={styles.groupChatRowArrow}>→</Text>
+              </TouchableOpacity>
+            </View>
           ) : (
-            // Fallback while auto-enroll runs or if it fails
             <TouchableOpacity
-              style={styles.joinGroupButton}
+              style={styles.joinCard}
               onPress={() => navigation.navigate('JoinGroup')}
+              activeOpacity={0.85}
             >
-              <View style={styles.joinGroupIcon}>
-                <Text style={styles.joinGroupEmoji}>👥</Text>
+              <View style={styles.joinIcon}>
+                <Text style={styles.joinEmoji}>🌿</Text>
               </View>
-              <View style={styles.joinGroupContent}>
-                <Text style={styles.joinGroupTitle}>12-Week Metabolic Reset</Text>
-                <Text style={styles.joinGroupSubtitle}>Tap to join your program</Text>
+              <View style={styles.joinContent}>
+                <Text style={styles.joinTitle}>12-Week Metabolic Reset</Text>
+                <Text style={styles.joinSub}>Join your program</Text>
               </View>
-              <Text style={styles.joinGroupArrow}>→</Text>
+              <Text style={styles.joinArrow}>→</Text>
             </TouchableOpacity>
           )}
 
-
-
-          {/* Glucose Overview Card */}
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.sectionHeader}>GLUCOSE OVERVIEW</Text>
-              <SignalRingThin size={16} muted="rgba(107,127,110,0.08)" />
-            </View>
-            <View style={styles.glucoseReading}>
-              <View>
-                <Text style={styles.displayLarge}>
-                  {Math.round(stats?.average || stats?.avgGlucose || 0)}
-                  <Text style={styles.unitText}> mg/dL</Text>
-                </Text>
-                <Text style={styles.glucoseSubtext}>7-day average</Text>
-              </View>
-              <View style={styles.statusBadge}>
-                <View style={styles.statusDot} />
-                <Text style={styles.statusText}>{getGlucoseStatusText()}</Text>
-              </View>
-            </View>
-            <View style={styles.divider} />
-            <View style={styles.statsGrid}>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{Math.round(stats?.average || stats?.avgGlucose || 0)}</Text>
-                <Text style={styles.statLabel}>Avg</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{Math.round(stats?.in_range_percentage || stats?.timeInRange || 0)}%</Text>
-                <Text style={styles.statLabel}>In Range</Text>
-              </View>
-              <View style={styles.statItem}>
-                <Text style={styles.statValue}>{stats?.count || 0}</Text>
-                <Text style={styles.statLabel}>Total</Text>
-              </View>
-            </View>
-            {safeReadings.length > 0 && (
-              <View style={styles.recentReading}>
-                <View style={styles.recentDot} />
-                <Text style={styles.recentText}>Latest: {safeReadings[0].value ?? safeReadings[0].glucose_level} mg/dL</Text>
-                <Text style={styles.recentTime}>
-                  {new Date(safeReadings[0].measured_at || safeReadings[0].timestamp || safeReadings[0].created_at || '').toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Cycle Tracking + Spiritual Rhythm */}
+          {/* ── SECONDARY: Rhythm (cycle-aware, one card) ── */}
           {cycleTrackingEnabled && (
             <>
-              {/* Only show cycle card for regular-cycle users */}
-              {cycleProfile === 'regular' && (
-                <View style={styles.card}>
-                  <View style={styles.cardHeader}>
-                    <Text style={styles.sectionHeader}>MENSTRUAL CYCLE</Text>
-                    <View style={styles.cyclePhaseGlyph}>
-                      <SignalRingThin size={16} muted="rgba(107,127,110,0.3)" />
-                    </View>
-                  </View>
-                  {currentCycle ? (
-                    <View style={styles.cycleContent}>
-                      <Text style={styles.cycleDay}>
-                        Day {Math.min(currentCycle.current_day, 28)} of 28
-                      </Text>
-                      <View style={styles.cycleProgressBar}>
-                        <View
-                          style={[
-                            styles.cycleProgressFill,
-                            { width: `${Math.min((currentCycle.current_day / 28) * 100, 100)}%` },
-                          ]}
-                        />
-                      </View>
-                      <Text style={styles.cyclePhase}>
-                        {currentCycle.phase.charAt(0).toUpperCase() + currentCycle.phase.slice(1)}
-                      </Text>
-                      <TouchableOpacity
-                        style={styles.cycleEditButton}
-                        onPress={() => navigation.navigate('LogCycle')}
-                      >
-                        <Text style={styles.cycleEditText}>Edit cycle</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : (
-                    <TouchableOpacity
-                      style={styles.emptyStateButton}
-                      onPress={() => navigation.navigate('LogCycle')}
-                    >
-                      <Text style={styles.emptyStateText}>+ Start Tracking Cycle</Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
+              {cycleProfile === 'regular' && !currentCycle && (
+                <TouchableOpacity
+                  style={styles.startCycleCard}
+                  onPress={() => navigation.navigate('LogCycle')}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.startCycleText}>+ Start tracking your cycle</Text>
+                </TouchableOpacity>
               )}
 
-              {/* Rhythm Card — shows for everyone */}
               {(currentCycle || cycleProfile !== 'regular') && (
                 <RhythmCard
                   phase={currentCycle?.phase}
@@ -356,30 +272,25 @@ export default function DashboardScreen({ navigation }: Props) {
             </>
           )}
 
-          {/* Recent Symptoms */}
+          {/* ── TERTIARY: Recent symptoms — only if logged ── */}
           {safeSymptoms.length > 0 && (
             <View style={styles.card}>
               <View style={styles.cardHeader}>
-                <Text style={styles.sectionHeader}>RECENT SYMPTOMS</Text>
-                <TouchableOpacity>
-                  <Text style={styles.seeAllLink}>See all</Text>
-                </TouchableOpacity>
+                <Text style={styles.sectionLabel}>RECENT SYMPTOMS</Text>
               </View>
               {safeSymptoms.slice(0, 3).map((symptom, index) => (
                 <View
                   key={symptom.id}
                   style={[
-                    styles.symptomItem,
-                    index === safeSymptoms.slice(0, 3).length - 1 && { borderBottomWidth: 0 },
+                    styles.symptomRow,
+                    index < Math.min(safeSymptoms.length, 3) - 1 && styles.symptomRowBorder,
                   ]}
                 >
-                  <View style={styles.symptomLeft}>
-                    <View style={[styles.severityTick, { backgroundColor: getSeverityColor(symptom.severity) }]} />
-                    <Text style={styles.symptomName}>{symptom.symptom_type.replace('_', ' ')}</Text>
-                  </View>
-                  <View style={styles.symptomRight}>
-                    <Text style={styles.symptomSeverity}>{symptom.severity} / 10</Text>
-                  </View>
+                  <View style={[styles.severityTick, { backgroundColor: getSeverityColor(symptom.severity) }]} />
+                  <Text style={styles.symptomName}>
+                    {(symptom.symptom_type || '').replace('_', ' ')}
+                  </Text>
+                  <Text style={styles.symptomSeverity}>{symptom.severity}/10</Text>
                 </View>
               ))}
             </View>
@@ -394,153 +305,183 @@ export default function DashboardScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+
+  // Header
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 24,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 20,
     backgroundColor: 'rgba(255,255,255,0.92)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(212,214,212,0.25)',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212,214,212,0.25)',
   },
-  headerLeft: { flex: 1 },
   greetingContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   greetingLight: { fontSize: 14, fontWeight: '400', letterSpacing: 0.3, color: 'rgba(42,45,42,0.5)' },
   greetingBold: { fontSize: 22, fontWeight: '600', letterSpacing: -0.3, color: '#2B2B2B' },
-  headerActions: { flexDirection: 'row', gap: 12 },
   iconButton: {
     width: 40, height: 40, borderRadius: 12,
     backgroundColor: 'rgba(255,255,255,0.4)',
     borderWidth: 1.5, borderColor: 'rgba(42,45,42,0.15)',
     alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
   },
   iconGlyph: { fontSize: 18 },
+
   content: { flex: 1 },
   scrollContent: { padding: 20, paddingTop: 24 },
-  quickActions: { flexDirection: 'row', gap: 12, marginBottom: 24 },
-  primaryButton: {
-    flex: 1, backgroundColor: '#6B7F6E', borderRadius: 14,
-    paddingVertical: 18, paddingHorizontal: 20,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 12, elevation: 4,
+
+  // ── Glucose snapshot — compact inline strip ──────────────────────────────
+  glucoseSnapshot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  primaryButtonText: { fontSize: 16, fontWeight: '600', color: '#FFFFFF', letterSpacing: 0.3 },
-  secondaryButton: {
-    flex: 1, backgroundColor: 'rgba(255,255,255,0.6)',
-    borderWidth: 1.5, borderColor: 'rgba(42,45,42,0.12)',
-    borderRadius: 14, paddingVertical: 17, paddingHorizontal: 20,
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8,
+  snapshotLeft: { flex: 1 },
+  snapshotLabel: {
+    fontSize: 10, fontWeight: '600', letterSpacing: 1.2,
+    color: 'rgba(42,45,42,0.45)', marginBottom: 6,
   },
-  secondaryButtonText: { fontSize: 16, fontWeight: '600', color: '#2B2B2B', letterSpacing: 0.3 },
+  snapshotValueRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
+  snapshotValue: { fontSize: 32, fontWeight: '300', letterSpacing: -0.5 },
+  snapshotUnit: { fontSize: 13, color: 'rgba(42,45,42,0.4)', fontWeight: '400' },
+  snapshotDivider: {
+    width: 1, height: 40,
+    backgroundColor: 'rgba(212,214,212,0.4)',
+    marginHorizontal: 16,
+  },
+  snapshotRight: { gap: 6 },
+  snapshotStat: { alignItems: 'flex-end' },
+  snapshotStatValue: { fontSize: 15, fontWeight: '700', color: '#2B2B2B' },
+  snapshotStatLabel: { fontSize: 10, color: 'rgba(42,45,42,0.45)', fontWeight: '400' },
+
+  // ── Program section ───────────────────────────────────────────────────────
+  programSection: { marginBottom: 16, gap: 10 },
+
+  lessonCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+    gap: 14,
+  },
+  lessonIcon: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  lessonIconText: { fontSize: 22 },
+  lessonContent: { flex: 1 },
+  lessonEyebrow: {
+    fontSize: 10, fontWeight: '600', letterSpacing: 1.2,
+    color: 'rgba(107,127,110,0.7)', marginBottom: 4,
+  },
+  lessonTitle: { fontSize: 15, fontWeight: '600', color: '#2B2B2B', letterSpacing: 0.1 },
+  lessonArrow: { fontSize: 18, color: '#6B7F6E' },
+
+  groupChatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(61,85,64,0.08)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(61,85,64,0.12)',
+  },
+  groupChatRowEmoji: { fontSize: 15 },
+  groupChatRowText: { flex: 1, fontSize: 13, fontWeight: '500', color: colors.forestGreen },
+  groupChatRowArrow: { fontSize: 14, color: colors.forestGreen },
+
+  joinCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    gap: 14,
+  },
+  joinIcon: {
+    width: 44, height: 44, borderRadius: 22,
+    backgroundColor: 'rgba(107,127,110,0.1)',
+    alignItems: 'center', justifyContent: 'center',
+  },
+  joinEmoji: { fontSize: 22 },
+  joinContent: { flex: 1 },
+  joinTitle: { fontSize: 15, fontWeight: '600', color: '#2B2B2B', marginBottom: 2 },
+  joinSub: { fontSize: 12, color: 'rgba(42,45,42,0.55)' },
+  joinArrow: { fontSize: 18, color: '#6B7F6E' },
+
+  // ── Start cycle nudge ─────────────────────────────────────────────────────
+  startCycleCard: {
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(107,127,110,0.15)',
+  },
+  startCycleText: { fontSize: 14, fontWeight: '500', color: '#6B7F6E' },
+
+  // ── Generic card ──────────────────────────────────────────────────────────
   card: {
-    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 20, marginBottom: 16,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 18,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 2,
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  sectionHeader: { fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)' },
-  glucoseReading: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-  displayLarge: { fontSize: 32, fontWeight: '300', letterSpacing: -0.5, color: '#2B2B2B' },
-  unitText: { fontSize: 14, fontWeight: '500', color: 'rgba(42,45,42,0.4)' },
-  glucoseSubtext: { fontSize: 13, color: 'rgba(42,45,42,0.5)', marginTop: 4 },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statusDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#B89A5A' },
-  statusText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, textTransform: 'uppercase', color: 'rgba(42,45,42,0.7)' },
-  divider: { height: 1, backgroundColor: 'rgba(212,214,212,0.3)', marginBottom: 20 },
-  statsGrid: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 16 },
-  statItem: { alignItems: 'center' },
-  statValue: { fontSize: 24, fontWeight: '700', color: '#2B2B2B', marginBottom: 6 },
-  statLabel: { fontSize: 11, fontWeight: '500', color: 'rgba(42,45,42,0.5)' },
-  recentReading: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingTop: 16, borderTopWidth: 1, borderTopColor: 'rgba(212,214,212,0.2)', gap: 10,
+  cardHeader: { marginBottom: 14 },
+  sectionLabel: {
+    fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
+    textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)',
   },
-  recentDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#6B7F6E' },
-  recentText: { flex: 1, fontSize: 13, color: 'rgba(42,45,42,0.65)', fontWeight: '500' },
-  recentTime: { fontSize: 12, color: 'rgba(42,45,42,0.45)' },
-  cyclePhaseGlyph: { opacity: 0.3 },
-  cycleContent: { gap: 12 },
-  cycleDay: { fontSize: 15, fontWeight: '500', color: '#2B2B2B' },
-  cycleProgressBar: { height: 6, backgroundColor: 'rgba(212,214,212,0.25)', borderRadius: 3, overflow: 'hidden' },
-  cycleProgressFill: { height: '100%', backgroundColor: 'rgba(107,127,110,0.4)', borderRadius: 3 },
-  cyclePhase: { fontSize: 13, fontWeight: '500', color: 'rgba(42,45,42,0.65)' },
-  cycleEditButton: {
-    alignSelf: 'center', marginTop: 4,
-    paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20,
-    backgroundColor: 'rgba(107,127,110,0.08)',
-    borderWidth: 1, borderColor: 'rgba(107,127,110,0.2)',
+
+  // ── Symptoms ──────────────────────────────────────────────────────────────
+  symptomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    gap: 12,
   },
-  cycleEditText: { fontSize: 12, fontWeight: '600', color: '#6B7F6E', letterSpacing: 0.3 },
-  emptyStateButton: { paddingVertical: 14, alignItems: 'center' },
-  emptyStateText: { fontSize: 14, fontWeight: '600', color: 'rgba(42,45,42,0.5)' },
-  seeAllLink: { fontSize: 13, fontWeight: '500', color: 'rgba(42,45,42,0.5)', letterSpacing: 0.1 },
-  symptomItem: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(212,214,212,0.2)',
+  symptomRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(212,214,212,0.2)',
   },
-  symptomLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   severityTick: { width: 2, height: 20, borderRadius: 1 },
-  symptomName: { fontSize: 15, fontWeight: '500', color: '#2B2B2B', textTransform: 'capitalize' },
-  symptomRight: { alignItems: 'flex-end' },
-  symptomSeverity: { fontSize: 13, fontWeight: '400', color: 'rgba(42,45,42,0.5)' },
-  coachCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 20, marginBottom: 16,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    flexDirection: 'row', alignItems: 'center', gap: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+  symptomName: {
+    flex: 1, fontSize: 15, fontWeight: '500',
+    color: '#2B2B2B', textTransform: 'capitalize',
   },
-  coachAvatar: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: 'rgba(107,127,110,0.1)', borderWidth: 1, borderColor: 'rgba(107,127,110,0.2)',
-    justifyContent: 'center', alignItems: 'center',
-  },
-  coachAvatarText: { fontSize: 22, fontWeight: '700', color: '#6B7F6E' },
-  coachInfo: { flex: 1 },
-  coachLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)', marginBottom: 6 },
-  coachName: { fontSize: 16, fontWeight: '600', letterSpacing: 0.2, color: '#2B2B2B', marginBottom: 4 },
-  coachAction: { fontSize: 14, fontWeight: '500', color: '#6B7F6E' },
-  joinGroupButton: {
-    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 20, marginBottom: 16,
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  },
-  joinGroupIcon: { width: 48, height: 48, borderRadius: 24, backgroundColor: 'rgba(107,127,110,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 16 },
-  joinGroupEmoji: { fontSize: 24 },
-  joinGroupContent: { flex: 1 },
-  joinGroupTitle: { fontSize: 16, fontWeight: '600', color: '#2B2B2B', marginBottom: 4 },
-  joinGroupSubtitle: { fontSize: 13, color: 'rgba(42,45,42,0.6)' },
-  joinGroupArrow: { fontSize: 20, color: '#6B7F6E', fontWeight: '600' },
-  groupChatCard: {
-    backgroundColor: colors.forestGreen, borderRadius: 18, padding: 16, marginBottom: 10,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.1, shadowRadius: 8, elevation: 3,
-  },
-  groupChatEmoji: { fontSize: 22 },
-  groupChatContent: { flex: 1 },
-  groupChatLabel: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: 'rgba(255,255,255,0.7)', marginBottom: 2 },
-  groupChatName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  groupChatArrow: { fontSize: 18, color: 'rgba(255,255,255,0.8)' },
-  enrolledSection: { marginBottom: 16 },
-  enrolledCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 20, marginBottom: 12,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  },
-  enrolledBadge: { backgroundColor: 'rgba(107,127,110,0.15)', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start', marginBottom: 12 },
-  enrolledBadgeText: { fontSize: 10, fontWeight: '700', letterSpacing: 1, color: '#6B7F6E' },
-  enrolledTitle: { fontSize: 18, fontWeight: '600', color: '#2B2B2B', marginBottom: 6, letterSpacing: 0.2 },
-  enrolledSubtitle: { fontSize: 13, color: 'rgba(42,45,42,0.6)' },
-  sessionQuickAccess: { marginTop: 0 },
-  sessionQuickLabel: { fontSize: 11, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)', marginBottom: 12, paddingLeft: 4 },
-  sessionQuickCard: {
-    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20, padding: 18,
-    flexDirection: 'row', alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2,
-  },
-  sessionQuickIcon: { width: 48, height: 48, borderRadius: 12, backgroundColor: 'rgba(107,127,110,0.1)', alignItems: 'center', justifyContent: 'center', marginRight: 14 },
-  sessionQuickIconText: { fontSize: 24 },
-  sessionQuickInfo: { flex: 1 },
-  sessionQuickNumber: { fontSize: 10, fontWeight: '600', letterSpacing: 1.2, textTransform: 'uppercase', color: 'rgba(107,127,110,0.7)', marginBottom: 4 },
-  sessionQuickTitle: { fontSize: 15, fontWeight: '600', color: '#2B2B2B', letterSpacing: 0.2 },
-  sessionQuickArrow: { fontSize: 20, color: '#6B7F6E', fontWeight: '600', marginLeft: 8 },
+  symptomSeverity: { fontSize: 13, color: 'rgba(42,45,42,0.5)' },
 });

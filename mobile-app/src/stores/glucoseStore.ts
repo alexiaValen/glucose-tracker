@@ -1,6 +1,10 @@
+// mobile-app/src/stores/glucoseStore.ts
 import { create } from 'zustand';
 import { GlucoseReading, GlucoseStats } from '../types/glucose';
 import { glucoseService } from '../services/glucose.service';
+import { useAuthStore } from './authStore';
+import { getActiveUserId } from './coachStore';
+import { api } from '../config/api';
 
 interface GlucoseState {
   readings: GlucoseReading[];
@@ -18,54 +22,78 @@ export const useGlucoseStore = create<GlucoseState>((set, get) => ({
   isLoading: false,
 
   fetchReadings: async () => {
-  set({ isLoading: true });
-  try {
-    const data = await glucoseService.getReadings(20, 0);
+    set({ isLoading: true });
+    try {
+      const userId = getActiveUserId(useAuthStore.getState().user?.id);
+      const isViewingClient = useAuthStore.getState().user?.role === 'coach' && !!userId;
 
-    // ✅ Normalize: backend may return an array OR { readings: [] }
-    const normalizedReadings = Array.isArray(data)
-      ? (data as GlucoseReading[])
-      : Array.isArray((data as any)?.readings)
-        ? ((data as any).readings as GlucoseReading[])
-        : [];
+      let normalizedReadings: GlucoseReading[] = [];
 
-    set({ readings: normalizedReadings, isLoading: false });
-  } catch (error) {
-    console.error('Failed to fetch readings:', error);
-    set({ readings: [], isLoading: false }); // ✅ keep it an array even on error
-  }
-},
+      if (isViewingClient && userId !== useAuthStore.getState().user?.id) {
+        // Coach viewing client — use coach endpoint
+        const response = await api.get(`/coach/clients/${userId}/glucose`, {
+          params: { limit: 20 },
+        });
+        const data = response.data?.readings ?? response.data ?? [];
+        normalizedReadings = Array.isArray(data) ? data : [];
+      } else {
+        // Normal user fetch
+        const data = await glucoseService.getReadings(20, 0);
+        normalizedReadings = Array.isArray(data)
+          ? (data as GlucoseReading[])
+          : Array.isArray((data as any)?.readings)
+            ? ((data as any).readings as GlucoseReading[])
+            : [];
+      }
+
+      set({ readings: normalizedReadings, isLoading: false });
+    } catch (error) {
+      console.error('Failed to fetch readings:', error);
+      set({ readings: [], isLoading: false });
+    }
+  },
 
   fetchStats: async () => {
     try {
+      const userId = getActiveUserId(useAuthStore.getState().user?.id);
+      const isViewingClient = useAuthStore.getState().user?.role === 'coach' && !!userId
+        && userId !== useAuthStore.getState().user?.id;
+
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       const now = new Date().toISOString();
-      const stats = await glucoseService.getStats(sevenDaysAgo, now);
-      set({ stats });
+
+      if (isViewingClient) {
+        const response = await api.get(`/coach/clients/${userId}/stats`, {
+          params: { startDate: sevenDaysAgo, endDate: now },
+        });
+        set({ stats: response.data });
+      } else {
+        const stats = await glucoseService.getStats(sevenDaysAgo, now);
+        set({ stats });
+      }
     } catch (error) {
       console.error('Failed to fetch stats:', error);
     }
   },
 
   addReading: async (value: number, mealContext?: string, notes?: string) => {
+    // Never allow writing when viewing as client
+    const { viewingClientId } = await import('./coachStore').then(m => ({ viewingClientId: m.useCoachStore.getState().viewingClientId }));
+    if (viewingClientId) return;
+
     set({ isLoading: true });
     try {
       const newReading = await glucoseService.createReading({
         glucose_level: value,
         timestamp: new Date().toISOString(),
-        // unit: 'mg/dL', not needed
         meal_context: mealContext as any,
         notes,
         source: 'manual',
       });
-
-      // Add to the beginning of the list
       set((state) => ({
         readings: [newReading, ...state.readings],
         isLoading: false,
       }));
-
-      // Refresh stats
       await get().fetchStats();
     } catch (error) {
       set({ isLoading: false });
@@ -74,6 +102,9 @@ export const useGlucoseStore = create<GlucoseState>((set, get) => ({
   },
 
   deleteReading: async (id: string) => {
+    const { viewingClientId } = await import('./coachStore').then(m => ({ viewingClientId: m.useCoachStore.getState().viewingClientId }));
+    if (viewingClientId) return;
+
     try {
       await glucoseService.deleteReading(id);
       set((state) => ({

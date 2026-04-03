@@ -1,6 +1,10 @@
+// mobile-app/src/stores/cycleStore.ts
 import { create } from 'zustand';
 import { CycleLog } from '../types/cycle';
 import { cycleService } from '../services/cycle.service';
+import { useAuthStore } from './authStore';
+import { getActiveUserId } from './coachStore';
+import { api } from '../config/api';
 
 interface CycleState {
   cycles: CycleLog[];
@@ -30,8 +34,18 @@ export const useCycleStore = create<CycleState>((set, get) => ({
 
   fetchCurrentCycle: async () => {
     try {
-      const currentCycle = await cycleService.getCurrentCycle();
-      set({ currentCycle });
+      const userId = getActiveUserId(useAuthStore.getState().user?.id);
+      const isViewingClient = useAuthStore.getState().user?.role === 'coach'
+        && !!userId && userId !== useAuthStore.getState().user?.id;
+
+      if (isViewingClient) {
+        const response = await api.get(`/coach/clients/${userId}/cycle`);
+        const cycle = response.data?.cycle ?? response.data ?? null;
+        set({ currentCycle: cycle });
+      } else {
+        const currentCycle = await cycleService.getCurrentCycle();
+        set({ currentCycle });
+      }
     } catch (error) {
       console.error('Failed to fetch current cycle:', error);
       set({ currentCycle: null });
@@ -39,6 +53,9 @@ export const useCycleStore = create<CycleState>((set, get) => ({
   },
 
   startCycle: async (startDate: string, flow?: string, symptoms?: string[]) => {
+    const { viewingClientId } = (await import('./coachStore')).useCoachStore.getState();
+    if (viewingClientId) return;
+
     set({ isLoading: true });
     try {
       const newCycle = await cycleService.createCycle({
@@ -46,7 +63,6 @@ export const useCycleStore = create<CycleState>((set, get) => ({
         flow: flow as any,
         symptoms,
       });
-
       set((state) => ({
         cycles: [newCycle, ...state.cycles],
         currentCycle: newCycle,
@@ -59,9 +75,11 @@ export const useCycleStore = create<CycleState>((set, get) => ({
   },
 
   endCycle: async (id: string, endDate: string) => {
+    const { viewingClientId } = (await import('./coachStore')).useCoachStore.getState();
+    if (viewingClientId) return;
+
     try {
       const updatedCycle = await cycleService.updateCycle(id, { cycleEndDate: endDate });
-      
       set((state) => ({
         cycles: state.cycles.map((c) => (c.id === id ? updatedCycle : c)),
         currentCycle: null,

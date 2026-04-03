@@ -1,5 +1,5 @@
 // mobile-app/src/screens/AddSymptomScreen.tsx
-// PREMIUM CLINICAL-CALM REDESIGN
+// REFACTORED: chip grid replaces dropdown, 3-tap severity, < 5 second log
 import React, { useState } from 'react';
 import {
   View,
@@ -18,59 +18,59 @@ import { colors } from '../theme/colors';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 
 const SYMPTOM_TYPES = [
-  { id: 'headache', label: 'Headache' },
-  { id: 'fatigue', label: 'Fatigue' },
-  { id: 'dizziness', label: 'Dizziness' },
-  { id: 'hunger', label: 'Hunger' },
-  { id: 'irritability', label: 'Irritability' },
-  { id: 'nausea', label: 'Nausea' },
-  { id: 'shaking', label: 'Shaking' },
-  { id: 'sweating', label: 'Sweating' },
-  { id: 'brain_fog', label: 'Brain fog' },
-  { id: 'anxiety', label: 'Anxiety' },
-  { id: 'cramps', label: 'Cramps' },
-  { id: 'bloating', label: 'Bloating' },
-  { id: 'mood_swings', label: 'Mood swings' },
-  { id: 'other', label: 'Other' },
+  { id: 'fatigue',      label: 'Fatigue',      emoji: '😴' },
+  { id: 'headache',     label: 'Headache',     emoji: '🤕' },
+  { id: 'brain_fog',    label: 'Brain fog',    emoji: '🌫️' },
+  { id: 'cramps',       label: 'Cramps',       emoji: '🩸' },
+  { id: 'bloating',     label: 'Bloating',     emoji: '🎈' },
+  { id: 'mood_swings',  label: 'Mood swings',  emoji: '🎭' },
+  { id: 'anxiety',      label: 'Anxiety',      emoji: '😰' },
+  { id: 'irritability', label: 'Irritability', emoji: '😠' },
+  { id: 'nausea',       label: 'Nausea',       emoji: '🤢' },
+  { id: 'hunger',       label: 'Hunger',       emoji: '🍽️' },
+  { id: 'dizziness',    label: 'Dizziness',    emoji: '😵' },
+  { id: 'shaking',      label: 'Shaking',      emoji: '🤝' },
+  { id: 'sweating',     label: 'Sweating',     emoji: '💦' },
+  { id: 'other',        label: 'Other',        emoji: '📝' },
+];
+
+// 3-level severity — one tap, done
+const SEVERITY_LEVELS = [
+  { value: 3,  label: 'Mild',     color: 'rgba(107,127,110,0.8)' },
+  { value: 6,  label: 'Moderate', color: 'rgba(184,164,95,0.9)'  },
+  { value: 9,  label: 'Severe',   color: 'rgba(139,111,71,0.9)'  },
 ];
 
 export default function AddSymptomScreen() {
   const navigation = useNavigation();
-
   const [selectedSymptoms, setSelectedSymptoms] = useState<string[]>([]);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const [severity, setSeverity] = useState(5);
+  const [severity, setSeverity] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showNotes, setShowNotes] = useState(false);
 
-  const toggleSymptom = (symptomId: string) => {
-    setSelectedSymptoms(prev => 
-      prev.includes(symptomId)
-        ? prev.filter(id => id !== symptomId)
-        : [...prev, symptomId]
+  const toggleSymptom = (id: string) => {
+    setSelectedSymptoms(prev =>
+      prev.includes(id) ? prev.filter(s => s !== id) : [...prev, id]
     );
   };
 
+  const canSubmit = selectedSymptoms.length > 0 && severity !== null;
+
   const handleSubmit = async () => {
-    if (selectedSymptoms.length === 0) {
-      Alert.alert('Missing Information', 'Please select at least one symptom');
-      return;
-    }
+    if (!canSubmit) return;
 
     try {
       setIsLoading(true);
-
-      // Log each symptom separately with the same severity and notes
       await Promise.all(
         selectedSymptoms.map(symptomType =>
           symptomService.createSymptom({
             symptomType,
-            severity,
+            severity: severity!,
             notes: notes.trim() || undefined,
           })
         )
       );
-
       navigation.goBack();
     } catch (error: any) {
       Alert.alert('Error', error?.response?.data?.error || 'Failed to log symptoms');
@@ -79,22 +79,13 @@ export default function AddSymptomScreen() {
     }
   };
 
-  const getSeverityLabel = (value: number) => {
-    if (value <= 3) return 'Mild';
-    if (value <= 6) return 'Moderate';
-    return 'Severe';
-  };
-
-  const getSeverityColor = (value: number) => {
-    if (value <= 3) return 'rgba(107,127,110,0.5)';
-    if (value <= 6) return 'rgba(184,164,95,0.7)';
-    return 'rgba(139,111,71,0.8)';
-  };
+  const activeSeverity = SEVERITY_LEVELS.find(s => s.value === severity);
 
   return (
     <BotanicalBackground variant="green" intensity="light">
       <View style={styles.container}>
-        {/* Minimal Header */}
+
+        {/* Header */}
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backText}>← Back</Text>
@@ -106,175 +97,105 @@ export default function AddSymptomScreen() {
           style={{ flex: 1 }}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <ScrollView 
+          <ScrollView
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
           >
-            {/* Symptom Multi-Select Dropdown */}
+
+            {/* ── Step 1: Symptom chips ── */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>SYMPTOMS</Text>
-
-              {/* Dropdown Trigger */}
-              <TouchableOpacity
-                style={styles.dropdownTrigger}
-                onPress={() => setShowDropdown(!showDropdown)}
-              >
-                <View style={styles.dropdownTriggerContent}>
-                  {selectedSymptoms.length === 0 ? (
-                    <Text style={styles.placeholderText}>Select symptoms</Text>
-                  ) : (
-                    <Text style={styles.selectedCountText}>
-                      {selectedSymptoms.length} {selectedSymptoms.length === 1 ? 'symptom' : 'symptoms'} selected
-                    </Text>
-                  )}
-                </View>
-                <Text style={styles.dropdownChevron}>{showDropdown ? '▴' : '▾'}</Text>
-              </TouchableOpacity>
-
-              {/* Selected Symptoms Pills */}
-              {selectedSymptoms.length > 0 && (
-                <View style={styles.selectedPills}>
-                  {selectedSymptoms.map(symptomId => {
-                    const symptom = SYMPTOM_TYPES.find(s => s.id === symptomId);
-                    return (
-                      <View key={symptomId} style={styles.pill}>
-                        <Text style={styles.pillText}>{symptom?.label}</Text>
-                        <TouchableOpacity
-                          onPress={() => toggleSymptom(symptomId)}
-                          style={styles.pillRemove}
-                        >
-                          <Text style={styles.pillRemoveText}>×</Text>
-                        </TouchableOpacity>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-
-              {/* Dropdown List */}
-              {showDropdown && (
-                <View style={styles.dropdownList}>
-                  <ScrollView
-                    style={styles.dropdownScroll}
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator={false}
-                  >
-                    {SYMPTOM_TYPES.map((symptom) => {
-                      const isSelected = selectedSymptoms.includes(symptom.id);
-                      return (
-                        <TouchableOpacity
-                          key={symptom.id}
-                          style={[
-                            styles.dropdownItem,
-                            isSelected && styles.dropdownItemSelected
-                          ]}
-                          onPress={() => toggleSymptom(symptom.id)}
-                        >
-                          {/* Checkbox */}
-                          <View style={styles.checkbox}>
-                            {isSelected && (
-                              <View style={styles.checkboxInner} />
-                            )}
-                          </View>
-                          <Text style={[
-                            styles.dropdownItemText,
-                            isSelected && styles.dropdownItemTextSelected
-                          ]}>
-                            {symptom.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-              )}
+              <Text style={styles.sectionLabel}>WHAT ARE YOU FEELING?</Text>
+              <View style={styles.chipGrid}>
+                {SYMPTOM_TYPES.map(symptom => {
+                  const active = selectedSymptoms.includes(symptom.id);
+                  return (
+                    <TouchableOpacity
+                      key={symptom.id}
+                      style={[styles.chip, active && styles.chipActive]}
+                      onPress={() => toggleSymptom(symptom.id)}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.chipEmoji}>{symptom.emoji}</Text>
+                      <Text style={[styles.chipLabel, active && styles.chipLabelActive]}>
+                        {symptom.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
 
-            {/* Severity Scale - Horizontal Selector */}
-            <View style={styles.section}>
-              <View style={styles.severityHeader}>
-                <Text style={styles.sectionLabel}>SEVERITY</Text>
-                <Text style={styles.severityValue}>
-                  {severity} / 10 · {getSeverityLabel(severity)}
-                </Text>
-              </View>
-
-              {/* Horizontal Scale with Tap Points */}
-              <View style={styles.scaleContainer}>
-                {/* Progress Bar */}
-                <View style={styles.scaleTrack}>
-                  <View 
-                    style={[
-                      styles.scaleProgress,
-                      { 
-                        width: `${severity * 10}%`,
-                        backgroundColor: getSeverityColor(severity),
-                      }
-                    ]} 
-                  />
-                </View>
-
-                {/* Tap Points */}
-                <View style={styles.scalePoints}>
-                  {Array.from({ length: 10 }).map((_, i) => {
-                    const value = i + 1;
-                    const isSelected = severity === value;
+            {/* ── Step 2: Severity (3 taps, shown once something is selected) ── */}
+            {selectedSymptoms.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>HOW INTENSE?</Text>
+                <View style={styles.severityRow}>
+                  {SEVERITY_LEVELS.map(level => {
+                    const active = severity === level.value;
                     return (
                       <TouchableOpacity
-                        key={value}
-                        style={styles.scalePoint}
-                        onPress={() => setSeverity(value)}
-                        activeOpacity={0.7}
+                        key={level.value}
+                        style={[
+                          styles.severityButton,
+                          active && { backgroundColor: level.color, borderColor: 'transparent' },
+                        ]}
+                        onPress={() => setSeverity(level.value)}
+                        activeOpacity={0.75}
                       >
-                        <View style={[
-                          styles.scalePointDot,
-                          isSelected && { 
-                            backgroundColor: getSeverityColor(value),
-                            transform: [{ scale: 1.5 }]
-                          }
-                        ]} />
+                        <Text style={[styles.severityLabel, active && styles.severityLabelActive]}>
+                          {level.label}
+                        </Text>
                       </TouchableOpacity>
                     );
                   })}
                 </View>
               </View>
+            )}
 
-              {/* Anchor Labels */}
-              <View style={styles.anchorLabels}>
-                <Text style={styles.anchorLabel}>Mild</Text>
-                <Text style={styles.anchorLabel}>Severe</Text>
+            {/* ── Optional notes (collapsed by default) ── */}
+            {severity !== null && (
+              <View style={styles.section}>
+                {!showNotes ? (
+                  <TouchableOpacity
+                    style={styles.addNotesTrigger}
+                    onPress={() => setShowNotes(true)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.addNotesText}>+ Add context (optional)</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <View style={styles.notesContainer}>
+                    <Text style={styles.sectionLabel}>CONTEXT</Text>
+                    <TextInput
+                      style={styles.notesInput}
+                      placeholder="Activity, meals, stressors…"
+                      placeholderTextColor="rgba(42,45,42,0.35)"
+                      value={notes}
+                      onChangeText={setNotes}
+                      multiline
+                      maxLength={300}
+                      textAlignVertical="top"
+                      autoFocus
+                    />
+                  </View>
+                )}
               </View>
-            </View>
+            )}
 
-            {/* Reflective Notes */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>ADDITIONAL CONTEXT</Text>
-              <Text style={styles.promptText}>
-                What changed today?
-              </Text>
-              <View style={styles.notesInset}>
-                <TextInput
-                  style={styles.notesInput}
-                  placeholder="Activity, meals, stressors..."
-                  placeholderTextColor="rgba(42,45,42,0.35)"
-                  value={notes}
-                  onChangeText={setNotes}
-                  multiline
-                  maxLength={500}
-                  textAlignVertical="top"
-                />
-              </View>
-            </View>
-
-            {/* Primary Action */}
+            {/* ── Primary action ── */}
             <TouchableOpacity
-              style={[styles.primaryButton, (isLoading || selectedSymptoms.length === 0) && styles.primaryButtonDisabled]}
+              style={[styles.primaryButton, (!canSubmit || isLoading) && styles.primaryButtonDisabled]}
               onPress={handleSubmit}
-              disabled={isLoading || selectedSymptoms.length === 0}
+              disabled={!canSubmit || isLoading}
               activeOpacity={0.85}
             >
               <Text style={styles.primaryButtonText}>
-                {isLoading ? 'Saving…' : 'Add entry'}
+                {isLoading
+                  ? 'Saving…'
+                  : canSubmit
+                    ? `Log ${selectedSymptoms.length} ${selectedSymptoms.length === 1 ? 'symptom' : 'symptoms'} · ${activeSeverity?.label}`
+                    : 'Select symptoms above'}
               </Text>
             </TouchableOpacity>
 
@@ -287,28 +208,24 @@ export default function AddSymptomScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
 
-  // Header - Minimal
   header: {
     paddingTop: 60,
-    paddingBottom: 24,
+    paddingBottom: 20,
     paddingHorizontal: 24,
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212,214,212,0.25)',
   },
   backButton: {
-    marginBottom: 20,
+    marginBottom: 16,
     alignSelf: 'flex-start',
   },
   backText: {
     fontSize: 15,
     color: '#6B7F6E',
     fontWeight: '500',
-    letterSpacing: 0.2,
   },
   headerTitle: {
     fontSize: 22,
@@ -318,14 +235,13 @@ const styles = StyleSheet.create({
   },
 
   content: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingHorizontal: 20,
+    paddingTop: 28,
     paddingBottom: 40,
   },
 
-  // Section Layout
   section: {
-    marginBottom: 40,
+    marginBottom: 32,
   },
   sectionLabel: {
     fontSize: 11,
@@ -333,237 +249,113 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     color: 'rgba(42,45,42,0.5)',
-    marginBottom: 16,
+    marginBottom: 14,
   },
 
-  // Dropdown Trigger
-  dropdownTrigger: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.4)',
-  },
-  dropdownTriggerContent: {
-    flex: 1,
-  },
-  placeholderText: {
-    fontSize: 15,
-    color: 'rgba(42,45,42,0.4)',
-    fontWeight: '400',
-  },
-  selectedCountText: {
-    fontSize: 15,
-    color: '#2A2D2A',
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
-  dropdownChevron: {
-    fontSize: 14,
-    color: 'rgba(42,45,42,0.5)',
-    fontWeight: '600',
-    marginLeft: 12,
-  },
-
-  // Selected Pills
-  selectedPills: {
+  // Chip grid — replaces dropdown entirely
+  chipGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 12,
+    gap: 10,
   },
-  pill: {
+  chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 6,
-    paddingLeft: 12,
-    paddingRight: 8,
-    backgroundColor: 'rgba(107,127,110,0.1)',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(107,127,110,0.2)',
-  },
-  pillText: {
-    fontSize: 13,
-    color: '#6B7F6E',
-    fontWeight: '500',
-    letterSpacing: 0.1,
-  },
-  pillRemove: {
-    marginLeft: 6,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: 'rgba(107,127,110,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  pillRemoveText: {
-    fontSize: 16,
-    color: '#6B7F6E',
-    fontWeight: '600',
-    lineHeight: 16,
-  },
-
-  // Dropdown List
-  dropdownList: {
-    marginTop: 8,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: 'rgba(107,127,110,0.3)',
-    maxHeight: 280,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  dropdownScroll: {
-    maxHeight: 280,
-  },
-  dropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(212,214,212,0.2)',
-  },
-  dropdownItemSelected: {
-    backgroundColor: 'rgba(107,127,110,0.04)',
-  },
-  dropdownItemText: {
-    fontSize: 15,
-    color: 'rgba(42,45,42,0.7)',
-    fontWeight: '400',
-    letterSpacing: 0.1,
-  },
-  dropdownItemTextSelected: {
-    color: '#2A2D2A',
-    fontWeight: '500',
-  },
-
-  // Checkbox
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
+    gap: 6,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 24,
+    backgroundColor: 'rgba(255,255,255,0.85)',
     borderWidth: 1.5,
-    borderColor: 'rgba(42,45,42,0.25)',
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: 'rgba(212,214,212,0.5)',
   },
-  checkboxInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 3,
-    backgroundColor: '#6B7F6E',
+  chipActive: {
+    backgroundColor: 'rgba(107,127,110,0.12)',
+    borderColor: '#6B7F6E',
   },
-
-  // Severity Scale
-  severityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 24,
+  chipEmoji: {
+    fontSize: 15,
   },
-  severityValue: {
+  chipLabel: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#2A2D2A',
+    color: 'rgba(42,45,42,0.6)',
+  },
+  chipLabelActive: {
+    color: '#3D5540',
+    fontWeight: '600',
+  },
+
+  // 3-level severity row
+  severityRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  severityButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.7)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(212,214,212,0.4)',
+  },
+  severityLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: 'rgba(42,45,42,0.5)',
     letterSpacing: 0.2,
   },
-
-  // Custom Scale Selector
-  scaleContainer: {
-    marginBottom: 12,
-  },
-  scaleTrack: {
-    height: 4,
-    backgroundColor: 'rgba(212,214,212,0.3)',
-    borderRadius: 2,
-    marginBottom: 8,
-    overflow: 'hidden',
-  },
-  scaleProgress: {
-    height: '100%',
-    borderRadius: 2,
-  },
-  scalePoints: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  scalePoint: {
-    padding: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scalePointDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(42,45,42,0.25)',
+  severityLabelActive: {
+    color: '#FFFFFF',
   },
 
-  // Anchor Labels
-  anchorLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    marginTop: 8,
+  // Optional notes
+  addNotesTrigger: {
+    paddingVertical: 12,
+    alignSelf: 'flex-start',
   },
-  anchorLabel: {
-    fontSize: 12,
-    color: 'rgba(42,45,42,0.5)',
-    fontWeight: '500',
-    letterSpacing: 0.5,
-  },
-
-  // Reflective Notes
-  promptText: {
+  addNotesText: {
     fontSize: 14,
-    color: 'rgba(42,45,42,0.6)',
-    marginBottom: 14,
-    lineHeight: 20,
-    fontWeight: '400',
+    color: '#6B7F6E',
+    fontWeight: '500',
   },
-  notesInset: {
-    backgroundColor: 'rgba(255,255,255,0.5)',
-    borderRadius: 12,
+  notesContainer: {
+    backgroundColor: 'rgba(255,255,255,0.6)',
+    borderRadius: 14,
     padding: 16,
   },
   notesInput: {
     fontSize: 15,
     color: '#2A2D2A',
     lineHeight: 22,
-    minHeight: 100,
+    minHeight: 80,
     padding: 0,
-    margin: 0,
     fontWeight: '400',
   },
 
-  // Primary Action - Flat & Calm
+  // Primary action — contextual label
   primaryButton: {
     backgroundColor: '#6B7F6E',
     paddingVertical: 17,
-    borderRadius: 12,
+    borderRadius: 14,
     alignItems: 'center',
     marginTop: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 3,
   },
   primaryButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: 'rgba(107,127,110,0.35)',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
 });

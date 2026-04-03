@@ -12,25 +12,29 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
 import { coachService } from '../services/coach.service';
+import { useCoachStore } from '../stores/coachStore';
 import { colors } from '../theme/colors';
 import { BotanicalBackground } from '../components/BotanicalBackground';
 
-type ClientDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ClientDetail'>;
-type ClientDetailScreenRouteProp = RouteProp<RootStackParamList, 'ClientDetail'>;
-
-interface Props {
-  navigation: ClientDetailScreenNavigationProp;
-  route: ClientDetailScreenRouteProp;
-}
+type Props = {
+  navigation: NativeStackNavigationProp<RootStackParamList, 'ClientDetail'>;
+  route: RouteProp<RootStackParamList, 'ClientDetail'>;
+};
 
 export default function ClientDetailScreen({ navigation, route }: Props) {
   const { clientId } = route.params;
+  const { setViewingClient } = useCoachStore();
+
   const [isLoading, setIsLoading] = useState(true);
   const [glucoseData, setGlucoseData] = useState<any[]>([]);
   const [symptoms, setSymptoms] = useState<any[]>([]);
   const [stats, setStats] = useState<any>(null);
-  const [clientInfo, setClientInfo] = useState<{ firstName: string; lastName: string; email: string } | null>(null);
   const [cycleData, setCycleData] = useState<any>(null);
+  const [clientInfo, setClientInfo] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+  } | null>(null);
 
   useEffect(() => {
     loadClientData();
@@ -45,14 +49,14 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
         coachService.getClientStats(clientId),
         coachService.getClientCycle(clientId).catch(() => null),
       ]);
-      
+
       setGlucoseData(glucose);
       setSymptoms(symptomsData);
       setStats(statsData);
       setCycleData(cycle);
 
-      const { useCoachStore } = require('../stores/coachStore');
-      const selectedClient = useCoachStore.getState().selectedClient;
+      const { useCoachStore: coachStoreModule } = require('../stores/coachStore');
+      const selectedClient = coachStoreModule.getState().selectedClient;
       if (selectedClient) {
         setClientInfo({
           firstName: selectedClient.firstName,
@@ -67,25 +71,28 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
     }
   };
 
+  const handleViewAsClient = () => {
+    const name = `${clientInfo?.firstName || ''} ${clientInfo?.lastName || ''}`.trim();
+    setViewingClient(clientId, name);
+    // Navigate to the client tab stack — coach sees exact same screens client sees
+    navigation.navigate('Dashboard');
+  };
+
   const formatDate = (dateString: string) => {
     try {
-      // Backend returns measured_at or logged_at field
       const date = new Date(dateString);
-      if (isNaN(date.getTime())) {
-        return 'Invalid Date';
-      }
-      return date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric'
-      }) + ' at ' + date.toLocaleTimeString('en-US', { 
-        hour: 'numeric', 
-        minute: '2-digit',
-        hour12: true 
-      });
-    } catch (error) {
+      if (isNaN(date.getTime())) return 'Invalid Date';
+      return (
+        date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) +
+        ' at ' +
+        date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+      );
+    } catch {
       return 'Invalid Date';
     }
   };
+
+  const clientName = `${clientInfo?.firstName || ''} ${clientInfo?.lastName || ''}`.trim();
 
   if (isLoading) {
     return (
@@ -98,71 +105,56 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
   return (
     <BotanicalBackground variant="green" intensity="light">
       <View style={styles.container}>
+
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity 
-            onPress={() => navigation.goBack()}
-            style={styles.backButton}
-          >
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
             <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
           <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>
-              {clientInfo?.firstName} {clientInfo?.lastName}
-            </Text>
+            <Text style={styles.headerTitle}>{clientName}</Text>
             <Text style={styles.headerSubtitle}>{clientInfo?.email}</Text>
           </View>
           <TouchableOpacity
-            style={styles.previewButton}
-            onPress={() => navigation.navigate('ClientPreview', {
-              clientId,
-              clientName: `${clientInfo?.firstName || ''} ${clientInfo?.lastName || ''}`.trim(),
-            })}
-          >
-            <Text style={styles.previewButtonText}>👁 Preview</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
             style={styles.messageButton}
-            onPress={() => navigation.navigate('Messaging', { 
+            onPress={() => navigation.navigate('Messaging', {
               userId: clientId,
-              userName: `${clientInfo?.firstName} ${clientInfo?.lastName}` 
+              userName: clientName,
             })}
           >
             <Text style={styles.messageButtonText}>💬</Text>
           </TouchableOpacity>
         </View>
 
+        {/* View as Client — primary coach action */}
+        <TouchableOpacity
+          style={styles.viewAsClientButton}
+          onPress={handleViewAsClient}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.viewAsClientEmoji}>👁</Text>
+          <View style={styles.viewAsClientContent}>
+            <Text style={styles.viewAsClientLabel}>View as {clientInfo?.firstName || 'Client'}</Text>
+            <Text style={styles.viewAsClientSub}>See their exact dashboard experience</Text>
+          </View>
+          <Text style={styles.viewAsClientArrow}>→</Text>
+        </TouchableOpacity>
+
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Stats Card */}
+
+          {/* Stats */}
           <View style={styles.statsCard}>
             <View style={styles.statsRow}>
               <View style={styles.statBox}>
-                <View style={styles.statIconContainer}>
-                  <Text style={styles.statIcon}>📊</Text>
-                </View>
-                <Text style={styles.statValue}>
-                  {stats?.avgGlucose?.toFixed(0) || '—'}
-                </Text>
-                <Text style={styles.statLabel}>Average</Text>
+                <Text style={styles.statValue}>{stats?.avgGlucose?.toFixed(0) || '—'}</Text>
+                <Text style={styles.statLabel}>Avg Glucose</Text>
               </View>
-              
               <View style={styles.statBox}>
-                <View style={styles.statIconContainer}>
-                  <Text style={styles.statIcon}>🎯</Text>
-                </View>
-                <Text style={styles.statValue}>
-                  {stats?.timeInRange?.toFixed(0) || '—'}%
-                </Text>
+                <Text style={styles.statValue}>{stats?.timeInRange?.toFixed(0) ?? '—'}%</Text>
                 <Text style={styles.statLabel}>In Range</Text>
               </View>
-
               <View style={styles.statBox}>
-                <View style={styles.statIconContainer}>
-                  <Text style={styles.statIcon}>📈</Text>
-                </View>
-                <Text style={styles.statValue}>
-                  {glucoseData.length}
-                </Text>
+                <Text style={styles.statValue}>{glucoseData.length}</Text>
                 <Text style={styles.statLabel}>Readings</Text>
               </View>
             </View>
@@ -170,83 +162,80 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
 
           {/* Recent Glucose */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Glucose</Text>
+            <Text style={styles.sectionTitle}>RECENT GLUCOSE</Text>
             {glucoseData.length === 0 ? (
-              <Text style={styles.emptyText}>No glucose data available</Text>
+              <Text style={styles.emptyText}>No glucose data</Text>
             ) : (
-              glucoseData.slice(0, 10).map((reading, index) => (
-                <View key={index} style={styles.readingCard}>
-                  <View style={styles.readingLeft}>
-                    <Text style={[
-                      styles.readingValue,
-                      { color: (reading.value || reading.glucose_level) < 70 ? colors.red : 
-                                (reading.value || reading.glucose_level) > 180 ? colors.warning : colors.sage }
-                    ]}>
-                      {reading.value || reading.glucose_level || '—'}
-                    </Text>
-                    <Text style={styles.readingUnit}>mg/dL</Text>
+              glucoseData.slice(0, 10).map((reading, index) => {
+                const val = reading.value ?? reading.glucose_level;
+                const color = val < 70 ? '#E05C5C' : val > 180 ? '#E09A3A' : colors.sage;
+                return (
+                  <View key={index} style={styles.readingRow}>
+                    <View style={[styles.readingBar, { backgroundColor: color }]} />
+                    <View style={styles.readingMain}>
+                      <Text style={[styles.readingValue, { color }]}>{val}</Text>
+                      <Text style={styles.readingUnit}> mg/dL</Text>
+                    </View>
+                    <View style={styles.readingRight}>
+                      <Text style={styles.readingContext}>
+                        {(reading.meal_context || reading.context || 'general').replace('_', ' ')}
+                      </Text>
+                      <Text style={styles.readingTime}>
+                        {formatDate(reading.measured_at || reading.timestamp)}
+                      </Text>
+                    </View>
                   </View>
-                  <View style={styles.readingRight}>
-                    <Text style={styles.readingContext}>
-                      {reading.context?.replace('_', ' ') || 'General'}
-                    </Text>
-                    <Text style={styles.readingTime}>
-                      {formatDate(reading.timestamp || reading.measured_at)}
-                    </Text>
-                    {reading.notes && (
-                      <Text style={styles.readingNotes}>{reading.notes}</Text>
-                    )}
-                  </View>
-                </View>
-              ))
+                );
+              })
             )}
           </View>
 
           {/* Recent Symptoms */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Symptoms</Text>
+            <Text style={styles.sectionTitle}>RECENT SYMPTOMS</Text>
             {symptoms.length === 0 ? (
               <Text style={styles.emptyText}>No symptoms logged</Text>
             ) : (
               symptoms.slice(0, 10).map((symptom, index) => (
-                <View key={index} style={styles.symptomCard}>
-                  <View style={styles.symptomIconContainer}>
-                    <Text style={styles.symptomIcon}>🌿</Text>
-                  </View>
-                  <View style={styles.symptomInfo}>
+                <View key={index} style={styles.symptomRow}>
+                  <View style={styles.symptomMain}>
                     <Text style={styles.symptomType}>
-                      {symptom.symptom_type?.replace('_', ' ')}
+                      {(symptom.symptom_type || '').replace('_', ' ')}
                     </Text>
                     <Text style={styles.symptomTime}>
                       {formatDate(symptom.logged_at || symptom.timestamp)}
                     </Text>
-                    {symptom.notes && (
-                      <Text style={styles.symptomNotes}>{symptom.notes}</Text>
-                    )}
                   </View>
-                  <View style={styles.symptomSeverityContainer}>
-                    <Text style={styles.symptomSeverity}>{symptom.severity}/10</Text>
+                  <View style={[
+                    styles.severityBadge,
+                    { backgroundColor: symptom.severity >= 7 ? 'rgba(224,92,92,0.12)' : 'rgba(107,127,110,0.1)' }
+                  ]}>
+                    <Text style={[
+                      styles.severityText,
+                      { color: symptom.severity >= 7 ? '#E05C5C' : colors.forestGreen }
+                    ]}>
+                      {symptom.severity}/10
+                    </Text>
                   </View>
                 </View>
               ))
             )}
           </View>
 
-          {/* Cycle Data (if available) */}
+          {/* Cycle */}
           {cycleData && (
-            <View style={styles.cycleCard}>
-              <View style={styles.cycleHeader}>
-                <Text style={styles.cycleIcon}>🌸</Text>
-                <Text style={styles.cycleTitle}>Cycle Information</Text>
-              </View>
-              <View style={styles.cycleInfo}>
-                <View style={styles.cycleInfoItem}>
-                  <Text style={styles.cycleInfoLabel}>Day</Text>
-                  <Text style={styles.cycleInfoValue}>{cycleData.current_day || '—'}</Text>
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>CYCLE</Text>
+              <View style={styles.cycleRow}>
+                <View style={styles.cycleItem}>
+                  <Text style={styles.cycleValue}>{cycleData.current_day || cycleData.day || '—'}</Text>
+                  <Text style={styles.cycleLabel}>Day</Text>
                 </View>
-                <View style={styles.cycleInfoItem}>
-                  <Text style={styles.cycleInfoLabel}>Phase</Text>
-                  <Text style={styles.cycleInfoValue}>{cycleData.phase || '—'}</Text>
+                <View style={styles.cycleItem}>
+                  <Text style={[styles.cycleValue, { fontSize: 16, textTransform: 'capitalize' }]}>
+                    {cycleData.phase || '—'}
+                  </Text>
+                  <Text style={styles.cycleLabel}>Phase</Text>
                 </View>
               </View>
             </View>
@@ -260,282 +249,102 @@ export default function ClientDetailScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.cream,
-  },
+  container: { flex: 1 },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.cream },
+
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 20,
     paddingTop: 60,
+    paddingBottom: 16,
     backgroundColor: 'rgba(255,255,255,0.92)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(212,214,212,0.25)',
+    gap: 12,
   },
-  backButton: {
-    paddingVertical: 8,
-  },
-  backText: {
-    color: colors.sage,
-    fontSize: 15,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-  },
-  headerCenter: {
-    flex: 1,
-    alignItems: 'center',
-    paddingHorizontal: 12,
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.charcoal,
-    marginBottom: 2,
-  },
-  headerSubtitle: {
-    fontSize: 13,
-    color: colors.textLight,
-  },
-  previewButton: {
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 14,
-    backgroundColor: 'rgba(107,127,110,0.12)',
-    borderWidth: 1, borderColor: 'rgba(107,127,110,0.25)',
+  backButton: { paddingVertical: 4 },
+  backText: { fontSize: 15, color: colors.forestGreen, fontWeight: '500' },
+  headerCenter: { flex: 1 },
+  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.charcoal },
+  headerSubtitle: { fontSize: 12, color: colors.textLight, marginTop: 2 },
+  messageButton: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: colors.paleGreen,
     justifyContent: 'center', alignItems: 'center',
   },
-  previewButtonText: {
-    fontSize: 12, fontWeight: '600', color: colors.forestGreen,
-  },
-  messageButton: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: colors.paleGreen,
-    justifyContent: 'center',
+  messageButtonText: { fontSize: 18 },
+
+  // View as Client CTA
+  viewAsClientButton: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.forestGreen,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    gap: 12,
   },
-  messageButtonText: {
-    fontSize: 20,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-  },
+  viewAsClientEmoji: { fontSize: 18, color: '#FFFFFF' },
+  viewAsClientContent: { flex: 1 },
+  viewAsClientLabel: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
+  viewAsClientSub: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2 },
+  viewAsClientArrow: { fontSize: 18, color: 'rgba(255,255,255,0.7)' },
+
+  content: { flex: 1, padding: 20 },
+
   statsCard: {
     backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: 20,
-    borderRadius: 20,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    borderRadius: 20, padding: 20, marginBottom: 24,
+    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
+    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
   },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-    backgroundColor: colors.paleGreen,
-    padding: 16,
-    borderRadius: 12,
-  },
-  statIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.white,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statIcon: {
-    fontSize: 20,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.sage,
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: colors.textLight,
-    fontWeight: '500',
-  },
-  section: {
-    marginBottom: 24,
-  },
+  statsRow: { flexDirection: 'row' },
+  statBox: { flex: 1, alignItems: 'center' },
+  statValue: { fontSize: 26, fontWeight: '700', color: colors.forestGreen, marginBottom: 4 },
+  statLabel: { fontSize: 11, fontWeight: '500', color: 'rgba(42,45,42,0.5)' },
+
+  section: { marginBottom: 24 },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.charcoal,
-    marginBottom: 12,
+    fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
+    color: 'rgba(42,45,42,0.5)', marginBottom: 12,
   },
-  emptyText: {
-    fontSize: 14,
-    color: colors.textLight,
-    textAlign: 'center',
-    paddingVertical: 20,
-  },
-  readingCard: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  emptyText: { fontSize: 14, color: colors.textLight, paddingVertical: 16 },
+
+  readingRow: {
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.25)',
+    borderRadius: 12, padding: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: 'rgba(212,214,212,0.2)',
+    gap: 10,
   },
-  readingLeft: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  readingValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginRight: 6,
-  },
-  readingUnit: {
-    fontSize: 14,
-    color: colors.textLight,
-    fontWeight: '500',
-  },
-  readingRight: {
-    flex: 1,
-    alignItems: 'flex-end',
-    paddingLeft: 16,
-  },
-  readingContext: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.charcoal,
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  readingTime: {
-    fontSize: 12,
-    color: colors.textLight,
-  },
-  readingNotes: {
-    fontSize: 12,
-    color: colors.textLight,
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  symptomCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  readingBar: { width: 3, height: 32, borderRadius: 2 },
+  readingMain: { flexDirection: 'row', alignItems: 'baseline', width: 80 },
+  readingValue: { fontSize: 22, fontWeight: '700' },
+  readingUnit: { fontSize: 12, color: colors.textLight, fontWeight: '400' },
+  readingRight: { flex: 1, alignItems: 'flex-end' },
+  readingContext: { fontSize: 13, fontWeight: '500', color: colors.charcoal, textTransform: 'capitalize' },
+  readingTime: { fontSize: 12, color: colors.textLight, marginTop: 2 },
+
+  symptomRow: {
+    flexDirection: 'row', alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.25)',
+    borderRadius: 12, padding: 14, marginBottom: 8,
+    borderWidth: 1, borderColor: 'rgba(212,214,212,0.2)',
   },
-  symptomIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: colors.paleGreen,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  symptomIcon: {
-    fontSize: 20,
-  },
-  symptomInfo: {
-    flex: 1,
-  },
-  symptomType: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.charcoal,
-    textTransform: 'capitalize',
-    marginBottom: 4,
-  },
-  symptomTime: {
-    fontSize: 12,
-    color: colors.textLight,
-  },
-  symptomNotes: {
-    fontSize: 12,
-    color: colors.textLight,
-    fontStyle: 'italic',
-    marginTop: 4,
-  },
-  symptomSeverityContainer: {
-    backgroundColor: colors.paleGreen,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-  },
-  symptomSeverity: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.sage,
-  },
-  cycleCard: {
+  symptomMain: { flex: 1 },
+  symptomType: { fontSize: 15, fontWeight: '600', color: colors.charcoal, textTransform: 'capitalize' },
+  symptomTime: { fontSize: 12, color: colors.textLight, marginTop: 2 },
+  severityBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  severityText: { fontSize: 13, fontWeight: '700' },
+
+  cycleRow: {
+    flexDirection: 'row', gap: 12,
     backgroundColor: 'rgba(255,255,255,0.95)',
-    padding: 20,
-    borderRadius: 16,
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: colors.sage,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
+    borderRadius: 14, padding: 16,
+    borderWidth: 1, borderColor: 'rgba(212,214,212,0.2)',
   },
-  cycleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  cycleIcon: {
-    fontSize: 24,
-    marginRight: 12,
-  },
-  cycleTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.charcoal,
-  },
-  cycleInfo: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  cycleInfoItem: {
-    flex: 1,
-    backgroundColor: colors.paleGreen,
-    padding: 12,
-    borderRadius: 12,
-  },
-  cycleInfoLabel: {
-    fontSize: 12,
-    color: colors.textLight,
-    marginBottom: 4,
-  },
-  cycleInfoValue: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: colors.sage,
-    textTransform: 'capitalize',
-  },
+  cycleItem: { flex: 1, alignItems: 'center' },
+  cycleValue: { fontSize: 24, fontWeight: '700', color: colors.forestGreen, marginBottom: 4 },
+  cycleLabel: { fontSize: 11, color: 'rgba(42,45,42,0.5)', fontWeight: '500' },
 });
