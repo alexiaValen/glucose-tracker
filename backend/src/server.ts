@@ -1,4 +1,5 @@
-//backend/src/server.ts
+// backend/src/server.ts
+
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -12,10 +13,9 @@ import symptomRoutes from "./routes/symptom.routes";
 import messagesRoutes from "./routes/messages";
 import groupRoutes from "./routes/group.routes";
 import conversationRoutes from "./routes/conversation.routes";
-import groupMessageRoutes from "./routes/group_message_routes"; // NEW: group messages
+import groupMessageRoutes from "./routes/group_message_routes";
 
 dotenv.config();
-
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,17 +28,13 @@ const allowedList = (process.env.ALLOWED_ORIGINS || "")
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, cb) => {
-    // Allow requests with no Origin (Postman, curl, mobile, server-to-server)
     if (!origin) return cb(null, true);
 
-    // Allow explicit origins from env
     if (allowedList.includes(origin)) return cb(null, true);
 
-    // Allow all Vercel preview + prod domains
     if (origin.endsWith(".vercel.app")) return cb(null, true);
 
-    // Otherwise block
-    console.warn(`âš ï¸ CORS blocked for origin: ${origin}`);
+    console.warn(`⚠️ CORS blocked for origin: ${origin}`);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },
   credentials: true,
@@ -47,27 +43,21 @@ const corsOptions: cors.CorsOptions = {
 };
 
 app.use(cors(corsOptions));
-// Handle OPTIONS preflight for all routes
 
 // ==================== MIDDLEWARE ====================
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// In production you can enable helmet (safe default)
-// If it ever causes issues, we can tune it.
 if (process.env.NODE_ENV === "production") {
   app.use(helmet());
 }
 
-// Dev request logging (optional)
 if (process.env.NODE_ENV !== "production") {
   app.use((req, _res, next) => {
     console.log(`${req.method} ${req.path} - origin: ${req.headers.origin || "none"}`);
     next();
   });
 }
-
-app.use("/api/v1/conversations", conversationRoutes);
 
 // ==================== ROUTES ====================
 app.get("/health", (_req, res) => {
@@ -79,63 +69,69 @@ app.get("/health", (_req, res) => {
   });
 });
 
-//root sanity check
-app.get("/", (_req, res) => res.json({ status: "ok", service: "glucose-tracker-api" }));
+app.get("/", (_req, res) =>
+  res.json({ status: "ok", service: "glucose-tracker-api" })
+);
 
-//api mount sanity check
-app.get("/api/v1", (_req, res) => res.json({ status: "ok", api: "v1" }));
+app.get("/api/v1", (_req, res) =>
+  res.json({ status: "ok", api: "v1" })
+);
 
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/glucose", glucoseRoutes);
 app.use("/api/v1/coach", coachRoutes);
 app.use("/api/v1/symptoms", symptomRoutes);
-app.use("/api/v1/cycle", cycleRoutes);  // FIXED: singular to match mobile app
+app.use("/api/v1/cycle", cycleRoutes);
 app.use("/api/v1/messages", messagesRoutes);
 app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/groups", groupRoutes);
-
-
+app.use("/api/v1/group-messages", groupMessageRoutes);
 
 // ==================== ERROR HANDLERS ====================
 app.use((_req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  console.error("âŒ Error:", err?.message || err);
+app.use(
+  (
+    err: any,
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction
+  ) => {
+    console.error("❌ Error:", err?.message || err);
 
-  // CORS errors
-  if (String(err?.message || "").toLowerCase().includes("cors")) {
-    return res.status(403).json({ error: err.message });
+    if (String(err?.message || "").toLowerCase().includes("cors")) {
+      return res.status(403).json({ error: err.message });
+    }
+
+    res.status(err.status || 500).json({
+      error: err.message || "Internal server error",
+    });
   }
-
-  res.status(err.status || 500).json({
-    error: err.message || "Internal server error",
-  });
-});
+);
 
 // ==================== START SERVER ====================
-const server = app.listen(Number(PORT), "0.0.0.0", () => {
-  console.log(`ðŸš€ Server running on http://0.0.0.0:${PORT}`);
-  console.log(`ðŸ“Š Health check: http://localhost:${PORT}/health`);
-  console.log(`ðŸŒ Allowed origins from env: ${allowedList.length ? allowedList.join(", ") : "(none)"}`);
-  console.log(`âœ… Also allowing: *.vercel.app`);
-});
 
-// Process error handlers
-server.on("error", (err) => {
-  console.error("âŒ Server error:", err);
-  process.exit(1);
-});
+// Determine base URL (prod vs local)
+const getBaseUrl = () => {
+  if (process.env.BASE_URL) return process.env.BASE_URL;
 
-process.on("uncaughtException", (err) => {
-  console.error("âŒ Uncaught exception:", err);
-  process.exit(1);
-});
+  if (process.env.RAILWAY_STATIC_URL) {
+    return `https://${process.env.RAILWAY_STATIC_URL}`;
+  }
 
-process.on("unhandledRejection", (err) => {
-  console.error("âŒ Unhandled rejection:", err);
-  process.exit(1);
+  return `http://localhost:${PORT}`;
+};
+
+const BASE_URL = getBaseUrl();
+
+app.listen(Number(PORT), "0.0.0.0", () => {
+  console.log(`🚀 Server running`);
+  console.log(`🌐 Base URL: ${BASE_URL}`);
+  console.log(`🩺 Health check: ${BASE_URL}/health`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
+  console.log(`🔐 CORS origins: ${process.env.ALLOWED_ORIGINS}`);
 });
 
 export default app;
