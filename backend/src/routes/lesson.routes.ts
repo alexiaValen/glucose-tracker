@@ -13,7 +13,15 @@ const router = Router();
 router.post("/assign", requireUser, createLesson);
 
 // ✅ Client fetches their lessons
-router.get("/me", requireUser, getClientLessons);
+router.get(
+  "/me",
+  requireUser,
+  (req, res, next) => {
+    console.log("🔥 /lessons/me ROUTE HIT");
+    next();
+  },
+  getClientLessons
+);
 
 // ✅ Mark viewed
 router.patch("/:id/viewed", requireUser, markLessonViewed);
