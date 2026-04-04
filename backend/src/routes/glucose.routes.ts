@@ -14,7 +14,7 @@ router.post(
   '/',
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.userId;
+      const userId = req.user!.id;
 
       // Accept BOTH formats:
       // Web app: { value, measuredAt, notes }
@@ -67,7 +67,7 @@ router.get(
   ],
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.userId;
+      const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
 
@@ -104,7 +104,7 @@ router.get(
 // GET /api/v1/glucose/stats - Get glucose statistics
 router.get('/stats', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
 
@@ -155,7 +155,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 // DELETE /api/v1/glucose/:id - Delete glucose reading
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { id } = req.params;
 
     const result = await pool.query(
