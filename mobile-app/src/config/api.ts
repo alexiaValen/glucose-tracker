@@ -43,55 +43,31 @@ api.interceptors.request.use(
 );
 
 // Response interceptor
-api.interceptors.response.use(
-  (response) => {
-    console.log(
-      `✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`
-    );
-    return response;
-  },
-  async (error) => {
-    const url = error.config?.url || 'unknown';
-    const method = error.config?.method?.toUpperCase() || 'GET';
+api.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await SecureStore.getItemAsync('accessToken');
 
-    if (error.response) {
-      console.error(`❌ ${error.response.status} ${method} ${url}`);
-      console.error('Error data:', JSON.stringify(error.response.data, null, 2));
-    } else if (error.request) {
-      console.error(`❌ Network Error ${method} ${url}`);
-      console.error('Request was made but no response received');
-      console.error('Is backend running at:', `${error.config.baseURL}${url}`);
-    } else {
-      console.error(`❌ ${method} ${url}:`, error.message);
-    }
+      // 🔥 DEBUG (THIS IS WHAT WE NEED)
+      console.log('🔐 TOKEN FROM STORE:', token);
 
-    // Handle 401 — attempt token refresh once
-    if (error.response?.status === 401 && !error.config?._retry) {
-      error.config._retry = true;
-
-      try {
-        const refreshToken = await SecureStore.getItemAsync('refreshToken');
-        if (!refreshToken) throw new Error('No refresh token available');
-
-        const refreshRes = await axios.post(`${API_BASE_URL}/auth/refresh`, { refreshToken });
-        const { accessToken } = refreshRes.data;
-
-        await SecureStore.setItemAsync('accessToken', accessToken);
-
-        error.config.headers = error.config.headers ?? {};
-        error.config.headers.Authorization = `Bearer ${accessToken}`;
-
-        return api(error.config);
-      } catch (refreshError) {
-        console.error('Token refresh failed — forcing logout:', refreshError);
-        await clearAuthToken();
-        authEvents.emit(AUTH_LOGOUT_EVENT);
-        return Promise.reject(refreshError);
+      if (token) {
+        config.headers = config.headers ?? {};
+        config.headers.Authorization = `Bearer ${token}`;
+        console.log('✅ AUTH HEADER SET');
+      } else {
+        console.log('❌ NO TOKEN FOUND');
       }
+
+      console.log(`📤 ${config.method?.toUpperCase()} ${config.url}`);
+      console.log('📍 Full URL:', `${config.baseURL}${config.url}`);
+    } catch (error) {
+      console.error('Error in request interceptor:', error);
     }
 
-    return Promise.reject(error);
-  }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
 
 // ─── Helper functions ─────────────────────────────────────────────────────────

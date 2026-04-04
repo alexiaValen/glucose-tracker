@@ -218,7 +218,7 @@ useEffect(() => {
           {(latestVal !== null || avg > 0) && (
             <View style={styles.glucoseSnapshot}>
               <View style={styles.snapshotLeft}>
-                <Text style={styles.snapshotLabel}>LATEST GLUCOSE</Text>
+                <Text style={styles.snapshotLabel}>TESTTTTT LATEST GLUCOSE</Text>
                 <View style={styles.snapshotValueRow}>
                   <Text style={[styles.snapshotValue, { color: glucoseColor }]}>
                     {latestVal ?? avg}
