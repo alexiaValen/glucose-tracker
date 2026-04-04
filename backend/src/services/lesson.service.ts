@@ -70,19 +70,32 @@ export const markLessonViewed = async (req: Request, res: Response) => {
 };
 
 export const markLessonCompleted = async (req: Request, res: Response) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const userId = (req as any).user.id;
 
-  const { data, error } = await supabase
-    .from("lessons")
-    .update({
-      status: "completed",
-      completed_at: new Date(),
-    })
-    .eq("id", id)
-    .select()
-    .single();
 
-  if (error) return res.status(400).json({ error: error.message });
+    console.log("✅ Completing lesson:", id, "for user:", userId);
 
-  res.json(data);
+    const { data, error } = await supabase
+      .from("lessons")
+      .update({
+        status: "completed",
+        completed_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      //.eq("id", userId) // 🔥 ensures correct user
+      .select()
+      .single();
+
+    if (error) {
+      console.error("❌ Supabase error:", error);
+      return res.status(400).json({ error: error.message });
+    }
+
+    return res.json(data);
+  } catch (err) {
+    console.error("❌ Server error:", err);
+    return res.status(500).json({ error: "Failed to complete lesson" });
+  }
 };
