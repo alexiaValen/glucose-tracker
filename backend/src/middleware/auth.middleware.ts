@@ -22,13 +22,8 @@ declare global {
  * ─────────────────────────────────────────────────────────────
  * AUTH MIDDLEWARE (CORE)
  * ─────────────────────────────────────────────────────────────
- * - Validates Bearer token
- * - Verifies JWT
- * - Fetches fresh user from DB (source of truth)
- * - Attaches user to req.user
  */
 export const requireUser = async (
-  
   req: Request,
   res: Response,
   next: NextFunction
@@ -36,8 +31,6 @@ export const requireUser = async (
   try {
     // 1. Extract Authorization header
     const authHeader = req.headers.authorization;
-
-    // Debug (remove later)
     console.log('🔐 AUTH HEADER:', authHeader);
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -48,15 +41,22 @@ export const requireUser = async (
     const token = authHeader.split(' ')[1];
 
     // 3. Verify JWT
-    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
-
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
     console.log('🔐 DECODED TOKEN:', decoded);
 
-    // 4. Fetch fresh user from DB (ensures role is up to date)
+    // ✅ FIX: handle BOTH token shapes
+    const userId = decoded.userId || decoded.id;
+
+    if (!userId) {
+      console.error('❌ NO USER ID IN TOKEN');
+      return res.status(401).json({ error: 'Invalid token payload' });
+    }
+
+    // 4. Fetch fresh user from DB
     const { data: user, error } = await supabase
       .from('users')
       .select('id, email, role, first_name, last_name')
-      .eq('id', decoded.userId)
+      .eq('id', userId)
       .single();
 
     if (error || !user) {
@@ -64,7 +64,7 @@ export const requireUser = async (
       return res.status(401).json({ error: 'Invalid token' });
     }
 
-    // 5. Attach normalized user to request
+    // 5. Attach normalized user
     req.user = {
       userId: user.id,
       email: user.email,
@@ -75,7 +75,6 @@ export const requireUser = async (
 
     console.log('✅ AUTH SUCCESS:', req.user);
 
-    // 6. Continue request
     next();
   } catch (error: any) {
     console.error('❌ AUTH ERROR:', error);
@@ -93,19 +92,14 @@ export const requireUser = async (
 };
 
 /**
- * ─────────────────────────────────────────────────────────────
- * ROLE GUARD (OPTIONAL LAYER)
- * ─────────────────────────────────────────────────────────────
- * Use AFTER requireUser
+ * ROLE GUARD
  */
 export const requireRole = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction) => {
-    // Must already be authenticated
     if (!req.user) {
       return res.status(401).json({ error: 'Not authenticated' });
     }
 
-    // Check role access
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         error: 'Insufficient permissions',
@@ -119,22 +113,14 @@ export const requireRole = (roles: string[]) => {
 };
 
 /**
- * ─────────────────────────────────────────────────────────────
  * ROLE SHORTCUTS
- * ─────────────────────────────────────────────────────────────
  */
-
 export const requireCoach = [requireUser, requireRole(['coach', 'admin'])];
-
 export const requireAdmin = [requireUser, requireRole(['admin'])];
-
 export const requireClient = [requireUser, requireRole(['user'])];
 
 /**
- * ─────────────────────────────────────────────────────────────
- * BACKWARD COMPATIBILITY
- * ─────────────────────────────────────────────────────────────
+ * BACKWARD COMPAT
  */
-
 export const authMiddleware = requireUser;
 export const authenticate = requireUser;
