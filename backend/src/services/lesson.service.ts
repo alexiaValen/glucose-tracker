@@ -1,79 +1,100 @@
 import { Request, Response } from "express";
 import { supabase } from "../config/database";
 
+// ✅ CREATE LESSON
 export const createLesson = async (req: Request, res: Response) => {
-  const { title, description, content_url, client_id } = req.body;
-  const user = (req as any).user;
-const coach_id = user?.id ?? user?.userId;
-
-  const { data, error } = await supabase
-    .from("lessons")
-    .insert([
-      { title, description, content_url, client_id, coach_id }
-    ])
-    .select()
-    .single();
-
-  if (error) return res.status(400).json({ error: error.message });
-
-  res.json(data);
-};
-
-export const getClientLessons = async (req: Request, res: Response) => {
   try {
-    const user = (req as any).user;
+    const { title, description, client_id } = req.body;
 
-    // 🔥 Handle both possible shapes safely
-    const user_id = user?.id ?? user?.userId;
+    const coach_id = req.user!.id;
 
-    if (!user_id) {
-      console.error("❌ No user ID found in request:", user);
-      return res.status(401).json({ error: "Not authenticated" });
+    console.log("🧠 Creating lesson:");
+    console.log("Coach:", coach_id);
+    console.log("Client:", client_id);
+
+    if (!title || !client_id) {
+      return res.status(400).json({
+        error: "title and client_id are required",
+      });
     }
-
-    console.log("👤 LESSON USER ID:", user_id);
 
     const { data, error } = await supabase
       .from("lessons")
-      .select("*")
-      .eq("client_id", user_id)
-      .order("created_at", { ascending: false });
+      .insert([
+        {
+          title,
+          description,
+          client_id,
+          coach_id,
+          status: "assigned",
+        },
+      ])
+      .select()
+      .single();
 
     if (error) {
-      console.error("❌ Supabase error:", error);
+      console.error("❌ Supabase insert error:", error);
       return res.status(400).json({ error: error.message });
     }
 
     res.json(data);
   } catch (err) {
-    console.error("❌ getClientLessons error:", err);
+    console.error("❌ Create lesson failed:", err);
+    res.status(500).json({ error: "Failed to create lesson" });
+  }
+};
+
+// ✅ GET CLIENT LESSONS
+export const getClientLessons = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+
+    const { data, error } = await supabase
+      .from("lessons")
+      .select("*")
+      .eq("client_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Fetch lessons failed:", err);
     res.status(500).json({ error: "Failed to fetch lessons" });
   }
 };
 
+// ✅ MARK VIEWED
 export const markLessonViewed = async (req: Request, res: Response) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
+    const userId = req.user!.id;
 
-  const { data, error } = await supabase
-    .from("lessons")
-    .update({
-      status: "viewed",
-      viewed_at: new Date(),
-    })
-    .eq("id", id)
-    .select()
-    .single();
+    const { data, error } = await supabase
+      .from("lessons")
+      .update({
+        status: "viewed",
+        viewed_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("client_id", userId)
+      .select()
+      .single();
 
-  if (error) return res.status(400).json({ error: error.message });
+    if (error) throw error;
 
-  res.json(data);
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Mark viewed failed:", err);
+    res.status(500).json({ error: "Failed to mark viewed" });
+  }
 };
 
+// ✅ MARK COMPLETED
 export const markLessonCompleted = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const userId = (req as any).user.id;
-
+    const userId = req.user!.id;
 
     console.log("✅ Completing lesson:", id, "for user:", userId);
 
@@ -84,18 +105,15 @@ export const markLessonCompleted = async (req: Request, res: Response) => {
         completed_at: new Date().toISOString(),
       })
       .eq("id", id)
-      //.eq("id", userId) // 🔥 ensures correct user
+      .eq("client_id", userId)
       .select()
       .single();
 
-    if (error) {
-      console.error("❌ Supabase error:", error);
-      return res.status(400).json({ error: error.message });
-    }
+    if (error) throw error;
 
-    return res.json(data);
+    res.json(data);
   } catch (err) {
-    console.error("❌ Server error:", err);
-    return res.status(500).json({ error: "Failed to complete lesson" });
+    console.error("❌ Mark complete failed:", err);
+    res.status(500).json({ error: "Failed to mark complete" });
   }
 };

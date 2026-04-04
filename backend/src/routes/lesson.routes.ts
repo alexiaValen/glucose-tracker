@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireUser } from "../middleware/auth.middleware";
+import { authMiddleware } from "../middleware/auth.middleware";
 import {
   createLesson,
   getClientLessons,
@@ -10,23 +10,15 @@ import {
 const router = Router();
 
 // ✅ Coach assigns lesson
-router.post("/assign", requireUser, createLesson);
+router.post("/assign", authMiddleware, createLesson);
 
-// ✅ Client fetches their lessons
-router.get(
-  "/me",
-  requireUser,
-  (req, res, next) => {
-    console.log("🔥 /lessons/me ROUTE HIT");
-    next();
-  },
-  getClientLessons
-);
+// ✅ Client fetches lessons
+router.get("/me", authMiddleware, getClientLessons);
 
 // ✅ Mark viewed
-router.patch("/:id/viewed", requireUser, markLessonViewed);
+router.patch("/:id/viewed", authMiddleware, markLessonViewed);
 
 // ✅ Mark completed
-router.patch("/:id/completed", requireUser, markLessonCompleted);
+router.patch("/:id/completed", authMiddleware, markLessonCompleted);
 
 export default router;

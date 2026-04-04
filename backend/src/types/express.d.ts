@@ -1,15 +1,9 @@
-// import { UserPayload } from '../../interfaces/UserPayload';
+import { UserPayload } from "./UserPayload";
 
 declare global {
   namespace Express {
     interface Request {
-      user?: {
-        id: string;
-        email: string;
-        role: 'user' | 'coach' | 'admin';
-      };
+      user?: UserPayload;
     }
   }
 }
-
-export {};
