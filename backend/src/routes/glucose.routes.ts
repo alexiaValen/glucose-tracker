@@ -1,8 +1,10 @@
 // backend/src/routes/glucose.routes.ts - UPDATED VERSION
-import { Router, Request, Response } from 'express';
+import { Router, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { body, query, validationResult } from 'express-validator';
 import { pool } from '../config/database';
+import { AuthRequest } from "../middleware/auth.middleware";
+import { GlucoseReading } from '../types/group';
 
 const router = Router();
 
@@ -12,9 +14,11 @@ router.use(authMiddleware);
 // POST /api/v1/glucose - Create new glucose reading (ACCEPTS BOTH FORMATS)
 router.post(
   '/',
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
+      console.log('Received request to create glucose reading for user:', userId);
+
 
       // Accept BOTH formats:
       // Web app: { value, measuredAt, notes }
@@ -26,7 +30,7 @@ router.post(
       const unit = req.body.unit || 'mg/dL';
       const mealContext = req.body.meal_context;
 
-      console.log('ðŸ“ Creating glucose reading:', { userId, value, measuredAt, source });
+      console.log('Creating glucose reading:', { userId, value, measuredAt, source });
 
       // Validate required fields
       if (!value || !measuredAt) {
@@ -65,13 +69,14 @@ router.get(
     query('limit').optional().isInt({ min: 1, max: 100 }),
     query('offset').optional().isInt({ min: 0 }),
   ],
-  async (req: Request, res: Response) => {
+  async (req: AuthRequest, res: Response) => {
     try {
       const userId = req.user!.id;
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
       const offset = req.query.offset ? parseInt(req.query.offset as string) : 0;
+      //const coachId = req.query.coachId as string | undefined;
 
-      console.log('ðŸ“Š Fetching glucose readings for user:', userId);
+      console.log('Fetching glucose readings for user:', userId);
 
       const result = await pool.query(
         `SELECT 
@@ -90,19 +95,19 @@ router.get(
         [userId, limit, offset]
       );
 
-      console.log(`âœ… Found ${result.rows.length} glucose readings`);
+      console.log(`Found ${result.rows.length} glucose readings`);
       
       // Return array directly for web app
       res.json(result.rows);
     } catch (error: any) {
-      console.error('âŒ Error fetching glucose readings:', error);
+      console.error('❌ Error fetching glucose readings:', error);
       res.status(500).json({ error: 'Failed to fetch glucose readings' });
     }
   }
 );
 
 // GET /api/v1/glucose/stats - Get glucose statistics
-router.get('/stats', async (req: Request, res: Response) => {
+router.get('/stats', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const startDate = req.query.startDate as string | undefined;
@@ -153,7 +158,7 @@ router.get('/stats', async (req: Request, res: Response) => {
 });
 
 // DELETE /api/v1/glucose/:id - Delete glucose reading
-router.delete('/:id', async (req: Request, res: Response) => {
+router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;
     const { id } = req.params;

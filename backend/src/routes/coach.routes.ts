@@ -1,18 +1,18 @@
 // backend/src/routes/coach.routes.ts
-import { Router } from 'express';
+import { Router, Response } from 'express';
 import { supabase } from '../config/database';
-import { authMiddleware, requireCoach } from '../middleware/auth.middleware';
+import { authMiddleware, AuthRequest } from '../middleware/auth.middleware';
 
 const router = Router();
 
 // PUBLIC USER ROUTE - Must come BEFORE requireCoach middleware
 // GET /api/v1/coach/my-coach - Get the current user's assigned coach
-router.get('/my-coach', authMiddleware, async (req, res) => {
-  console.log('ðŸ” /my-coach route hit!');
+router.get('/my-coach', authMiddleware, async (req: AuthRequest, res: Response) => {
+  console.log('/my-coach route hit!');
   console.log('User from token:', req.user);
   
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     console.log('Looking for coach for user ID:', userId);
 
     const { data: relationship, error: relError } = await supabase
@@ -50,18 +50,17 @@ router.get('/my-coach', authMiddleware, async (req, res) => {
 
 // All coach routes require authentication and coach role
 router.use(authMiddleware);
-router.use(requireCoach);
 
 // Get all clients for the current coach
-router.get('/clients', async (req, res) => {
+router.get('/clients', async (req: AuthRequest, res: Response) => {
   try {
-    const coachId = req.user!.userId;
+    const userId = req.user!.id;
 
     // Get coach-client relationships
     const { data: relationships, error: relError } = await supabase
       .from('coach_clients')
       .select('client_id')
-      .eq('coach_id', coachId);
+      .eq('coach_id', userId);
 
     if (relError) throw relError;
 
@@ -129,13 +128,13 @@ router.get('/clients', async (req, res) => {
 });
 
 // Get specific client's glucose readings
-router.get('/clients/:clientId/glucose', async (req, res) => {
+router.get('/clients/:clientId/glucose', async (req: AuthRequest, res: Response) => {
   try {
     const { clientId } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
 
     // Verify this client belongs to the coach
-    const coachId = req.user!.userId;
+    const coachId = req.user!.id;
     const { data: relationship } = await supabase
       .from('coach_clients')
       .select('*')
@@ -164,13 +163,13 @@ router.get('/clients/:clientId/glucose', async (req, res) => {
 });
 
 // Get specific client's symptoms
-router.get('/clients/:clientId/symptoms', async (req, res) => {
+router.get('/clients/:clientId/symptoms', async (req: AuthRequest, res: Response) => {
   try {
     const { clientId } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
 
     // Verify this client belongs to the coach
-    const coachId = req.user!.userId;
+    const coachId = req.user!.id;
     const { data: relationship } = await supabase
       .from('coach_clients')
       .select('*')
@@ -199,14 +198,14 @@ router.get('/clients/:clientId/symptoms', async (req, res) => {
 });
 
 // Get specific client's stats
-router.get('/clients/:clientId/stats', async (req, res) => {
+router.get('/clients/:clientId/stats', async (req: AuthRequest, res: Response) => {
   try {
     const { clientId } = req.params;
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
 
     // Verify this client belongs to the coach
-    const coachId = req.user!.userId;
+    const coachId = req.user!.id;
     const { data: relationship } = await supabase
       .from('coach_clients')
       .select('*')
@@ -265,12 +264,12 @@ router.get('/clients/:clientId/stats', async (req, res) => {
 });
 
 // Get specific client's cycle data
-router.get('/clients/:clientId/cycle', async (req, res) => {
+router.get('/clients/:clientId/cycle', async (req: AuthRequest, res: Response) => {
   try {
     const { clientId } = req.params;
 
     // Verify this client belongs to the coach
-    const coachId = req.user!.userId;
+    const coachId = req.user!.id;
     const { data: relationship } = await supabase
       .from('coach_clients')
       .select('*')
