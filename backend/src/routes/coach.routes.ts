@@ -54,15 +54,21 @@ router.use(authMiddleware);
 // Get all clients for the current coach
 router.get('/clients', async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.user!.id;
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
 
-    // Get coach-client relationships
+    const userId = req.user.id;
+
     const { data: relationships, error: relError } = await supabase
       .from('coach_clients')
       .select('client_id')
       .eq('coach_id', userId);
 
-    if (relError) throw relError;
+    if (relError) {
+  console.error("REL ERROR:", relError);
+  return res.status(500).json({ error: "relError", details: relError });
+}
 
     if (!relationships || relationships.length === 0) {
       return res.json({ clients: [] });
@@ -70,51 +76,53 @@ router.get('/clients', async (req: AuthRequest, res: Response) => {
 
     const clientIds = relationships.map(r => r.client_id);
 
-    // Get client details
     const { data: clients, error: clientError } = await supabase
       .from('users')
       .select('id, email, first_name, last_name, created_at')
       .in('id', clientIds);
 
-    if (clientError) throw clientError;
+    if (clientError) {
+  console.error("CLIENT ERROR:", clientError);
+  return res.status(500).json({ error: "clientError", details: clientError });
+}
 
-    // Get recent stats for each client
     const clientsWithStats = await Promise.all(
       (clients || []).map(async (client) => {
-        // Get last 7 days of glucose readings
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
         const { data: readings } = await supabase
           .from('glucose_readings')
           .select('value, measured_at')
           .eq('user_id', client.id)
-          .gte('measured_at', sevenDaysAgo.toISOString())
-          .order('measured_at', { ascending: false });
+          .order('measured_at', { ascending: false })
+          .limit(20);
 
-        const values = (readings || []).map(r => r.value);
-        const avgGlucose = values.length > 0 
-          ? values.reduce((a, b) => a + b, 0) / values.length 
-          : 0;
-        const lastReading = values.length > 0 ? values[0] : 0;
-        const inRange = values.filter(v => v >= 70 && v <= 180).length;
-        const timeInRange = values.length > 0 
-          ? (inRange / values.length) * 100 
-          : 0;
+        const safeValues = (readings || [])
+          .map(r => r.value)
+          .filter(v => typeof v === 'number');
+
+        const avg =
+          safeValues.length > 0
+            ? safeValues.reduce((a, b) => a + b, 0) / safeValues.length
+            : 0;
+
+        const last = safeValues.length > 0 ? safeValues[0] : 0;
+
+        const inRange = safeValues.filter(v => v >= 70 && v <= 180).length;
+
+        const tir =
+          safeValues.length > 0
+            ? (inRange / safeValues.length) * 100
+            : 0;
 
         return {
           id: client.id,
-          first_name: client.first_name,
-          last_name: client.last_name,
+          firstName: client.first_name,   // ✅ FIXED
+          lastName: client.last_name,     // ✅ FIXED
           email: client.email,
-          latest_glucose: Math.round(lastReading),
-          last_reading_at: readings && readings.length > 0 
-            ? readings[0].measured_at 
-            : client.created_at,
-          recent_stats: {
-            avg_glucose: Math.round(avgGlucose),
-            last_reading: Math.round(lastReading),
-            time_in_range: Math.round(timeInRange),
+
+          recentStats: {                 // ✅ FIXED
+            avgGlucose: Math.round(avg),
+            lastReading: Math.round(last),
+            timeInRange: Math.round(tir),
           },
         };
       })
@@ -122,7 +130,7 @@ router.get('/clients', async (req: AuthRequest, res: Response) => {
 
     res.json({ clients: clientsWithStats });
   } catch (error) {
-    console.error('Error fetching clients:', error);
+    console.error('❌ Error fetching clients:', error);
     res.status(500).json({ error: 'Failed to fetch clients' });
   }
 });
