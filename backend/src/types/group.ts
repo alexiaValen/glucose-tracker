@@ -167,3 +167,54 @@ export interface CompleteSessionRequest {
   notes?: string;
   homeworkSubmitted: boolean;
 }
+
+export interface GroupSummary {
+  groupId: string;
+  groupName: string;
+  currentWeek: number;
+  totalWeeks: number;
+  progressPercentage: number;
+  nextSessionDate?: Date;
+  lastSessionCompletedAt?: Date;
+}
+
+export interface GlucoseReading {
+  value: number;
+  unit: 'mg/dL' | 'mmol/L';
+  measuredAt: Date;
+  source: string;
+  sourceDevice?: string;
+  notes?: string;
+  mealContext?: 'fasting' | 'pre-meal' | 'post-meal' | 'exercise' | 'other';
+}
+
+export interface SymptomEntry {
+  id: string;
+  userId: string;
+  symptomType: string;
+  severity: 'mild' | 'moderate' | 'severe';
+  notes?: string;
+  recordedAt: Date;
+}
+
+export interface Alert {
+  id: string;
+  userId: string;
+  type: 'high_glucose' | 'low_glucose' | 'rapid_change';
+  message: string;
+  glucoseValue?: number;
+  measuredAt?: Date;
+  isRead: boolean;
+  createdAt: Date;
+}
+
+export interface User {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: 'user' | 'coach' | 'admin';
+  createdAt: Date;
+  updatedAt: Date;
+}   
+

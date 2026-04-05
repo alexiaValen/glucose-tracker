@@ -163,19 +163,96 @@ router.post('/refresh', async (req: Request, res: Response) => {
   }
 });
 
+
 // POST /api/v1/auth/logout
-router.post('/logout', async (req: Request, res: Response) => {
-  try {
-    const { refreshToken } = req.body;
+// router.post('/logout', async (req: Request, res: Response) => {
+//   try {
+//     const { refreshToken } = req.body;
 
-    if (refreshToken) {
-      await authService.logout(refreshToken);
-    }
+//     if (refreshToken) {
+//       await authService.logout(refreshToken);
+//     }
 
-    res.json({ message: 'Logged out successfully' });
-  } catch (error: any) {
-    res.status(500).json({ error: error.message });
-  }
-});
+//     res.json({ message: 'Logged out successfully' });
+//   } catch (error: any) {
+//     res.status(500).json({ error: error.message });
+//   }
+
+
+// });
+
+// router.post('/logout-all', async (req: Request, res: Response) => {
+//   try {
+//     const userId = req.user!.id;
+//     await authService.logoutAllSessions(userId);
+//     res.json({ message: 'Logged out from all sessions successfully' });
+//   } catch (error: any) {
+//     res.status(500).json({ error: error.message });
+//   }
+// });
+
+// router.post('/change-password', async (req: Request, res: Response) => {
+//   try {
+//     const userId = req.user!.id;
+//     const { currentPassword, newPassword } = req.body;
+
+//     if (!currentPassword || !newPassword) {
+//       return res.status(400).json({ error: 'Current and new password required' });
+//     }
+
+//     await authService.changePassword(userId, currentPassword, newPassword);
+//     res.json({ message: 'Password changed successfully' });
+//   } catch (error: any) {
+//     res.status(400).json({ error: error.message });
+//   }
+// });
+
+// router.post('/delete-account', async (req: Request, res: Response) => {
+//   try {
+//     const userId = req.user!.id;
+//     const { password } = req.body;
+
+//     if (!password) {
+//       return res.status(400).json({ error: 'Password required to delete account' });
+//     }
+
+//     await authService.deleteAccount(userId, password);
+//     res.json({ message: 'Account deleted successfully' });
+//   } catch (error: any) {
+//     res.status(400).json({ error: error.message });
+//   }
+// });
+
+// router.post('/request-email-change', async (req: Request, res: Response) => {
+//   try {
+//     const userId = req.user!.id;
+//     const { newEmail } = req.body;
+
+//     if (!newEmail) {
+//       return res.status(400).json({ error: 'New email required' });
+//     }
+
+//     const result = await authService.requestEmailChange(userId, newEmail);
+//     res.json(result);
+//   } catch (error: any) {
+//     res.status(400).json({ error: error.message });
+//   }
+// });
+
+// router.post('/confirm-email-change', async (req: Request, res: Response) => {
+//   try {
+//     const userId = req.user!.id;
+//     const { newEmail, confirmationCode } = req.body;
+
+//     if (!newEmail || !confirmationCode) {
+//       return res.status(400).json({ error: 'New email and confirmation code required' });
+//     }
+
+//     await authService.confirmEmailChange(userId, newEmail, confirmationCode);
+//     res.json({ message: 'Email changed successfully' });
+//   } catch (error: any) {
+//     res.status(400).json({ error: error.message });
+//   }
+// });
 
 export default router;

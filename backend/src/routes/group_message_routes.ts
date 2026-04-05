@@ -39,7 +39,7 @@ async function hasGroupAccess(groupId: string, userId: string): Promise<boolean>
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     if (!(await hasGroupAccess(groupId, userId))) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -72,7 +72,7 @@ router.get('/', authMiddleware, async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { content } = req.body;
 
     if (!content?.trim()) {
@@ -114,7 +114,7 @@ router.post('/', authMiddleware, async (req, res) => {
 router.delete('/:messageId', authMiddleware, async (req, res) => {
   try {
     const { groupId, messageId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     const coach = await isCoachOfGroup(groupId, userId);
 
@@ -141,7 +141,7 @@ router.delete('/:messageId', authMiddleware, async (req, res) => {
 router.get('/members', authMiddleware, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     if (!(await hasGroupAccess(groupId, userId))) {
       return res.status(403).json({ error: 'Not authorized' });
@@ -182,7 +182,7 @@ router.get('/members', authMiddleware, async (req, res) => {
 router.post('/members', authMiddleware, async (req, res) => {
   try {
     const { groupId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { email } = req.body;
 
     if (!(await isCoachOfGroup(groupId, userId))) {
@@ -241,7 +241,7 @@ router.post('/members', authMiddleware, async (req, res) => {
 router.delete('/members/:memberId', authMiddleware, async (req, res) => {
   try {
     const { groupId, memberId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     if (!(await isCoachOfGroup(groupId, userId))) {
       return res.status(403).json({ error: 'Only the coach can remove members' });

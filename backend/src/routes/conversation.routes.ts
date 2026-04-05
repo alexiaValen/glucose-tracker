@@ -20,7 +20,7 @@ router.use(authMiddleware);
 router.post('/create', async (req, res) => {
   try {
     const { coach_id, client_ids, is_private = true } = req.body;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     // Validation
     if (!coach_id || !client_ids?.length) {
@@ -85,7 +85,7 @@ router.post('/create', async (req, res) => {
 router.post('/get-or-create', async (req, res) => {
   try {
     const { coach_id, client_id } = req.body;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     if (!coach_id || !client_id) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -137,7 +137,7 @@ router.post('/get-or-create', async (req, res) => {
  */
 router.get('/', async (req, res) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     // Get conversations where user is coach or in client_ids
     const { data: conversations, error } = await supabase
@@ -181,7 +181,7 @@ router.get('/', async (req, res) => {
 router.get('/:conversationId', async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     const { data: conversation, error } = await supabase
       .from('conversations')
@@ -215,7 +215,7 @@ router.patch('/:conversationId', async (req, res) => {
   try {
     const { conversationId } = req.params;
     const { is_private } = req.body;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     // Get conversation
     const { data: conversation } = await supabase
@@ -261,7 +261,7 @@ router.patch('/:conversationId', async (req, res) => {
 router.put('/:conversationId/read', async (req, res) => {
   try {
     const { conversationId } = req.params;
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     // Verify user is participant
     const { data: conversation } = await supabase

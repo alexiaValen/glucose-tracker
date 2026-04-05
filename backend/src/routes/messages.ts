@@ -8,7 +8,7 @@ const router = Router();
 // Get all conversations for current user
 router.get('/conversations', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     console.log('📬 Fetching conversations for user:', userId);
 
@@ -80,7 +80,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
 // âœ… IMPORTANT: this must come BEFORE "/:userId"
 router.get('/unread-count', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     const { count, error } = await supabase
       .from('messages')
@@ -100,7 +100,7 @@ router.get('/unread-count', authenticateToken, async (req, res) => {
 // Get messages by conversation_id (NEW - supports conversation-based messaging)
 router.get('/', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { conversation_id, limit = 50 } = req.query;
 
     if (!conversation_id) {
@@ -149,7 +149,7 @@ router.get('/', authenticateToken, async (req, res) => {
 // Get messages with a specific user
 router.get('/:userId', authenticateToken, async (req, res) => {
   try {
-    const currentUserId = req.user!.userId;
+    const currentUserId = req.user!.id;
     const { userId } = req.params;
     const limit = parseInt(req.query.limit as string) || 50;
 
@@ -174,7 +174,7 @@ router.get('/:userId', authenticateToken, async (req, res) => {
 // Send a message (supports both legacy recipientId and new conversation_id)
 router.post('/', authenticateToken, async (req, res) => {
   try {
-    const senderId = req.user!.userId;
+    const senderId = req.user!.id;
     const { recipientId, message, conversation_id, content } = req.body;
 
     // Support both old and new API
@@ -256,7 +256,7 @@ router.post('/', authenticateToken, async (req, res) => {
 // Mark messages as read
 router.put('/:userId/read', authenticateToken, async (req, res) => {
   try {
-    const currentUserId = req.user!.userId;
+    const currentUserId = req.user!.id;
     const { userId } = req.params;
 
     const { error } = await supabase

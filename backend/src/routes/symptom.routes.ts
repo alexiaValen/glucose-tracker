@@ -17,7 +17,7 @@ router.get(
   ],
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.userId;
+      const userId = req.user!.id;
       const { limit, offset } = req.query;
 
       const result = await pool.query(
@@ -44,7 +44,7 @@ router.post(
   '/',
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.userId;
+      const userId = req.user!.id;
       
       // Accept BOTH formats:
       // Web app: { symptomType, severity, notes }
@@ -98,7 +98,7 @@ router.post(
 // DELETE /api/v1/symptoms/:id
 router.delete('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     const result = await pool.query(
       'DELETE FROM symptoms WHERE id = $1 AND user_id = $2 RETURNING id',

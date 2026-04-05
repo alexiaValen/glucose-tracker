@@ -20,7 +20,7 @@ function calculatePhase(day: number): string {
 // GET /api/v1/cycles - List cycles
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     const { limit = 12 } = req.query;
 
     const result = await pool.query(
@@ -40,7 +40,7 @@ router.get('/', async (req: Request, res: Response) => {
 // GET /api/v1/cycles/current - Get current active cycle (FIXED: added 's')
 router.get('/current', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     const result = await pool.query(
       `SELECT * FROM cycle_logs 
@@ -86,7 +86,7 @@ router.post(
   '/',
   async (req: Request, res: Response) => {
     try {
-      const userId = req.user!.userId;
+      const userId = req.user!.id;
       
       // Accept both camelCase (cycleStartDate) and snake_case (start_date)
       const startDate = req.body.cycleStartDate || req.body.start_date;
@@ -151,7 +151,7 @@ router.post(
 // PATCH /api/v1/cycles/:id - Update cycle (end it) (FIXED: added 's')
 router.patch('/:id', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
     
     // Accept both camelCase and snake_case
     const cycleEndDate = req.body.cycleEndDate || req.body.cycle_end_date;
@@ -183,7 +183,7 @@ router.patch('/:id', async (req: Request, res: Response) => {
 // GET /api/v1/cycles/predict - Predict next cycle (FIXED: added 's')
 router.get('/predict', async (req: Request, res: Response) => {
   try {
-    const userId = req.user!.userId;
+    const userId = req.user!.id;
 
     // Get last 3 completed cycles to calculate average length
     const result = await pool.query(

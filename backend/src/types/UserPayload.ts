@@ -1,5 +1,10 @@
 export interface UserPayload {
   id: string;
   email: string;
-  rrole?: "user" | "coach" | "admin";
+  role?: "user" | "coach" | "admin" | string  ;
+  user?: {
+    firstName: string;
+    lastName: string;
+    id: string;
+  };
 }

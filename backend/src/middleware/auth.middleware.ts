@@ -4,8 +4,16 @@ import { UserPayload } from "../types/UserPayload";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
+// ✅ Extend Request
+export interface AuthRequest extends Request {
+  user?: UserPayload;
+  coachId?: string; // Optional, can be set in routes if needed
+  userId?: string; // Optional, can be set in routes if needed
+  userRole?: string; // Optional, can be set in routes if needed
+}
+
 export const authMiddleware = (
-  req: Request,
+  req: AuthRequest, 
   res: Response,
   next: NextFunction
 ) => {
@@ -30,3 +38,5 @@ export const authMiddleware = (
     return res.status(401).json({ error: "Invalid or expired token" });
   }
 };
+
+export default authMiddleware;
