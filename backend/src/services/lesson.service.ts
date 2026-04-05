@@ -1,24 +1,21 @@
 import { Request, Response } from "express";
 import { AuthRequest } from "../middleware/auth.middleware";
-import { supabase } from "../config/database";
+import { pool } from "../config/database";
 
 // ✅ GET ALL COACH LESSONS (grouped by client)
 export const getCoachLessons = async (req: AuthRequest, res: Response) => {
   try {
     const coachId = req.user!.id;
 
-    const { data, error } = await supabase
-      .from("lessons")
-      .select("*")
-      .eq("coach_id", coachId)
-      .order("created_at", { ascending: false });
+    const result = await pool.query(
+      `SELECT * FROM lessons WHERE coach_id = $1 ORDER BY created_at DESC`,
+      [coachId]
+    );
 
-    if (error) throw error;
-
-    res.json(data ?? []);
-  } catch (err) {
+    res.json(result.rows);
+  } catch (err: any) {
     console.error("❌ Fetch coach lessons failed:", err);
-    res.status(500).json({ error: "Failed to fetch lessons" });
+    res.status(500).json({ error: "Failed to fetch lessons", details: err.message });
   }
 };
 
@@ -29,21 +26,18 @@ export const updateLesson = async (req: AuthRequest, res: Response) => {
     const coachId = req.user!.id;
     const { title, description } = req.body;
 
-    const { data, error } = await supabase
-      .from("lessons")
-      .update({ title, description })
-      .eq("id", id)
-      .eq("coach_id", coachId)
-      .select()
-      .single();
+    const result = await pool.query(
+      `UPDATE lessons SET title = $1, description = $2
+       WHERE id = $3 AND coach_id = $4 RETURNING *`,
+      [title, description, id, coachId]
+    );
 
-    if (error) throw error;
-    if (!data) return res.status(404).json({ error: "Lesson not found" });
+    if (result.rows.length === 0) return res.status(404).json({ error: "Lesson not found" });
 
-    res.json(data);
-  } catch (err) {
+    res.json(result.rows[0]);
+  } catch (err: any) {
     console.error("❌ Update lesson failed:", err);
-    res.status(500).json({ error: "Failed to update lesson" });
+    res.status(500).json({ error: "Failed to update lesson", details: err.message });
   }
 };
 
@@ -64,29 +58,16 @@ export const createLesson = async (req: Request, res: Response) => {
       });
     }
 
-    const { data, error } = await supabase
-      .from("lessons")
-      .insert([
-        {
-          title,
-          description,
-          client_id,
-          coach_id,
-          status: "assigned",
-        },
-      ])
-      .select()
-      .single();
+    const result = await pool.query(
+      `INSERT INTO lessons (title, description, client_id, coach_id, status)
+       VALUES ($1, $2, $3, $4, 'assigned') RETURNING *`,
+      [title, description, client_id, coach_id]
+    );
 
-    if (error) {
-      console.error("❌ Supabase insert error:", error);
-      return res.status(400).json({ error: error.message });
-    }
-
-    res.json(data);
-  } catch (err) {
+    res.json(result.rows[0]);
+  } catch (err: any) {
     console.error("❌ Create lesson failed:", err);
-    res.status(500).json({ error: "Failed to create lesson" });
+    res.status(500).json({ error: "Failed to create lesson", details: err.message });
   }
 };
 
@@ -95,18 +76,15 @@ export const getClientLessons = async (req: Request, res: Response) => {
   try {
     const userId = req.user!.id;
 
-    const { data, error } = await supabase
-      .from("lessons")
-      .select("*")
-      .eq("client_id", userId)
-      .order("created_at", { ascending: false });
+    const result = await pool.query(
+      `SELECT * FROM lessons WHERE client_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
 
-    if (error) throw error;
-
-    res.json(data);
-  } catch (err) {
+    res.json(result.rows);
+  } catch (err: any) {
     console.error("❌ Fetch lessons failed:", err);
-    res.status(500).json({ error: "Failed to fetch lessons" });
+    res.status(500).json({ error: "Failed to fetch lessons", details: err.message });
   }
 };
 
@@ -116,23 +94,18 @@ export const markLessonViewed = async (req: Request, res: Response) => {
     const { id } = req.params;
     const userId = req.user!.id;
 
-    const { data, error } = await supabase
-      .from("lessons")
-      .update({
-        status: "viewed",
-        viewed_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq("client_id", userId)
-      .select()
-      .single();
+    const result = await pool.query(
+      `UPDATE lessons SET status = 'viewed', viewed_at = NOW()
+       WHERE id = $1 AND client_id = $2 RETURNING *`,
+      [id, userId]
+    );
 
-    if (error) throw error;
+    if (result.rows.length === 0) return res.status(404).json({ error: "Lesson not found" });
 
-    res.json(data);
-  } catch (err) {
+    res.json(result.rows[0]);
+  } catch (err: any) {
     console.error("❌ Mark viewed failed:", err);
-    res.status(500).json({ error: "Failed to mark viewed" });
+    res.status(500).json({ error: "Failed to mark viewed", details: err.message });
   }
 };
 
@@ -144,22 +117,17 @@ export const markLessonCompleted = async (req: Request, res: Response) => {
 
     console.log("✅ Completing lesson:", id, "for user:", userId);
 
-    const { data, error } = await supabase
-      .from("lessons")
-      .update({
-        status: "completed",
-        completed_at: new Date().toISOString(),
-      })
-      .eq("id", id)
-      .eq("client_id", userId)
-      .select()
-      .single();
+    const result = await pool.query(
+      `UPDATE lessons SET status = 'completed', completed_at = NOW()
+       WHERE id = $1 AND client_id = $2 RETURNING *`,
+      [id, userId]
+    );
 
-    if (error) throw error;
+    if (result.rows.length === 0) return res.status(404).json({ error: "Lesson not found" });
 
-    res.json(data);
-  } catch (err) {
+    res.json(result.rows[0]);
+  } catch (err: any) {
     console.error("❌ Mark complete failed:", err);
-    res.status(500).json({ error: "Failed to mark complete" });
+    res.status(500).json({ error: "Failed to mark complete", details: err.message });
   }
 };

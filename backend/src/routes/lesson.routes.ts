@@ -8,7 +8,7 @@ import {
   markLessonViewed,
   markLessonCompleted,
 } from "../services/lesson.service";
-import { supabase } from "../config/database";
+import { pool } from "../config/database";
 
 const router = Router();
 
@@ -33,19 +33,15 @@ router.patch("/:id/completed", authMiddleware, markLessonCompleted);
 router.get("/test", authMiddleware, async (req, res) => {
   try {
     const userId = req.user!.id;
-    const { data, error } = await supabase
-      .from("lessons")
-      .select("*")
-      .eq("client_id", userId)
-      .order("created_at", { ascending: false });
-
-    if (error) throw error;
-
-    res.json(data);
-  } catch (err) {
+    const result = await pool.query(
+      `SELECT * FROM lessons WHERE client_id = $1 ORDER BY created_at DESC`,
+      [userId]
+    );
+    res.json(result.rows);
+  } catch (err: any) {
     console.error("❌ Test fetch failed:", err);
-    res.status(500).json({ error: "Failed to fetch lessons" });
+    res.status(500).json({ error: "Failed to fetch lessons", details: err.message });
   }
-}); 
+});
 
 export default router;
