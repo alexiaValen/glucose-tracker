@@ -295,7 +295,6 @@ export default function CoachDashboardScreen({ navigation }: Props) {
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
-    </View>
   );
 }
 
