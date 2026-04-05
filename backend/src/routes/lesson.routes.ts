@@ -3,6 +3,8 @@ import { authMiddleware } from "../middleware/auth.middleware";
 import {
   createLesson,
   getClientLessons,
+  getCoachLessons,
+  updateLesson,
   markLessonViewed,
   markLessonCompleted,
 } from "../services/lesson.service";
@@ -10,10 +12,16 @@ import { supabase } from "../config/database";
 
 const router = Router();
 
-// ✅ Coach assigns lesson
+// ✅ Coach: create lesson for client
 router.post("/assign", authMiddleware, createLesson);
 
-// ✅ Client fetches lessons
+// ✅ Coach: get all their lessons
+router.get("/coach/all", authMiddleware, getCoachLessons);
+
+// ✅ Coach: update lesson content/notes
+router.patch("/:id", authMiddleware, updateLesson);
+
+// ✅ Client: fetch their lessons
 router.get("/me", authMiddleware, getClientLessons);
 
 // ✅ Mark viewed

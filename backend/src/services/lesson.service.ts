@@ -1,5 +1,51 @@
 import { Request, Response } from "express";
+import { AuthRequest } from "../middleware/auth.middleware";
 import { supabase } from "../config/database";
+
+// ✅ GET ALL COACH LESSONS (grouped by client)
+export const getCoachLessons = async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId = req.user!.id;
+
+    const { data, error } = await supabase
+      .from("lessons")
+      .select("*")
+      .eq("coach_id", coachId)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    res.json(data ?? []);
+  } catch (err) {
+    console.error("❌ Fetch coach lessons failed:", err);
+    res.status(500).json({ error: "Failed to fetch lessons" });
+  }
+};
+
+// ✅ UPDATE LESSON (title, description, content/notes)
+export const updateLesson = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const coachId = req.user!.id;
+    const { title, description } = req.body;
+
+    const { data, error } = await supabase
+      .from("lessons")
+      .update({ title, description })
+      .eq("id", id)
+      .eq("coach_id", coachId)
+      .select()
+      .single();
+
+    if (error) throw error;
+    if (!data) return res.status(404).json({ error: "Lesson not found" });
+
+    res.json(data);
+  } catch (err) {
+    console.error("❌ Update lesson failed:", err);
+    res.status(500).json({ error: "Failed to update lesson" });
+  }
+};
 
 // ✅ CREATE LESSON
 export const createLesson = async (req: Request, res: Response) => {

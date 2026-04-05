@@ -852,4 +852,88 @@ router.delete('/:groupId/messages/:messageId', async (req, res) => {
   }
 });
 
+// POST /api/v1/groups/:groupId/sessions/:sessionId/rsvp
+router.post('/:groupId/sessions/:sessionId/rsvp', async (req, res) => {
+  try {
+    const { groupId, sessionId } = req.params;
+    const userId = req.user!.id;
+
+    const isMember = await verifyGroupMembership(groupId, userId);
+    if (!isMember) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const { data, error } = await supabase
+      .from('user_progress')
+      .upsert({
+        user_id: userId,
+        group_id: groupId,
+        session_id: sessionId,
+        completed: false,
+      }, { onConflict: 'user_id,session_id' })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.json({ rsvp: data });
+  } catch (error) {
+    console.error('Error RSVPing to session:', error);
+    res.status(500).json({ error: 'Failed to RSVP' });
+  }
+});
+
+// POST /api/v1/groups/:groupId/sessions - Coach creates session/event with notes
+router.post('/:groupId/sessions', async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const userId = req.user!.id;
+
+    const { data: group, error: groupError } = await supabase
+      .from('coaching_groups')
+      .select('coach_id')
+      .eq('id', groupId)
+      .single();
+
+    if (groupError || group?.coach_id !== userId) {
+      return res.status(403).json({ error: 'Only the coach can create sessions' });
+    }
+
+    const {
+      title,
+      description,
+      session_date,
+      zoom_link,
+      week_number,
+      materials,
+      homework,
+      recording_url,
+    } = req.body;
+
+    const { data: session, error } = await supabase
+      .from('group_sessions')
+      .insert({
+        group_id: groupId,
+        title,
+        description,
+        session_date,
+        zoom_link,
+        week_number: week_number ?? 1,
+        materials: materials ?? [],
+        homework,
+        recording_url,
+        status: 'upcoming',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    res.status(201).json({ session });
+  } catch (error) {
+    console.error('Error creating session:', error);
+    res.status(500).json({ error: 'Failed to create session' });
+  }
+});
+
 export default router;

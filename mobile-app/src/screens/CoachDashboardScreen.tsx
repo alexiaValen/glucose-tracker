@@ -13,8 +13,6 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 import { useCoachStore } from '../stores/coachStore';
-import { BotanicalBackground } from '../components/BotanicalBackground';
-import { SignalRingThin } from '../components/icons';
 import { colors } from '../theme/colors';
 
 type CoachDashboardScreenNavigationProp = NativeStackNavigationProp<
@@ -97,18 +95,14 @@ export default function CoachDashboardScreen({ navigation }: Props) {
   }).length;
 
   return (
-    <BotanicalBackground variant="green" intensity="light">
-      <View style={styles.container}>
+    <View style={styles.container}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.headerLeft}>
-            <View style={styles.greetingContainer}>
-              <SignalRingThin size={20} muted="rgba(107,127,110,0.15)" />
-              <View>
-                <Text style={styles.subtitle}>COACH DASHBOARD</Text>
-                <Text style={styles.greeting}>Welcome, {user?.firstName}</Text>
-              </View>
-            </View>
+            <Text style={styles.subtitle}>TLC COACH</Text>
+            <Text style={styles.greeting}>
+              {user?.firstName ? `Hi, ${user.firstName}` : 'Dashboard'}
+            </Text>
           </View>
 
           <View style={styles.headerActions}>
@@ -116,10 +110,10 @@ export default function CoachDashboardScreen({ navigation }: Props) {
               style={styles.iconButton}
               onPress={() => navigation.navigate('Conversations')}
             >
-              <Text style={styles.iconGlyph}>...</Text>
+              <Text style={styles.iconGlyph}>✉</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.logoutButton} onPress={logout}>
-              <Text style={styles.logoutText}>Logout</Text>
+              <Text style={styles.logoutText}>Out</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -129,23 +123,54 @@ export default function CoachDashboardScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {/* Group Chat Card */}
-          {myGroup && (
+          {/* Coach Quick Actions */}
+          <View style={styles.quickActionsRow}>
             <TouchableOpacity
-              style={styles.groupChatCard}
-              onPress={navigateToGroupChat}
+              style={styles.quickAction}
+              onPress={() => navigation.navigate('CreateLesson', {})}
               activeOpacity={0.85}
             >
-              <Text style={styles.groupChatEmoji}>+</Text>
-              <View style={styles.groupChatContent}>
-                <Text style={styles.groupChatLabel}>GROUP CHAT</Text>
-                <Text style={styles.groupChatName}>
-                  {myGroup.name || '12-Week Metabolic Reset'}
-                </Text>
-              </View>
-              <Text style={styles.groupChatArrow}>→</Text>
+              <Text style={styles.quickActionIcon}>✎</Text>
+              <Text style={styles.quickActionLabel}>New Lesson</Text>
             </TouchableOpacity>
-          )}
+
+            <TouchableOpacity
+              style={styles.quickAction}
+              onPress={() => navigation.navigate('CoachLessons')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.quickActionIcon}>◧</Text>
+              <Text style={styles.quickActionLabel}>All Lessons</Text>
+            </TouchableOpacity>
+
+            {myGroup && (
+              <TouchableOpacity
+                style={styles.quickAction}
+                onPress={() =>
+                  navigation.navigate('GroupEvents', {
+                    groupId: myGroup.id,
+                    groupName: myGroup.name,
+                    isCoach: true,
+                  })
+                }
+                activeOpacity={0.85}
+              >
+                <Text style={styles.quickActionIcon}>📅</Text>
+                <Text style={styles.quickActionLabel}>Events</Text>
+              </TouchableOpacity>
+            )}
+
+            {myGroup && (
+              <TouchableOpacity
+                style={styles.quickAction}
+                onPress={navigateToGroupChat}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.quickActionIcon}>💬</Text>
+                <Text style={styles.quickActionLabel}>Group Chat</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Stats Summary Card */}
           <View style={styles.summaryCard}>
@@ -270,68 +295,91 @@ export default function CoachDashboardScreen({ navigation }: Props) {
           <View style={{ height: 40 }} />
         </ScrollView>
       </View>
-    </BotanicalBackground>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: colors.bg },
+
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 24,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(212,214,212,0.25)',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 60,
+    paddingBottom: 22,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.glassBorder,
   },
   headerLeft: { flex: 1 },
-  greetingContainer: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   subtitle: {
-    fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
-    textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)', marginBottom: 6,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 1.5,
+    color: colors.textMuted,
+    marginBottom: 4,
   },
-  greeting: { fontSize: 22, fontWeight: '600', letterSpacing: -0.3, color: '#2B2B2B' },
-  headerActions: { flexDirection: 'row', gap: 12 },
+  greeting: {
+    fontSize: 24,
+    fontWeight: '300',
+    fontStyle: 'italic',
+    color: colors.textPrimary,
+    letterSpacing: -0.3,
+  },
+  headerActions: { flexDirection: 'row', gap: 10 },
   iconButton: {
     width: 40, height: 40, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.4)', borderWidth: 1.5,
-    borderColor: 'rgba(42,45,42,0.15)', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
+    backgroundColor: colors.glass,
+    borderWidth: 1, borderColor: colors.glassBorder,
+    alignItems: 'center', justifyContent: 'center',
   },
-  iconGlyph: { fontSize: 16, color: '#2B2B2B', fontWeight: '700', letterSpacing: 1 },
+  iconGlyph: { fontSize: 15, color: colors.textPrimary },
   logoutButton: {
-    paddingVertical: 10, paddingHorizontal: 16, borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.4)', borderWidth: 1.5,
-    borderColor: 'rgba(42,45,42,0.15)', justifyContent: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04, shadowRadius: 8, elevation: 1,
+    paddingVertical: 10, paddingHorizontal: 14, borderRadius: 12,
+    backgroundColor: colors.glass,
+    borderWidth: 1, borderColor: colors.glassBorder,
+    justifyContent: 'center',
   },
-  logoutText: { fontSize: 14, fontWeight: '600', color: '#2B2B2B', letterSpacing: 0.2 },
+  logoutText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
+
   content: { flex: 1 },
   scrollContent: { paddingTop: 20 },
 
-  // Group chat card
-  groupChatCard: {
-    marginHorizontal: 20, marginBottom: 16,
-    backgroundColor: colors.forestGreen, borderRadius: 18, padding: 16,
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1, shadowRadius: 8, elevation: 3,
+  // Quick actions row
+  quickActionsRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 20,
+    gap: 10,
+    flexWrap: 'wrap',
   },
-  groupChatEmoji: { fontSize: 22, color: '#FFFFFF', fontWeight: '700' },
-  groupChatContent: { flex: 1 },
-  groupChatLabel: {
-    fontSize: 10, fontWeight: '700', letterSpacing: 1,
-    color: 'rgba(255,255,255,0.7)', marginBottom: 2,
+  quickAction: {
+    flex: 1,
+    minWidth: '22%',
+    backgroundColor: colors.glass,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+    gap: 6,
   },
-  groupChatName: { fontSize: 14, fontWeight: '600', color: '#FFFFFF' },
-  groupChatArrow: { fontSize: 18, color: 'rgba(255,255,255,0.8)' },
+  quickActionIcon: { fontSize: 20 },
+  quickActionLabel: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+    color: colors.textSecondary,
+    textAlign: 'center',
+  },
 
   summaryCard: {
     marginHorizontal: 20, marginBottom: 24, padding: 20,
-    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 20,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+    backgroundColor: colors.glass,
+    borderRadius: 20,
+    borderWidth: 1, borderColor: colors.glassBorder,
   },
   statsRow: { flexDirection: 'row', gap: 12 },
   statBox: { flex: 1, alignItems: 'center' },
@@ -339,78 +387,66 @@ const styles = StyleSheet.create({
     width: '100%', padding: 16, borderRadius: 12,
     alignItems: 'center', position: 'relative',
   },
-  statNumber: { fontSize: 28, fontWeight: '700', color: '#2B2B2B', marginBottom: 6 },
-  statNumberGood: { color: '#6B7F6E' },
-  statNumberWarning: { color: '#F59E0B' },
-  statLabel: { fontSize: 11, fontWeight: '500', color: 'rgba(42,45,42,0.5)' },
+  statNumber: { fontSize: 28, fontWeight: '700', color: colors.textPrimary, marginBottom: 6 },
+  statNumberGood: { color: colors.sage },
+  statNumberWarning: { color: colors.warning },
+  statLabel: { fontSize: 11, fontWeight: '500', color: colors.textMuted },
   statusDot: {
     position: 'absolute', top: 12, right: 12,
-    width: 4, height: 4, borderRadius: 2, backgroundColor: '#6B7F6E',
+    width: 4, height: 4, borderRadius: 2, backgroundColor: colors.sage,
   },
 
   section: { paddingHorizontal: 20 },
   sectionHeader: {
-    fontSize: 11, fontWeight: '600', letterSpacing: 1.2,
-    textTransform: 'uppercase', color: 'rgba(42,45,42,0.5)', marginBottom: 16,
+    fontSize: 10, fontWeight: '700', letterSpacing: 1.5,
+    color: colors.textMuted, marginBottom: 16,
   },
   clientCard: {
-    marginBottom: 12, padding: 18, backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 20, borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.06, shadowRadius: 12, elevation: 3,
+    marginBottom: 12, padding: 18,
+    backgroundColor: colors.glass,
+    borderRadius: 20,
+    borderWidth: 1, borderColor: colors.glassBorder,
   },
   clientHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 16 },
   clientAvatar: {
     width: 52, height: 52, borderRadius: 26,
-    backgroundColor: 'rgba(107,127,110,0.15)', borderWidth: 1,
-    borderColor: 'rgba(107,127,110,0.2)', justifyContent: 'center',
-    alignItems: 'center', marginRight: 14,
+    backgroundColor: colors.glassSage,
+    borderWidth: 1, borderColor: colors.glassBorderStrong,
+    justifyContent: 'center', alignItems: 'center', marginRight: 14,
   },
-  clientInitial: { fontSize: 20, fontWeight: '700', color: '#6B7F6E' },
+  clientInitial: { fontSize: 20, fontWeight: '700', color: colors.sage },
   clientInfo: { flex: 1 },
-  clientName: { fontSize: 17, fontWeight: '600', color: '#2B2B2B', marginBottom: 4, letterSpacing: 0.2 },
-  clientEmail: { fontSize: 13, color: 'rgba(42,45,42,0.5)', fontWeight: '400' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  statusDotSmall: { width: 4, height: 4, borderRadius: 2 },
-  statusText: { fontSize: 11, fontWeight: '600', letterSpacing: 0.8, color: 'rgba(42,45,42,0.7)' },
-  divider: { height: 1, backgroundColor: 'rgba(212,214,212,0.3)', marginBottom: 16 },
+  clientName: { fontSize: 16, fontWeight: '600', color: colors.textPrimary, marginBottom: 3, letterSpacing: 0.1 },
+  clientEmail: { fontSize: 13, color: colors.textMuted },
+  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  statusDotSmall: { width: 5, height: 5, borderRadius: 2.5 },
+  statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8, color: colors.textMuted },
+  divider: { height: 1, backgroundColor: colors.glassBorder, marginBottom: 16 },
   clientStats: { flexDirection: 'row', justifyContent: 'space-around' },
   clientStatItem: { alignItems: 'center' },
-  clientStatValue: { fontSize: 18, fontWeight: '700', color: '#2B2B2B', marginBottom: 6 },
-  clientStatLabel: { fontSize: 11, fontWeight: '500', color: 'rgba(42,45,42,0.5)' },
-  clientActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
+  clientStatValue: { fontSize: 18, fontWeight: '700', color: colors.textPrimary, marginBottom: 5 },
+  clientStatLabel: { fontSize: 10, fontWeight: '500', color: colors.textMuted },
+  clientActions: { flexDirection: 'row', gap: 10 },
   clientActionBtn: {
     flex: 1,
-    backgroundColor: colors.forestGreen,
+    backgroundColor: colors.gold,
     borderRadius: 12,
     paddingVertical: 11,
     alignItems: 'center',
   },
   clientActionBtnSecondary: {
     backgroundColor: 'transparent',
-    borderWidth: 1.5,
-    borderColor: 'rgba(107,127,110,0.3)',
+    borderWidth: 1,
+    borderColor: colors.glassBorderStrong,
   },
-  clientActionBtnText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    letterSpacing: 0.3,
-  },
-  clientActionBtnTextSecondary: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: colors.forestGreen,
-    letterSpacing: 0.3,
-  },
+  clientActionBtnText: { fontSize: 13, fontWeight: '700', color: colors.bg, letterSpacing: 0.3 },
+  clientActionBtnTextSecondary: { fontSize: 13, fontWeight: '600', color: colors.textSecondary, letterSpacing: 0.3 },
+
   loadingContainer: { alignItems: 'center', paddingVertical: 60 },
   emptyState: { alignItems: 'center', paddingVertical: 60, paddingHorizontal: 40 },
   emptyText: {
-    fontSize: 16, fontWeight: '600', color: '#2B2B2B',
+    fontSize: 16, fontWeight: '600', color: colors.textPrimary,
     marginTop: 16, marginBottom: 8, textAlign: 'center',
   },
-  emptySubtext: { fontSize: 14, color: 'rgba(42,45,42,0.5)', textAlign: 'center', lineHeight: 20 },
+  emptySubtext: { fontSize: 14, color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
 });

@@ -15,11 +15,14 @@ export type RootStackParamList = {
   AddSymptom: undefined;
   LogCycle: undefined;
   LessonDetail: { lesson: any };
+  ClientLessons: undefined;
 
   // Coach screens
   CoachDashboard: undefined;
   ClientDetail: { clientId: string };
   ClientPreview: { clientId: string; clientName: string };
+  CreateLesson: { clientId?: string; clientName?: string; lessonId?: string };
+  CoachLessons: undefined;
 
   // Common
   Settings: undefined;
@@ -35,6 +38,7 @@ export type RootStackParamList = {
   JoinGroup: undefined;
   GroupDashboard: { groupId: string };
   GroupSessions: { groupId: string };
+  GroupEvents: { groupId: string; groupName: string; isCoach?: boolean };
   SessionDetail: { groupId?: string; sessionId: string };
   GroupChat: { groupId: string; groupName: string };
   GroupMembers: { groupId: string };

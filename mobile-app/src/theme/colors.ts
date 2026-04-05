@@ -1,63 +1,64 @@
 // mobile-app/src/theme/colors.ts
-// Complete color palette for GraceFlow
+// TLC color palette — dark-first, glass morphism
 
 export const colors = {
-  // Primary colors from icon
-  forestGreen: '#3D5540',      // Dark sage/forest - primary brand color
-  sage: '#6B7F6E',             // Medium sage - secondary brand color  
-  lightSage: '#8C9B8E',        // Light sage - tertiary
-  goldLeaf: '#B8A45F',         // Golden accent from leaf
-  warmBrown: '#8B6F47',        // Warm taupe brown - earth tone
-  
-  // Neutrals
-  charcoal: '#2A2D2A',         // Almost black - primary text
-  darkGray: '#4A4D4A',         // Dark gray - secondary text
-  mediumGray: '#6B6B6B',       // Medium gray
-  lightGray: '#A8ABA8',        // Light gray
-  
-  // Backgrounds
-  cream: '#F5F4F0',            // Off-white cream - main background
-  white: '#FFFFFF',            // Pure white - cards
-  paleGreen: '#E8EDE9',        // Very light sage - subtle backgrounds
-  
-  // Semantic colors
-  success: '#6B7F6E',          // Use sage for success
-  warning: '#D4A76F',          // Use gold for warnings (yellow alternative)
-  error: '#C85A54',            // Muted red
-  info: '#7A92A8',             // Muted blue
-  
-  // Glucose/severity indicators
-  red: '#EF4444',              // Low glucose / high severity
-  yellow: '#D4A76F',           // Warning / moderate
-  green: '#6B7F6E',            // Good / mild (use sage)
-  
-  // Text colors
-  textDark: '#2A2D2A',         // Primary text
-  textMedium: '#4A4D4A',       // Secondary text
-  textLight: '#6B6B6B',        // Tertiary text
-  textMuted: '#A8ABA8',        // Disabled/muted text
-  textPrimary: '#2A2D2A',      // Alias for textDark
-  textSecondary: '#6B6B6B',    // Alias for textLight
-  textTertiary: '#A8ABA8',     // Alias for textMuted
-  
-  // UI elements
-  border: '#D4D6D4',           // Borders
-  borderLight: '#E8EDE9',      // Light borders
-  borderAccent: 'rgba(212,214,212,0.25)',  // Accent borders
-  shadow: '#2A2D2A',           // Shadows
-  
-  // Accent colors (for variety)
-  accentPeach: '#C9A58A',      // Soft peach (for cycle tracking)
-  accentBlue: '#7A92A8',       // Soft blue (for glucose)
-  
-  // Clinical-calm colors (from refined design)
-  ink: '#2B2B2B',              // Primary ink color
-  muted: '#CFC9BF',            // Muted/secondary
-  accent: '#B89A5A',           // Gold accent
-  
-  // Aliases for component compatibility
-  primary: '#6B7F6E',          // Alias for sage
-  text: '#2A2D2A',             // Alias for textDark
-  background: '#F5F4F0',       // Alias for cream
-  primaryLight: '#8C9B8E',     // Alias for lightSage
+  // ── TLC Core ──────────────────────────────────────────────
+  bg: '#0B1F14',               // deep green-black background
+  bgMid: '#0F2A1A',            // slightly lighter bg layer
+  sage: '#6E8F7A',             // sage green
+  lightSage: '#8FAF9A',        // light sage
+  gold: '#D6C7A1',             // soft gold accent
+  cream: '#F5F3EE',            // soft cream (light mode / text)
+
+  // ── Glass card ────────────────────────────────────────────
+  glass: 'rgba(255,255,255,0.06)',
+  glassBorder: 'rgba(214,199,161,0.15)',
+  glassBorderStrong: 'rgba(214,199,161,0.28)',
+  glassSage: 'rgba(110,143,122,0.12)',
+
+  // ── Text (on dark) ────────────────────────────────────────
+  textPrimary: '#F5F3EE',
+  textSecondary: 'rgba(245,243,238,0.6)',
+  textMuted: 'rgba(245,243,238,0.35)',
+  textGold: '#D6C7A1',
+  textSage: '#6E8F7A',
+
+  // ── Semantic ──────────────────────────────────────────────
+  success: '#6E8F7A',
+  warning: '#D4A76F',
+  error: '#C85A54',
+  info: '#7A92A8',
+
+  // ── Glucose indicators ────────────────────────────────────
+  red: '#EF4444',
+  yellow: '#D4A76F',
+  green: '#6E8F7A',
+
+  // ── Legacy aliases (keep existing screens working) ────────
+  forestGreen: '#0B1F14',
+  charcoal: '#2A2D2A',
+  darkGray: '#4A4D4A',
+  mediumGray: '#6B6B6B',
+  lightGray: '#A8ABA8',
+  white: '#FFFFFF',
+  paleGreen: '#E8EDE9',
+  border: 'rgba(214,199,161,0.15)',
+  borderLight: 'rgba(214,199,161,0.08)',
+  borderAccent: 'rgba(214,199,161,0.25)',
+  shadow: '#0B1F14',
+  accentPeach: '#C9A58A',
+  accentBlue: '#7A92A8',
+  ink: '#F5F3EE',
+  muted: '#6E8F7A',
+  accent: '#D6C7A1',
+  primary: '#6E8F7A',
+  text: '#F5F3EE',
+  background: '#0B1F14',
+  primaryLight: '#8FAF9A',
+  goldLeaf: '#D6C7A1',
+  warmBrown: '#8B6F47',
+  textDark: '#F5F3EE',
+  textMedium: 'rgba(245,243,238,0.6)',
+  textLight: 'rgba(245,243,238,0.45)',
+  textTertiary: 'rgba(245,243,238,0.35)',
 };
