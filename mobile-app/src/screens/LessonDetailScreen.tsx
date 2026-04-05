@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, Button } from "react-native";
 import { markLessonViewed, markLessonCompleted } from "../services/lessonService";
 
@@ -13,11 +13,21 @@ type Props = {
 export default function LessonDetailScreen({ route }: Props) {
   const { lesson } = route.params;
 
+  // 🔥 local state so UI updates instantly
+  const [isCompleted, setIsCompleted] = useState(
+    lesson.status === "completed"
+  );
+
   useEffect(() => {
     if (lesson?.status === "assigned") {
       markLessonViewed(lesson.id);
     }
   }, []);
+
+  const handleComplete = async () => {
+    await markLessonCompleted(lesson.id);
+    setIsCompleted(true); // 🔥 update UI immediately
+  };
 
   return (
     <View style={{ padding: 20 }}>
@@ -31,10 +41,15 @@ export default function LessonDetailScreen({ route }: Props) {
         </Text>
       )}
 
-      <Button
-        title="Mark Complete"
-        onPress={() => markLessonCompleted(lesson.id)}
-      />
+      {/* 🔥 THIS IS THE UI SWITCH */}
+      {isCompleted ? (
+        <Text style={{ marginTop: 20 }}>Completed ✅</Text>
+      ) : (
+        <Button
+          title="Mark Complete"
+          onPress={handleComplete}
+        />
+      )}
     </View>
   );
 }
