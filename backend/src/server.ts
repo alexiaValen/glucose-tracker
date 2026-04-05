@@ -78,6 +78,7 @@ app.get("/api/v1", (_req, res) =>
   res.json({ status: "ok", api: "v1" })
 );
 
+
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/glucose", glucoseRoutes);
 app.use("/api/v1/coach", coachRoutes);
@@ -88,6 +89,8 @@ app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/groups", groupRoutes);
 app.use("/api/v1/group-messages", groupMessageRoutes);
 app.use("/api/v1/lessons", lessonRoutes);
+app.use("/api/v1/group-messages", groupMessageRoutes);
+app.use("/api/v1/group/:groupId/messages", groupMessageRoutes); // nested route for group messages  
 
 // ==================== ERROR HANDLERS ====================
 app.use((_req, res) => {
@@ -97,8 +100,8 @@ app.use((_req, res) => {
 app.use(
   (
     err: any,
-    _req: express.Request,
-    res: express.Response,
+    _req: express.Request | any /* for auth middleware */,
+    res: express.Response | any /* for auth middleware */,
     _next: express.NextFunction
   ) => {
     console.error("❌ Error:", err?.message || err);

@@ -1,9 +1,11 @@
-import { UserPayload } from "./UserPayload";
+// backend/src/types/express.d.ts
 
 declare global {
   namespace Express {
     interface Request {
-      user?: UserPayload;
+      user?: {
+        id: string;
+      };
     }
   }
 }

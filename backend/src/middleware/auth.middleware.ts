@@ -1,19 +1,17 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { UserPayload } from "../types/UserPayload";
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
-// ✅ Extend Request
+// ✅ DO NOT use UserPayload here
 export interface AuthRequest extends Request {
-  user?: UserPayload;
-  coachId?: string; // Optional, can be set in routes if needed
-  userId?: string; // Optional, can be set in routes if needed
-  userRole?: string; // Optional, can be set in routes if needed
+  user?: {
+    id: string;
+  };
 }
 
 export const authMiddleware = (
-  req: AuthRequest, 
+  req: AuthRequest,
   res: Response,
   next: NextFunction
 ) => {
@@ -26,11 +24,21 @@ export const authMiddleware = (
 
     const token = authHeader.split(" ")[1];
 
-    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
+    const decoded = jwt.verify(token, JWT_SECRET) as any;
 
-    req.user = decoded;
+    const userId =
+      decoded?.id ||
+      decoded?.userId ||
+      decoded?.sub;
 
-    console.log("🔐 USER FROM TOKEN:", decoded.id);
+    if (!userId) {
+      console.error("❌ TOKEN HAS NO USER ID:", decoded);
+      return res.status(401).json({ error: "Invalid token payload" });
+    }
+
+    req.user = { id: userId };
+
+    console.log("🔐 USER FROM TOKEN:", userId);
 
     next();
   } catch (error) {
