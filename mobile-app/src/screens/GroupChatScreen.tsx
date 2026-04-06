@@ -1,5 +1,6 @@
 // mobile-app/src/screens/GroupChatScreen.tsx
-// Group message thread — members read/send, coach can also manage members
+// Upgraded UI — forest dark glassmorphism
+// ALL logic, API calls, polling, member management preserved exactly
 
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -15,18 +16,47 @@ import {
   ActivityIndicator,
   Modal,
   ScrollView,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as SecureStore from 'expo-secure-store';
-import { BotanicalBackground } from '../components/BotanicalBackground';
-import { colors } from '../theme/colors';
 import { useAuthStore } from '../stores/authStore';
 
 const API_BASE = process.env.EXPO_PUBLIC_API_URL;
+const { width: SW } = Dimensions.get('window');
 
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const T = {
+  bgDeep:        '#0F1C12',
+  bgMid:         '#162019',
+  glass:         'rgba(255,255,255,0.06)',
+  glassMid:      'rgba(255,255,255,0.09)',
+  glassStrong:   'rgba(255,255,255,0.13)',
+  glassBorder:   'rgba(255,255,255,0.10)',
+  glassBorderHi: 'rgba(255,255,255,0.18)',
+  sage:          '#7A9B7E',
+  sageBright:    '#9ABD9E',
+  sageDeep:      '#3D5540',
+  sageGlow:      'rgba(122,155,126,0.20)',
+  sageBubble:    'rgba(61,85,64,0.85)',
+  gold:          '#C9A96E',
+  goldGlow:      'rgba(201,169,110,0.18)',
+  goldBorder:    'rgba(201,169,110,0.22)',
+  textPrimary:   '#F0EDE6',
+  textSecondary: 'rgba(240,237,230,0.55)',
+  textMuted:     'rgba(240,237,230,0.30)',
+  textOnSage:    '#FFFFFF',
+  coachBorder:   'rgba(122,155,126,0.35)',
+  errorRed:      '#E07070',
+  inputBg:       'rgba(255,255,255,0.08)',
+} as const;
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 interface Message {
   id: string;
   content: string;
-  message?: string; // legacy fallback
+  message?: string;
   created_at: string;
   sender_id: string;
   sender: { id: string; first_name: string; last_name: string; email: string } | null;
@@ -41,38 +71,77 @@ interface Member {
   membershipType: string;
 }
 
+// ── Avatar ─────────────────────────────────────────────────────────────────────
+function Avatar({ name, size = 34, isCoach = false }: { name: string; size?: number; isCoach?: boolean }) {
+  const initials = name.split(' ').map(w => w[0] ?? '').slice(0, 2).join('').toUpperCase();
+  const hue = ((name.charCodeAt(0) ?? 65) * 41 + (name.charCodeAt(1) ?? 0) * 17) % 360;
+  if (isCoach) {
+    return (
+      <View style={{
+        width: size, height: size, borderRadius: size / 2,
+        backgroundColor: 'rgba(122,155,126,0.28)',
+        borderWidth: 1.5, borderColor: T.coachBorder,
+        alignItems: 'center', justifyContent: 'center',
+      }}>
+        <Text style={{ fontSize: size * 0.48 }}>🌿</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: `hsla(${hue},22%,26%,1)`,
+      borderWidth: 1, borderColor: `hsla(${hue},28%,42%,0.35)`,
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Text style={{ fontSize: size * 0.34, fontWeight: '600', color: `hsl(${hue},38%,74%)` }}>
+        {initials}
+      </Text>
+    </View>
+  );
+}
+
+// ── Relative time ──────────────────────────────────────────────────────────────
+function relTime(iso: string): string {
+  const d = new Date(iso), now = new Date();
+  const diff = now.getTime() - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m`;
+  if (hours < 24) return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+  if (days < 7)   return d.toLocaleDateString([], { weekday: 'short' });
+  return d.toLocaleDateString([], { month: 'short', day: 'numeric' });
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────────
 export default function GroupChatScreen({ navigation, route }: { navigation: any; route: any }) {
   const { groupId, groupName } = route.params;
   const { user } = useAuthStore();
 
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [members, setMembers] = useState<Member[]>([]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [coachId, setCoachId] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
-  const [isCoach, setIsCoach] = useState(false);
-  const [showMembers, setShowMembers] = useState(false);
-  const [addEmail, setAddEmail] = useState('');
+  const [messages,     setMessages]     = useState<Message[]>([]);
+  const [members,      setMembers]      = useState<Member[]>([]);
+  const [input,        setInput]        = useState('');
+  const [loading,      setLoading]      = useState(true);
+  const [coachId,      setCoachId]      = useState<string | null>(null);
+  const [sending,      setSending]      = useState(false);
+  const [isCoach,      setIsCoach]      = useState(false);
+  const [showMembers,  setShowMembers]  = useState(false);
+  const [addEmail,     setAddEmail]     = useState('');
   const [addingMember, setAddingMember] = useState(false);
 
-  const flatListRef = useRef<FlatList>(null);
+  const listRef = useRef<FlatList>(null);
 
   useEffect(() => {
-    checkRole();
+    setIsCoach(user?.role === 'coach');
     fetchMessages();
     fetchGroupDetails();
-    // Poll every 5s for new messages
-    const interval = setInterval(fetchMessages, 5000);
-    return () => clearInterval(interval);
+    const iv = setInterval(fetchMessages, 5000);
+    return () => clearInterval(iv);
   }, []);
 
-  // Read from SecureStore — same place tokens are written at login
-  const getToken = async () => SecureStore.getItemAsync('accessToken');
-
-  const checkRole = () => {
-    setIsCoach(user?.role === 'coach');
-  };
+  const getToken = () => SecureStore.getItemAsync('accessToken');
 
   const fetchGroupDetails = async () => {
     try {
@@ -82,12 +151,9 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
       });
       if (!res.ok) return;
       const data = await res.json();
-      // group object has coach_id field
       if (data.group?.coach_id) setCoachId(data.group.coach_id);
-      else if (data.coach_id) setCoachId(data.coach_id);
-    } catch (err) {
-      console.log('Could not fetch group details for coach highlight');
-    }
+      else if (data.coach_id)   setCoachId(data.coach_id);
+    } catch {}
   };
 
   const fetchMessages = async () => {
@@ -96,14 +162,11 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
       const res = await fetch(`${API_BASE}/groups/${groupId}/messages`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) {
-        console.error('fetchMessages failed:', res.status);
-        return;
-      }
+      if (!res.ok) return;
       const data = await res.json();
       setMessages(data.messages || []);
     } catch (err) {
-      console.error('Error fetching messages:', err);
+      console.error('fetchMessages error:', err);
     } finally {
       setLoading(false);
     }
@@ -118,56 +181,51 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
       const data = await res.json();
       setMembers(data.members || []);
     } catch (err) {
-      console.error('Error fetching members:', err);
+      console.error('fetchMembers error:', err);
     }
   };
 
   const sendMessage = async () => {
     if (!input.trim() || sending) return;
     setSending(true);
-    const optimisticText = input.trim();
+    const text = input.trim();
     setInput('');
     try {
       const token = await getToken();
       const res = await fetch(`${API_BASE}/groups/${groupId}/messages`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: optimisticText }),
+        body: JSON.stringify({ content: text }),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        console.error('Send failed:', res.status, err);
-        Alert.alert('Error', 'Failed to send message. Please try again.');
-        setInput(optimisticText); // restore text on failure
+        Alert.alert('Error', 'Failed to send message.');
+        setInput(text);
         return;
       }
       const data = await res.json();
       if (data.message) {
-        setMessages((prev) => [...prev, data.message]);
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+        setMessages(prev => [...prev, data.message]);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
       }
-    } catch (err) {
-      console.error('Send error:', err);
+    } catch {
       Alert.alert('Error', 'Failed to send message');
-      setInput(optimisticText);
+      setInput(text);
     } finally {
       setSending(false);
     }
   };
 
   const deleteMessage = async (messageId: string) => {
-    Alert.alert('Delete Message', 'Are you sure?', [
+    Alert.alert('Delete message?', 'This cannot be undone.', [
       { text: 'Cancel', style: 'cancel' },
       {
-        text: 'Delete',
-        style: 'destructive',
+        text: 'Delete', style: 'destructive',
         onPress: async () => {
           const token = await getToken();
           await fetch(`${API_BASE}/groups/${groupId}/messages/${messageId}`, {
-            method: 'DELETE',
-            headers: { Authorization: `Bearer ${token}` },
+            method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
           });
-          setMessages((prev) => prev.filter((m) => m.id !== messageId));
+          setMessages(prev => prev.filter(m => m.id !== messageId));
         },
       },
     ]);
@@ -184,92 +242,73 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
         body: JSON.stringify({ email: addEmail.trim() }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        Alert.alert('Error', data.error || 'Failed to add member');
-      } else {
+      if (!res.ok) { Alert.alert('Error', data.error || 'Failed to add member'); }
+      else {
         setAddEmail('');
         fetchMembers();
-        Alert.alert('Added', `${data.member.first_name} has been added to the group.`);
+        Alert.alert('Added', `${data.member.first_name} has been added.`);
       }
-    } catch (err) {
-      Alert.alert('Error', 'Failed to add member');
-    } finally {
-      setAddingMember(false);
-    }
+    } catch { Alert.alert('Error', 'Failed to add member'); }
+    finally { setAddingMember(false); }
   };
 
-  const removeMember = async (member: Member) => {
-    Alert.alert(
-      'Remove Member',
-      `Remove ${member.first_name} ${member.last_name} from this group?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            const token = await getToken();
-            await fetch(`${API_BASE}/groups/${groupId}/members/${member.id}`, {
-              method: 'DELETE',
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            setMembers((prev) => prev.filter((m) => m.id !== member.id));
-          },
+  const removeMember = (member: Member) => {
+    Alert.alert('Remove member?', `Remove ${member.first_name} ${member.last_name}?`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove', style: 'destructive',
+        onPress: async () => {
+          const token = await getToken();
+          await fetch(`${API_BASE}/groups/${groupId}/members/${member.id}`, {
+            method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
+          });
+          setMembers(prev => prev.filter(m => m.id !== member.id));
         },
-      ]
-    );
+      },
+    ]);
   };
 
-  const renderMessage = ({ item }: { item: Message }) => {
-    const isMe = item.sender_id === user?.id;
-    const isCoachMessage = !isMe && coachId && item.sender_id === coachId;
-    const senderName = item.sender
+  // ── Message bubble ───────────────────────────────────────────────────────────
+  const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+    const isMe        = item.sender_id === user?.id;
+    const isCoachMsg  = !isMe && coachId && item.sender_id === coachId;
+    const senderName  = item.sender
       ? `${item.sender.first_name} ${item.sender.last_name}`.trim()
       : 'Unknown';
-    const msgDate = new Date(item.created_at);
-    const now = new Date();
-    const diffMs = now.getTime() - msgDate.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-    let time: string;
-    if (diffMins < 1) time = 'Just now';
-    else if (diffMins < 60) time = `${diffMins}m ago`;
-    else if (diffHours < 24) time = msgDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
-    else if (diffDays < 7) time = msgDate.toLocaleDateString([], { weekday: 'short', hour: '2-digit', minute: '2-digit', hour12: true });
-    else time = msgDate.toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true });
-    const canDelete = isMe || isCoach;
+    const canDelete   = isMe || isCoach;
+    const prevMsg     = messages[index - 1];
+    const sameAsPrev  = prevMsg && prevMsg.sender_id === item.sender_id;
+    const text        = item.content || item.message || '';
 
     return (
-      <View style={[styles.messageRow, isMe && styles.messageRowMe]}>
-        {!isMe && (
-          <View style={[styles.avatar, isCoachMessage && styles.avatarCoach]}>
-            {isCoachMessage ? (
-              <Text style={styles.avatarLeaf}>🌿</Text>
-            ) : (
-              <Text style={styles.avatarText}>{senderName.charAt(0).toUpperCase()}</Text>
-            )}
-          </View>
+      <View style={[m.row, isMe && m.rowMe, sameAsPrev && { marginTop: 3 }]}>
+        {/* Avatar — only show when sender changes */}
+        {!isMe && !sameAsPrev && (
+          <Avatar name={senderName} size={30} isCoach={!!isCoachMsg} />
         )}
-        <View style={[
-          styles.bubble,
-          isMe ? styles.bubbleMe : styles.bubbleThem,
-          isCoachMessage && styles.bubbleCoach,
-        ]}>
-          {!isMe && (
-            <View style={styles.senderRow}>
-              {isCoachMessage && <Text style={styles.coachLeafInline}>🌿 </Text>}
-              <Text style={[styles.senderName, isCoachMessage && styles.senderNameCoach]}>
-                {senderName}{isCoachMessage ? ' · Coach' : ''}
-              </Text>
-            </View>
+        {!isMe && !!sameAsPrev && <View style={{ width: 30 }} />}
+
+        <View style={[m.bubbleWrap, isMe && m.bubbleWrapMe]}>
+          {/* Sender name — only on first in group */}
+          {!isMe && !sameAsPrev && (
+            <Text style={[m.sender, isCoachMsg && m.senderCoach]}>
+              {senderName}{isCoachMsg ? ' · Coach' : ''}
+            </Text>
           )}
-          <Text style={[styles.messageText, isMe && styles.messageTextMe]}>{item.content || item.message}</Text>
-          <View style={styles.messageMeta}>
-            <Text style={[styles.timeText, isMe && styles.timeTextMe]}>{time}</Text>
+
+          <View style={[
+            m.bubble,
+            isMe ? m.bubbleMe : m.bubbleThem,
+            isCoachMsg && m.bubbleCoach,
+          ]}>
+            <Text style={[m.text, isMe && m.textMe]}>{text}</Text>
+          </View>
+
+          <View style={[m.meta, isMe && m.metaMe]}>
+            <Text style={m.time}>{relTime(item.created_at)}</Text>
             {canDelete && (
-              <TouchableOpacity onPress={() => deleteMessage(item.id)} style={styles.deleteBtn}>
-                <Text style={styles.deleteBtnText}>✕</Text>
+              <TouchableOpacity onPress={() => deleteMessage(item.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={m.del}>✕</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -279,279 +318,279 @@ export default function GroupChatScreen({ navigation, route }: { navigation: any
   };
 
   return (
-    <BotanicalBackground variant="green" intensity="light">
-      <KeyboardAvoidingView
-        style={styles.container}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backText}>←</Text>
+    <View style={s.root}>
+      <LinearGradient
+        colors={[T.bgDeep, T.bgMid, '#162819']}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
+      />
+
+      <SafeAreaView style={s.safe} edges={['top']}>
+        {/* ── HEADER ────────────────────────────────────────────────── */}
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} activeOpacity={0.75}>
+            <Text style={s.backArrow}>←</Text>
           </TouchableOpacity>
-          <View style={styles.headerCenter}>
-            <Text style={styles.headerTitle}>{groupName || 'Group Chat'}</Text>
-            <Text style={styles.headerSubtitle}>Group message</Text>
+          <View style={s.headerCenter}>
+            <Text style={s.headerTitle} numberOfLines={1}>{groupName || 'Group Chat'}</Text>
+            <Text style={s.headerSub}>Group message</Text>
           </View>
           {isCoach && (
             <TouchableOpacity
-              style={styles.membersBtn}
-              onPress={() => {
-                fetchMembers();
-                setShowMembers(true);
-              }}
+              style={s.membersBtn}
+              onPress={() => { fetchMembers(); setShowMembers(true); }}
+              activeOpacity={0.75}
             >
-              <Text style={styles.membersBtnText}>Members</Text>
+              <Text style={s.membersBtnTxt}>Members</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {/* Messages */}
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator color={colors.forestGreen} />
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={messages}
-            keyExtractor={(item) => item.id}
-            renderItem={renderMessage}
-            contentContainerStyle={styles.messageList}
-            onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-            ListEmptyComponent={
-              <View style={styles.emptyState}>
-                <Text style={styles.emptyEmoji}>🌿</Text>
-                <Text style={styles.emptyText}>No messages yet</Text>
-                <Text style={styles.emptySubtext}>Be the first to say something</Text>
-              </View>
-            }
-          />
-        )}
-
-        {/* Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            value={input}
-            onChangeText={setInput}
-            placeholder="Message the group..."
-            placeholderTextColor={colors.textMuted}
-            multiline
-            maxLength={1000}
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
-            onPress={sendMessage}
-            disabled={!input.trim() || sending}
-          >
-            <Text style={styles.sendBtnText}>{sending ? '...' : '↑'}</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Members Modal (coach only) */}
-        <Modal visible={showMembers} animationType="slide" presentationStyle="pageSheet">
-          <View style={styles.modal}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Group Members</Text>
-              <TouchableOpacity onPress={() => setShowMembers(false)}>
-                <Text style={styles.modalClose}>Done</Text>
-              </TouchableOpacity>
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={0}
+        >
+          {/* ── MESSAGES ────────────────────────────────────────────── */}
+          {loading ? (
+            <View style={s.loadWrap}>
+              <ActivityIndicator color={T.sage} size="large" />
             </View>
-
-            <ScrollView style={styles.memberList} contentContainerStyle={{ paddingBottom: 40 }}>
-              {/* Current members */}
-              {members.length > 0 && (
-                <Text style={styles.memberSectionLabel}>CURRENT MEMBERS</Text>
-              )}
-              {members.map((member) => (
-                <View key={member.id} style={styles.memberRow}>
-                  <View style={styles.memberAvatar}>
-                    <Text style={styles.memberAvatarText}>
-                      {member.first_name?.charAt(0).toUpperCase() || '?'}
-                    </Text>
-                  </View>
-                  <View style={styles.memberInfo}>
-                    <Text style={styles.memberName}>
-                      {member.first_name} {member.last_name}
-                    </Text>
-                    <Text style={styles.memberEmail}>{member.email}</Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => removeMember(member)}
-                    style={styles.removeBtn}
-                  >
-                    <Text style={styles.removeBtnText}>Remove</Text>
-                  </TouchableOpacity>
+          ) : (
+            <FlatList
+              ref={listRef}
+              data={messages}
+              keyExtractor={item => item.id}
+              renderItem={renderMessage}
+              contentContainerStyle={s.list}
+              onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+              showsVerticalScrollIndicator={false}
+              ListEmptyComponent={
+                <View style={s.empty}>
+                  <Text style={s.emptyEmoji}>🌿</Text>
+                  <Text style={s.emptyTitle}>No messages yet</Text>
+                  <Text style={s.emptySub}>Be the first to say something</Text>
                 </View>
-              ))}
+              }
+            />
+          )}
 
-              {/* Add member by email */}
-              <Text style={[styles.memberSectionLabel, { marginTop: members.length > 0 ? 24 : 8 }]}>
-                ADD MEMBER
-              </Text>
-              <View style={styles.addMemberRow}>
-                <TextInput
-                  style={styles.addMemberInput}
-                  value={addEmail}
-                  onChangeText={setAddEmail}
-                  placeholder="Email address"
-                  placeholderTextColor={colors.textMuted}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-                <TouchableOpacity
-                  style={[styles.addBtn, (!addEmail.trim() || addingMember) && styles.addBtnDisabled]}
-                  onPress={addMember}
-                  disabled={!addEmail.trim() || addingMember}
-                >
-                  <Text style={styles.addBtnText}>{addingMember ? '...' : 'Add'}</Text>
+          {/* ── INPUT BAR ───────────────────────────────────────────── */}
+          <View style={s.inputBar}>
+            <TextInput
+              style={s.input}
+              value={input}
+              onChangeText={setInput}
+              placeholder="Message the group…"
+              placeholderTextColor={T.textMuted}
+              multiline
+              maxLength={1000}
+              onSubmitEditing={sendMessage}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, (!input.trim() || sending) && s.sendBtnOff]}
+              onPress={sendMessage}
+              disabled={!input.trim() || sending}
+              activeOpacity={0.82}
+            >
+              <Text style={s.sendArrow}>{sending ? '…' : '↑'}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+
+      {/* ── MEMBERS MODAL (coach only) ─────────────────────────────── */}
+      <Modal visible={showMembers} animationType="slide" presentationStyle="pageSheet">
+        <View style={mo.root}>
+          <LinearGradient
+            colors={[T.bgDeep, T.bgMid]}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <View style={mo.header}>
+            <Text style={mo.title}>Group Members</Text>
+            <TouchableOpacity onPress={() => setShowMembers(false)} activeOpacity={0.75}>
+              <Text style={mo.done}>Done</Text>
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView contentContainerStyle={mo.scroll}>
+            {members.length > 0 && (
+              <Text style={mo.sectionLbl}>CURRENT MEMBERS</Text>
+            )}
+            {members.map(mem => (
+              <View key={mem.id} style={mo.memberRow}>
+                <Avatar name={`${mem.first_name} ${mem.last_name}`} size={40} />
+                <View style={{ flex: 1 }}>
+                  <Text style={mo.memberName}>{mem.first_name} {mem.last_name}</Text>
+                  <Text style={mo.memberEmail}>{mem.email}</Text>
+                </View>
+                <TouchableOpacity style={mo.removeBtn} onPress={() => removeMember(mem)} activeOpacity={0.75}>
+                  <Text style={mo.removeTxt}>Remove</Text>
                 </TouchableOpacity>
               </View>
-              {members.length === 0 && (
-                <Text style={styles.noMembers}>No members yet — add someone above</Text>
-              )}
-            </ScrollView>
-          </View>
-        </Modal>
-      </KeyboardAvoidingView>
-    </BotanicalBackground>
+            ))}
+
+            <Text style={[mo.sectionLbl, { marginTop: members.length > 0 ? 28 : 8 }]}>ADD MEMBER</Text>
+            <View style={mo.addRow}>
+              <TextInput
+                style={mo.addInput}
+                value={addEmail}
+                onChangeText={setAddEmail}
+                placeholder="Email address"
+                placeholderTextColor={T.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TouchableOpacity
+                style={[mo.addBtn, (!addEmail.trim() || addingMember) && mo.addBtnOff]}
+                onPress={addMember}
+                disabled={!addEmail.trim() || addingMember}
+                activeOpacity={0.82}
+              >
+                <Text style={mo.addBtnTxt}>{addingMember ? '…' : 'Add'}</Text>
+              </TouchableOpacity>
+            </View>
+            {members.length === 0 && (
+              <Text style={mo.noMembers}>No members yet — add someone above</Text>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16,
-    backgroundColor: 'rgba(255,255,255,0.92)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(212,214,212,0.25)',
-    gap: 12,
+// ── Message styles ─────────────────────────────────────────────────────────────
+const m = StyleSheet.create({
+  row:       { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 10 },
+  rowMe:     { flexDirection: 'row-reverse' },
+  bubbleWrap:   { maxWidth: SW * 0.72, gap: 3 },
+  bubbleWrapMe: { alignItems: 'flex-end' },
+  sender:      { fontSize: 11, fontWeight: '600', color: T.textMuted, marginLeft: 2, marginBottom: 2 },
+  senderCoach: { color: T.sageBright },
+  bubble:    {
+    borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
   },
-  backBtn: { padding: 4 },
-  backText: { fontSize: 22, color: colors.forestGreen },
-  headerCenter: { flex: 1 },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: colors.textDark },
-  headerSubtitle: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-  membersBtn: {
-    backgroundColor: 'rgba(107,127,110,0.1)', paddingHorizontal: 12,
-    paddingVertical: 6, borderRadius: 14,
-  },
-  membersBtnText: { fontSize: 13, fontWeight: '600', color: colors.forestGreen },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  messageList: { padding: 16, paddingBottom: 8 },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80 },
-  emptyEmoji: { fontSize: 40, marginBottom: 12 },
-  emptyText: { fontSize: 17, fontWeight: '600', color: colors.textDark, marginBottom: 6 },
-  emptySubtext: { fontSize: 14, color: colors.textMuted },
-  messageRow: { flexDirection: 'row', marginBottom: 12, alignItems: 'flex-end', gap: 8 },
-  messageRowMe: { flexDirection: 'row-reverse' },
-  avatar: {
-    width: 32, height: 32, borderRadius: 16,
-    backgroundColor: 'rgba(107,127,110,0.15)', alignItems: 'center', justifyContent: 'center',
-  },
-  avatarCoach: {
-    backgroundColor: 'rgba(107,127,110,0.25)',
-    borderWidth: 1.5,
-    borderColor: colors.sage,
-  },
-  avatarLeaf: { fontSize: 16 },
-  avatarText: { fontSize: 13, fontWeight: '700', color: colors.forestGreen },
-  bubble: {
-    maxWidth: '75%', borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10,
-  },
-  bubbleThem: {
-    backgroundColor: 'rgba(255,255,255,0.97)',
+  bubbleThem:  {
+    backgroundColor: T.glassMid,
+    borderWidth: 1, borderColor: T.glassBorder,
     borderBottomLeftRadius: 4,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.3)',
   },
   bubbleCoach: {
-    backgroundColor: 'rgba(107,127,110,0.08)',
-    borderColor: 'rgba(107,127,110,0.25)',
-    borderWidth: 1.5,
+    backgroundColor: 'rgba(122,155,126,0.14)',
+    borderColor: T.coachBorder,
     borderBottomLeftRadius: 4,
   },
-  bubbleMe: {
-    backgroundColor: colors.forestGreen,
+  bubbleMe:  {
+    backgroundColor: T.sageDeep,
     borderBottomRightRadius: 4,
+    borderWidth: 1, borderColor: 'rgba(122,155,126,0.25)',
   },
-  senderRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 3 },
-  coachLeafInline: { fontSize: 11 },
-  senderName: { fontSize: 11, fontWeight: '700', color: colors.sage },
-  senderNameCoach: { color: colors.forestGreen },
-  messageText: { fontSize: 15, color: colors.textDark, lineHeight: 21 },
-  messageTextMe: { color: '#FFFFFF' },
-  messageMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 8, marginTop: 4 },
-  timeText: { fontSize: 10, color: colors.textMuted },
-  timeTextMe: { color: 'rgba(255,255,255,0.6)' },
-  deleteBtn: { padding: 2 },
-  deleteBtnText: { fontSize: 10, color: 'rgba(200,90,84,0.6)' },
-  inputRow: {
+  text:    { fontSize: 15, color: T.textPrimary, lineHeight: 21 },
+  textMe:  { color: '#FFFFFF' },
+  meta:    { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 4 },
+  metaMe:  { flexDirection: 'row-reverse', marginLeft: 0, marginRight: 4 },
+  time:    { fontSize: 10, color: T.textMuted },
+  del:     { fontSize: 10, color: 'rgba(224,112,112,0.45)' },
+});
+
+// ── Screen styles ──────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root:  { flex: 1 },
+  safe:  { flex: 1 },
+
+  header: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 18, paddingTop: 12, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: T.glassBorder,
+    backgroundColor: 'rgba(15,28,18,0.6)',
+    gap: 12,
+  },
+  backBtn:      { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  backArrow:    { fontSize: 22, color: T.textSecondary },
+  headerCenter: { flex: 1 },
+  headerTitle:  { fontSize: 16, fontWeight: '700', color: T.textPrimary, letterSpacing: 0.1 },
+  headerSub:    { fontSize: 11, color: T.textMuted, marginTop: 1 },
+  membersBtn: {
+    backgroundColor: 'rgba(122,155,126,0.14)',
+    borderWidth: 1, borderColor: 'rgba(122,155,126,0.25)',
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12,
+  },
+  membersBtnTxt: { fontSize: 12, fontWeight: '600', color: T.sageBright },
+
+  loadWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+  list:  { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+
+  empty: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
+  emptyEmoji: { fontSize: 44 },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: T.textPrimary },
+  emptySub:   { fontSize: 14, color: T.textMuted },
+
+  inputBar: {
     flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    paddingHorizontal: 16, paddingVertical: 12, paddingBottom: Platform.OS === 'ios' ? 28 : 12,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderTopWidth: 1, borderTopColor: 'rgba(212,214,212,0.3)',
+    paddingHorizontal: 16, paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+    borderTopWidth: 1, borderTopColor: T.glassBorder,
+    backgroundColor: 'rgba(15,28,18,0.75)',
   },
   input: {
-    flex: 1, backgroundColor: 'rgba(245,244,240,0.9)', borderRadius: 20,
-    paddingHorizontal: 16, paddingVertical: 10, fontSize: 15, color: colors.textDark,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.4)', maxHeight: 100,
+    flex: 1, backgroundColor: T.glass,
+    borderRadius: 22, borderWidth: 1, borderColor: T.glassBorder,
+    paddingHorizontal: 18, paddingVertical: 11,
+    fontSize: 15, color: T.textPrimary, maxHeight: 110,
   },
   sendBtn: {
-    width: 40, height: 40, borderRadius: 20, backgroundColor: colors.forestGreen,
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: T.sageDeep, borderWidth: 1, borderColor: 'rgba(122,155,126,0.30)',
     alignItems: 'center', justifyContent: 'center',
   },
-  sendBtnDisabled: { backgroundColor: 'rgba(107,127,110,0.3)' },
-  sendBtnText: { fontSize: 18, color: '#FFFFFF', fontWeight: '700' },
-  modal: { flex: 1, backgroundColor: '#FAF8F4' },
-  modalHeader: {
+  sendBtnOff: { backgroundColor: 'rgba(61,85,64,0.30)', borderColor: T.glassBorder },
+  sendArrow: { fontSize: 18, color: '#FFFFFF', fontWeight: '700' },
+});
+
+// ── Modal styles ───────────────────────────────────────────────────────────────
+const mo = StyleSheet.create({
+  root:   { flex: 1, overflow: 'hidden' },
+  header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(212,214,212,0.25)',
+    paddingHorizontal: 22, paddingTop: 60, paddingBottom: 20,
+    borderBottomWidth: 1, borderBottomColor: T.glassBorder,
   },
-  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.textDark },
-  modalClose: { fontSize: 16, fontWeight: '600', color: colors.forestGreen },
-  addMemberRow: {
-    flexDirection: 'row', gap: 10, padding: 16,
-    backgroundColor: 'rgba(255,255,255,0.9)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(212,214,212,0.2)',
+  title:    { fontSize: 20, fontWeight: '700', color: T.textPrimary },
+  done:     { fontSize: 16, fontWeight: '600', color: T.sageBright },
+  scroll:   { padding: 20, paddingBottom: 48 },
+  sectionLbl: {
+    fontSize: 10, fontWeight: '700', letterSpacing: 2,
+    color: T.textMuted, marginBottom: 12,
   },
-  addMemberInput: {
-    flex: 1, backgroundColor: 'rgba(245,244,240,0.9)', borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10, fontSize: 14, color: colors.textDark,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.4)',
-  },
-  addBtn: {
-    backgroundColor: colors.forestGreen, paddingHorizontal: 18,
-    paddingVertical: 10, borderRadius: 12, justifyContent: 'center',
-  },
-  addBtnDisabled: { backgroundColor: 'rgba(107,127,110,0.3)' },
-  addBtnText: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
-  memberList: { flex: 1, padding: 16 },
-  memberSectionLabel: {
-    fontSize: 11, fontWeight: '600', letterSpacing: 1.1,
-    color: colors.textMuted, textTransform: 'uppercase',
-    paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8,
-  },
-  noMembers: { textAlign: 'center', color: colors.textMuted, marginTop: 40, fontSize: 15 },
   memberRow: {
     flexDirection: 'row', alignItems: 'center', gap: 12,
-    backgroundColor: 'rgba(255,255,255,0.95)', borderRadius: 14, padding: 14, marginBottom: 10,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
+    backgroundColor: T.glass, borderRadius: 16,
+    borderWidth: 1, borderColor: T.glassBorder,
+    padding: 14, marginBottom: 10,
   },
-  memberAvatar: {
-    width: 40, height: 40, borderRadius: 20,
-    backgroundColor: 'rgba(107,127,110,0.15)', alignItems: 'center', justifyContent: 'center',
+  memberName:  { fontSize: 15, fontWeight: '600', color: T.textPrimary },
+  memberEmail: { fontSize: 12, color: T.textMuted, marginTop: 2 },
+  removeBtn:   {
+    backgroundColor: 'rgba(224,112,112,0.10)',
+    borderWidth: 1, borderColor: 'rgba(224,112,112,0.20)',
+    paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10,
   },
-  memberAvatarText: { fontSize: 16, fontWeight: '700', color: colors.forestGreen },
-  memberInfo: { flex: 1 },
-  memberName: { fontSize: 15, fontWeight: '600', color: colors.textDark },
-  memberEmail: { fontSize: 12, color: colors.textMuted, marginTop: 2 },
-  removeBtn: {
-    backgroundColor: 'rgba(200,90,84,0.1)', paddingHorizontal: 12,
-    paddingVertical: 6, borderRadius: 10,
+  removeTxt: { fontSize: 12, fontWeight: '600', color: T.errorRed },
+  addRow:    { flexDirection: 'row', gap: 10 },
+  addInput:  {
+    flex: 1, backgroundColor: T.glass,
+    borderRadius: 14, borderWidth: 1, borderColor: T.glassBorder,
+    paddingHorizontal: 16, paddingVertical: 12,
+    fontSize: 14, color: T.textPrimary,
   },
-  removeBtnText: { fontSize: 12, fontWeight: '600', color: colors.error },
+  addBtn:    {
+    backgroundColor: T.sageDeep, paddingHorizontal: 18,
+    paddingVertical: 12, borderRadius: 14, justifyContent: 'center',
+    borderWidth: 1, borderColor: 'rgba(122,155,126,0.28)',
+  },
+  addBtnOff: { backgroundColor: 'rgba(61,85,64,0.25)', borderColor: T.glassBorder },
+  addBtnTxt: { fontSize: 14, fontWeight: '700', color: '#FFFFFF' },
+  noMembers: { textAlign: 'center', color: T.textMuted, marginTop: 40, fontSize: 14 },
 });

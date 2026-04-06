@@ -1,409 +1,304 @@
-import React, { useCallback, useEffect, useState } from 'react';
+// mobile-app/src/screens/CoachDashboardScreen.tsx
+// Refactored: calm, wellness-focused coach hub
+// Layout: Header → Quick Actions → Client List → Community
+
+import React, { useEffect, useCallback, useState } from 'react';
 import {
   View,
   Text,
+  ScrollView,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
-  ActivityIndicator,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
-import { colors } from '../theme/colors';
-import { getCoachLessons } from '../services/lessonService';
+import { useAuthStore } from '../stores/authStore';
+import { useCoachStore } from '../stores/coachStore';
+import type { ClientSummary } from '../services/coach.service';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'CoachLessons'>;
-interface Props { navigation: Nav }
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
-interface Lesson {
-  id: string;
-  title: string;
-  description: string;
-  client_id: string;
-  status: string;
-  created_at: string;
-  viewed_at?: string;
-  completed_at?: string;
-}
+// ── Palette ────────────────────────────────────────────────────────────────────
+const P = {
+  bg:         '#F5F3EE',
+  surface:    '#FFFFFF',
+  forest:     '#3D5540',
+  sage:       '#6B7F6E',
+  sageLight:  'rgba(107,127,110,0.08)',
+  sageBorder: 'rgba(107,127,110,0.15)',
+  gold:       '#B89A5A',
+  goldLight:  'rgba(184,154,90,0.10)',
+  ink:        '#2A2D2A',
+  inkMid:     '#5C605C',
+  inkMuted:   '#9DA89D',
+  border:     'rgba(212,214,212,0.4)',
+  shadow:     '#1A251C',
+} as const;
 
-const STATUS_COLORS: Record<string, string> = {
-  assigned: colors.gold,
-  viewed: colors.sage,
-  completed: '#4ADE80',
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  assigned: 'Assigned',
-  viewed: 'Viewed',
-  completed: 'Completed',
-};
-
-function groupByClient(lessons: Lesson[]): Record<string, Lesson[]> {
-  return lessons.reduce<Record<string, Lesson[]>>((acc, l) => {
-    const key = l.client_id;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(l);
-    return acc;
-  }, {});
-}
-
-export default function CoachLessonsScreen({ navigation }: Props) {
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'assigned' | 'viewed' | 'completed'>('all');
-
-  const load = useCallback(async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true);
-    else setLoading(true);
-    try {
-      const res = await getCoachLessons();
-      setLessons(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      // silently fail — list will be empty
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const filtered = filter === 'all' ? lessons : lessons.filter((l) => l.status === filter);
-  const grouped = groupByClient(filtered);
-
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
+// ─── Initials Avatar ───────────────────────────────────────────────────────────
+function Avatar({ name, size = 44 }: { name: string; size?: number }) {
+  const initials = name.split(' ').map((w) => w[0] ?? '').slice(0, 2).join('').toUpperCase();
+  const hue = ((name.charCodeAt(0) ?? 65) * 37 + (name.charCodeAt(1) ?? 0) * 13) % 360;
   return (
-    <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerLabel}>COACH</Text>
-          <Text style={styles.headerTitle}>Lessons</Text>
-        </View>
-        <TouchableOpacity
-          style={styles.newBtn}
-          onPress={() => navigation.navigate('CreateLesson', {})}
-        >
-          <Text style={styles.newBtnText}>+ New</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Filter tabs */}
-      <View style={styles.filterRow}>
-        {(['all', 'assigned', 'viewed', 'completed'] as const).map((f) => (
-          <TouchableOpacity
-            key={f}
-            style={[styles.filterChip, filter === f && styles.filterChipActive]}
-            onPress={() => setFilter(f)}
-          >
-            <Text style={[styles.filterChipText, filter === f && styles.filterChipTextActive]}>
-              {f === 'all' ? `All (${lessons.length})` : STATUS_LABELS[f]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.sage} />
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => load(true)}
-              tintColor={colors.sage}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {filtered.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>📋</Text>
-              <Text style={styles.emptyTitle}>No lessons yet</Text>
-              <Text style={styles.emptyBody}>
-                Create your first lesson to share notes and guidance with your clients.
-              </Text>
-              <TouchableOpacity
-                style={styles.emptyBtn}
-                onPress={() => navigation.navigate('CreateLesson', {})}
-              >
-                <Text style={styles.emptyBtnText}>Create Lesson</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            Object.entries(grouped).map(([clientId, clientLessons]) => (
-              <View key={clientId} style={styles.clientGroup}>
-                <View style={styles.clientGroupHeader}>
-                  <View style={styles.clientDot} />
-                  <Text style={styles.clientGroupLabel}>
-                    {clientLessons.length} lesson{clientLessons.length !== 1 ? 's' : ''}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() =>
-                      navigation.navigate('CreateLesson', {
-                        clientId,
-                        clientName: undefined,
-                      })
-                    }
-                  >
-                    <Text style={styles.addForClient}>+ Add</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {clientLessons.map((lesson) => (
-                  <TouchableOpacity
-                    key={lesson.id}
-                    style={styles.lessonCard}
-                    onPress={() =>
-                      navigation.navigate('CreateLesson', {
-                        clientId: lesson.client_id,
-                        lessonId: lesson.id,
-                      })
-                    }
-                    activeOpacity={0.85}
-                  >
-                    {/* Status pill */}
-                    <View
-                      style={[
-                        styles.statusPill,
-                        { backgroundColor: `${STATUS_COLORS[lesson.status] ?? colors.textMuted}20` },
-                      ]}
-                    >
-                      <View
-                        style={[
-                          styles.statusDot,
-                          { backgroundColor: STATUS_COLORS[lesson.status] ?? colors.textMuted },
-                        ]}
-                      />
-                      <Text
-                        style={[
-                          styles.statusText,
-                          { color: STATUS_COLORS[lesson.status] ?? colors.textMuted },
-                        ]}
-                      >
-                        {STATUS_LABELS[lesson.status] ?? lesson.status}
-                      </Text>
-                    </View>
-
-                    <Text style={styles.lessonTitle}>{lesson.title}</Text>
-
-                    {lesson.description ? (
-                      <Text style={styles.lessonPreview} numberOfLines={2}>
-                        {lesson.description}
-                      </Text>
-                    ) : null}
-
-                    <View style={styles.lessonMeta}>
-                      <Text style={styles.lessonDate}>
-                        Created {formatDate(lesson.created_at)}
-                      </Text>
-                      {lesson.completed_at && (
-                        <Text style={[styles.lessonDate, { color: '#4ADE80' }]}>
-                          Completed {formatDate(lesson.completed_at)}
-                        </Text>
-                      )}
-                      {lesson.viewed_at && !lesson.completed_at && (
-                        <Text style={[styles.lessonDate, { color: colors.sage }]}>
-                          Viewed {formatDate(lesson.viewed_at)}
-                        </Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ))
-          )}
-
-          <View style={{ height: 60 }} />
-        </ScrollView>
-      )}
+    <View style={{
+      width: size, height: size, borderRadius: size / 2,
+      backgroundColor: `hsl(${hue},28%,76%)`,
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Text style={{ fontSize: size * 0.36, fontWeight: '600', color: `hsl(${hue},35%,28%)` }}>
+        {initials}
+      </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+// ─── Client Row Card ───────────────────────────────────────────────────────────
+function ClientCard({
+  client, onPress, onMessage,
+}: {
+  client: ClientSummary;
+  onPress: () => void;
+  onMessage: () => void;
+}) {
+  const fullName    = `${client.firstName} ${client.lastName}`.trim();
+  const lastReading = client.recentStats?.lastReading;
+  const tir         = client.recentStats?.timeInRange;
+  const glucoseColor =
+    lastReading && lastReading < 70  ? '#C85A54' :
+    lastReading && lastReading > 180 ? '#B89A5A' : P.sage;
+
+  return (
+    <TouchableOpacity style={cc.card} onPress={onPress} activeOpacity={0.82}>
+      <Avatar name={fullName || client.email} size={46} />
+      <View style={cc.info}>
+        <Text style={cc.name}>{fullName || 'Client'}</Text>
+        <Text style={cc.email} numberOfLines={1}>{client.email}</Text>
+        {(lastReading || tir != null) ? (
+          <View style={cc.pills}>
+            {lastReading ? (
+              <View style={cc.pill}>
+                <View style={[cc.dot, { backgroundColor: glucoseColor }]} />
+                <Text style={cc.pillText}>{lastReading} mg/dL</Text>
+              </View>
+            ) : null}
+            {tir != null ? (
+              <View style={cc.pill}>
+                <Text style={cc.pillText}>{tir}% in range</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          <Text style={cc.noData}>No recent data</Text>
+        )}
+      </View>
+      <TouchableOpacity
+        style={cc.msgBtn}
+        onPress={onMessage}
+        activeOpacity={0.75}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Text style={{ fontSize: 16 }}>✉</Text>
+      </TouchableOpacity>
+    </TouchableOpacity>
+  );
+}
+const cc = StyleSheet.create({
+  card: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.surface, borderRadius: 18,
+    paddingVertical: 14, paddingHorizontal: 16,
+    marginBottom: 10, borderWidth: 1, borderColor: P.border,
+    gap: 13,
+    shadowColor: P.shadow, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+  },
+  info:     { flex: 1 },
+  name:     { fontSize: 15, fontWeight: '600', color: P.ink, letterSpacing: 0.1 },
+  email:    { fontSize: 12, color: P.inkMuted, marginTop: 1 },
+  pills:    { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  pill:     {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: P.sageLight, borderRadius: 20,
+    paddingHorizontal: 8, paddingVertical: 3,
+  },
+  dot:      { width: 5, height: 5, borderRadius: 3 },
+  pillText: { fontSize: 11, fontWeight: '500', color: P.inkMid },
+  noData:   { fontSize: 11, color: P.inkMuted, marginTop: 5, fontStyle: 'italic' },
+  msgBtn:   {
+    width: 36, height: 36, borderRadius: 10,
+    backgroundColor: P.sageLight, borderWidth: 1, borderColor: P.sageBorder,
+    alignItems: 'center', justifyContent: 'center',
+  },
+});
+
+// ─── Main Screen ───────────────────────────────────────────────────────────────
+export default function CoachDashboardScreen() {
+  const navigation = useNavigation<NavProp>();
+  const { user }   = useAuthStore();
+  const { clients, isLoading, fetchClients } = useCoachStore();
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => { fetchClients(); }, [fetchClients]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchClients();
+    setRefreshing(false);
+  }, [fetchClients]);
+
+  const firstName = user?.firstName ?? 'Coach';
+  const h = new Date().getHours();
+  const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
+
+  const goToClient  = (id: string) => navigation.navigate('ClientDetail', { clientId: id });
+  const goToMessage = (c: ClientSummary) =>
+    navigation.navigate('Messaging', { userName: `${c.firstName} ${c.lastName}`.trim() || c.email });
+  const goToConversations = () => navigation.navigate('Conversations');
+  const goToNewLesson     = () => navigation.navigate('CreateLesson' as any, {});
+  const goToAllLessons    = () => navigation.navigate('CoachLessons' as any);
+
+  return (
+    <SafeAreaView style={s.safe} edges={['top']}>
+      <ScrollView
+        style={s.scroll}
+        contentContainerStyle={s.content}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={P.sage} />
+        }
+      >
+        {/* ── HEADER ────────────────────────────────────────────────────── */}
+        <View style={s.header}>
+          <View>
+            <Text style={s.greetSm}>{greet},</Text>
+            <Text style={s.greetLg}>{firstName}</Text>
+          </View>
+          <TouchableOpacity style={s.iconBtn} onPress={goToConversations} activeOpacity={0.75}>
+            <Text style={{ fontSize: 17 }}>✉</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── QUICK ACTIONS ──────────────────────────────────────────────── */}
+        <View style={s.quickRow}>
+          <TouchableOpacity style={[s.quickCard, s.quickPrimary]} onPress={goToNewLesson} activeOpacity={0.85}>
+            <Text style={s.quickEmoji}>＋</Text>
+            <Text style={s.quickLabelLight}>New Lesson</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.quickCard} onPress={goToAllLessons} activeOpacity={0.85}>
+            <Text style={s.quickEmoji}>📋</Text>
+            <Text style={s.quickLabel}>All Lessons</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={s.quickCard} onPress={goToConversations} activeOpacity={0.85}>
+            <Text style={s.quickEmoji}>💬</Text>
+            <Text style={s.quickLabel}>Messages</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── CLIENT LIST ────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>
+            {clients.length > 0 ? `${clients.length} CLIENT${clients.length !== 1 ? 'S' : ''}` : 'CLIENTS'}
+          </Text>
+
+          {isLoading && !refreshing ? (
+            <View style={s.loadWrap}><ActivityIndicator color={P.sage} /></View>
+          ) : clients.length === 0 ? (
+            <View style={s.emptyCard}>
+              <Text style={s.emptyEmoji}>🌱</Text>
+              <Text style={s.emptyTitle}>No clients yet</Text>
+              <Text style={s.emptyDesc}>Clients who join your program will appear here.</Text>
+            </View>
+          ) : (
+            clients.map((c) => (
+              <ClientCard
+                key={c.id}
+                client={c}
+                onPress={() => goToClient(c.id)}
+                onMessage={() => goToMessage(c)}
+              />
+            ))
+          )}
+        </View>
+
+        {/* ── COMMUNITY ──────────────────────────────────────────────────── */}
+        <View style={s.section}>
+          <Text style={s.sectionLabel}>COMMUNITY</Text>
+          <TouchableOpacity style={s.communityCard} onPress={goToConversations} activeOpacity={0.82}>
+            <View style={s.commIcon}><Text style={{ fontSize: 22 }}>💬</Text></View>
+            <View style={{ flex: 1 }}>
+              <Text style={s.commTitle}>Group Chat</Text>
+              <Text style={s.commDesc}>Message clients individually or together</Text>
+            </View>
+            <Text style={{ fontSize: 22, color: P.inkMuted }}>›</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const s = StyleSheet.create({
+  safe:    { flex: 1, backgroundColor: P.bg },
+  scroll:  { flex: 1 },
+  content: { paddingHorizontal: 22, paddingTop: 4 },
 
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassBorder,
-    gap: 12,
+    flexDirection: 'row', justifyContent: 'space-between',
+    alignItems: 'flex-start', paddingTop: 20, paddingBottom: 28,
   },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backArrow: { fontSize: 18, color: colors.textPrimary },
-  headerLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textMuted,
-    marginBottom: 3,
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
-  },
-  newBtn: {
-    backgroundColor: colors.gold,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  newBtnText: { fontSize: 13, fontWeight: '700', color: colors.bg },
-
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassBorder,
-  },
-  filterChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 20,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-  },
-  filterChipActive: {
-    backgroundColor: colors.glassSage,
-    borderColor: colors.glassBorderStrong,
-  },
-  filterChipText: { fontSize: 12, fontWeight: '600', color: colors.textMuted },
-  filterChipTextActive: { color: colors.textPrimary },
-
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingTop: 20, paddingHorizontal: 20 },
-
-  clientGroup: { marginBottom: 28 },
-  clientGroupHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 12,
-  },
-  clientDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.sage,
-  },
-  clientGroupLabel: {
-    flex: 1,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    color: colors.textMuted,
-    textTransform: 'uppercase',
-  },
-  addForClient: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.gold,
+  greetSm: { fontSize: 14, fontWeight: '400', color: P.inkMuted },
+  greetLg: { fontSize: 28, fontWeight: '700', color: P.ink, letterSpacing: -0.5, marginTop: 2 },
+  iconBtn: {
+    width: 42, height: 42, borderRadius: 13,
+    backgroundColor: P.surface, borderWidth: 1, borderColor: P.border,
+    alignItems: 'center', justifyContent: 'center',
+    shadowColor: P.shadow, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06, shadowRadius: 6, elevation: 2,
   },
 
-  lessonCard: {
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 10,
+  quickRow:       { flexDirection: 'row', gap: 10, marginBottom: 32 },
+  quickCard:      {
+    flex: 1, alignItems: 'center',
+    backgroundColor: P.surface, borderRadius: 16,
+    paddingVertical: 16, borderWidth: 1, borderColor: P.border,
+    gap: 6,
+    shadowColor: P.shadow, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, shadowRadius: 6, elevation: 1,
   },
-  statusPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-    marginBottom: 10,
-    gap: 5,
-  },
-  statusDot: { width: 5, height: 5, borderRadius: 2.5 },
-  statusText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  quickPrimary:   { backgroundColor: P.forest, borderColor: P.forest },
+  quickEmoji:     { fontSize: 18 },
+  quickLabel:     { fontSize: 11, fontWeight: '600', color: P.inkMid, letterSpacing: 0.3 },
+  quickLabelLight:{ fontSize: 11, fontWeight: '600', color: 'rgba(255,255,255,0.85)', letterSpacing: 0.3 },
 
-  lessonTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    letterSpacing: -0.1,
-    marginBottom: 6,
-    fontStyle: 'italic',
-  },
-  lessonPreview: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
-    marginBottom: 12,
-  },
-  lessonMeta: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  lessonDate: {
-    fontSize: 11,
-    color: colors.textMuted,
-    fontWeight: '500',
-  },
+  section:      { marginBottom: 28 },
+  sectionLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 1.3, color: P.inkMuted, marginBottom: 14 },
 
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 40,
+  loadWrap:   { paddingVertical: 32, alignItems: 'center' },
+  emptyCard:  {
+    backgroundColor: P.surface, borderRadius: 18,
+    padding: 28, alignItems: 'center', borderWidth: 1, borderColor: P.border,
   },
-  emptyEmoji: { fontSize: 40, marginBottom: 16 },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 8,
+  emptyEmoji: { fontSize: 32, marginBottom: 10 },
+  emptyTitle: { fontSize: 16, fontWeight: '600', color: P.ink, marginBottom: 6 },
+  emptyDesc:  { fontSize: 13, color: P.inkMuted, textAlign: 'center', lineHeight: 19 },
+
+  communityCard: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: P.surface, borderRadius: 18, padding: 18,
+    borderWidth: 1, borderColor: P.border, gap: 14,
+    shadowColor: P.shadow, shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04, shadowRadius: 8, elevation: 2,
   },
-  emptyBody: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 21,
-    marginBottom: 24,
+  commIcon:  {
+    width: 46, height: 46, borderRadius: 14,
+    backgroundColor: P.goldLight, alignItems: 'center', justifyContent: 'center',
   },
-  emptyBtn: {
-    backgroundColor: colors.gold,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 14,
-  },
-  emptyBtnText: { fontSize: 14, fontWeight: '700', color: colors.bg },
+  commTitle: { fontSize: 15, fontWeight: '600', color: P.ink, letterSpacing: 0.1 },
+  commDesc:  { fontSize: 12, color: P.inkMuted, marginTop: 2, lineHeight: 17 },
 });

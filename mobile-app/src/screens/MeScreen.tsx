@@ -1,5 +1,6 @@
 // mobile-app/src/screens/MeScreen.tsx
-// "Me" tab — logging actions + settings hub
+// Upgraded UI — forest dark glassmorphism
+// ALL navigation, logic, auth calls preserved
 
 import React from 'react';
 import {
@@ -10,205 +11,221 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { BotanicalBackground } from '../components/BotanicalBackground';
-import { colors } from '../theme/colors';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../stores/authStore';
 import { AxisMarker, SeverityContinuum } from '../components/SimpleIcons';
 
+// ── Tokens ─────────────────────────────────────────────────────────────────────
+const T = {
+  bgDeep:        '#0F1C12',
+  bgMid:         '#162019',
+  glass:         'rgba(255,255,255,0.06)',
+  glassMid:      'rgba(255,255,255,0.09)',
+  glassBorder:   'rgba(255,255,255,0.10)',
+  glassBorderHi: 'rgba(255,255,255,0.18)',
+  sage:          '#7A9B7E',
+  sageBright:    '#9ABD9E',
+  sageDeep:      '#3D5540',
+  gold:          '#C9A96E',
+  goldGlow:      'rgba(201,169,110,0.14)',
+  goldBorder:    'rgba(201,169,110,0.22)',
+  textPrimary:   '#F0EDE6',
+  textSecondary: 'rgba(240,237,230,0.55)',
+  textMuted:     'rgba(240,237,230,0.30)',
+  errorRed:      '#E07070',
+  errorBg:       'rgba(224,112,112,0.10)',
+  errorBorder:   'rgba(224,112,112,0.20)',
+} as const;
+
+// ── Row item ───────────────────────────────────────────────────────────────────
+interface RowProps {
+  emoji?: string;
+  label: string;
+  desc?: string;
+  onPress: () => void;
+  danger?: boolean;
+  iconBg?: string;
+  last?: boolean;
+}
+
+function Row({ emoji, label, desc, onPress, danger, iconBg, last }: RowProps) {
+  return (
+    <>
+      <TouchableOpacity style={r.row} onPress={onPress} activeOpacity={0.75}>
+        {emoji ? (
+          <View style={[r.iconWrap, iconBg ? { backgroundColor: iconBg } : {}]}>
+            <Text style={r.emoji}>{emoji}</Text>
+          </View>
+        ) : null}
+        <View style={r.info}>
+          <Text style={[r.label, danger && { color: T.errorRed }]}>{label}</Text>
+          {desc ? <Text style={r.desc}>{desc}</Text> : null}
+        </View>
+        {!danger && <Text style={r.arrow}>›</Text>}
+      </TouchableOpacity>
+      {!last && <View style={r.divider} />}
+    </>
+  );
+}
+const r = StyleSheet.create({
+  row:     { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 18 },
+  iconWrap:{ width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: T.glass },
+  emoji:   { fontSize: 18 },
+  info:    { flex: 1 },
+  label:   { fontSize: 15, fontWeight: '600', color: T.textPrimary, marginBottom: 2 },
+  desc:    { fontSize: 12, color: T.textMuted, lineHeight: 17 },
+  arrow:   { fontSize: 20, color: T.textMuted },
+  divider: { height: 1, backgroundColor: T.glassBorder, marginHorizontal: 18 },
+});
+
+// ── Section ────────────────────────────────────────────────────────────────────
+function Section({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <View style={sec.wrap}>
+      <Text style={sec.lbl}>{label}</Text>
+      <View style={sec.card}>{children}</View>
+    </View>
+  );
+}
+const sec = StyleSheet.create({
+  wrap: { marginBottom: 24 },
+  lbl:  { fontSize: 10, fontWeight: '700', letterSpacing: 2, color: T.textMuted, marginBottom: 10 },
+  card: {
+    backgroundColor: T.glass, borderRadius: 20,
+    borderWidth: 1, borderColor: T.glassBorder, overflow: 'hidden',
+  },
+});
+
+// ── Main ───────────────────────────────────────────────────────────────────────
 export default function MeScreen({ navigation }: { navigation: any }) {
   const { user, logout } = useAuthStore();
 
-  return (
-    <BotanicalBackground variant="green" intensity="light">
-      <View style={styles.container}>
+  const initial = user?.firstName?.charAt(0).toUpperCase() || '?';
+  const hue = ((user?.firstName?.charCodeAt(0) ?? 65) * 41) % 360;
 
-        <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{user?.firstName?.charAt(0) || '?'}</Text>
+  const confirmLogout = () =>
+    Alert.alert('Sign out?', 'You\'ll need to log in again.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Sign out', style: 'destructive', onPress: logout },
+    ]);
+
+  return (
+    <View style={s.root}>
+      <LinearGradient
+        colors={[T.bgDeep, T.bgMid, '#162819']}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
+      />
+
+      <SafeAreaView style={s.safe} edges={['top']}>
+        {/* ── PROFILE HEADER ────────────────────────────────────────── */}
+        <View style={s.profileHeader}>
+          <View style={[s.avatar, { backgroundColor: `hsla(${hue},22%,24%,1)`,
+            borderColor: `hsla(${hue},28%,40%,0.35)` }]}>
+            <Text style={[s.avatarTxt, { color: `hsl(${hue},38%,72%)` }]}>{initial}</Text>
           </View>
-          <View>
-            <Text style={styles.name}>{user?.firstName} {user?.lastName}</Text>
-            <Text style={styles.email}>{user?.email}</Text>
+          <View style={s.profileInfo}>
+            <Text style={s.profileName}>{user?.firstName} {user?.lastName}</Text>
+            <Text style={s.profileEmail}>{user?.email}</Text>
           </View>
         </View>
 
         <ScrollView
-          style={styles.content}
-          contentContainerStyle={styles.scrollContent}
+          style={s.scroll}
+          contentContainerStyle={s.content}
           showsVerticalScrollIndicator={false}
         >
-
-          {/* Log */}
-          <Text style={styles.sectionLabel}>LOG</Text>
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.actionRow}
+          {/* LOG */}
+          <Section label="LOG">
+            <Row
+              emoji="⬤"
+              label="Log Glucose"
+              desc="Record a blood sugar reading"
+              iconBg="rgba(122,155,126,0.15)"
               onPress={() => navigation.navigate('AddGlucose')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(107,127,110,0.12)' }]}>
-                <AxisMarker size={20} color={colors.forestGreen} />
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionLabel}>Log Glucose</Text>
-                <Text style={styles.actionDesc}>Record a blood sugar reading</Text>
-              </View>
-              <Text style={styles.arrow}>→</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.actionRow}
+            />
+            <Row
+              emoji="〰"
+              label="Log Symptoms"
+              desc="Track how you're feeling"
+              iconBg="rgba(201,169,110,0.12)"
               onPress={() => navigation.navigate('AddSymptom')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(184,164,95,0.12)' }]}>
-                <SeverityContinuum size={20} color={colors.goldLeaf} muted={colors.muted} />
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionLabel}>Log Symptoms</Text>
-                <Text style={styles.actionDesc}>Track how you're feeling</Text>
-              </View>
-              <Text style={styles.arrow}>→</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.actionRow}
+            />
+            <Row
+              emoji="🌿"
+              label="Log Cycle"
+              desc="Update your cycle dates"
+              iconBg="rgba(61,85,64,0.25)"
               onPress={() => navigation.navigate('LogCycle')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(61,85,64,0.1)' }]}>
-                <Text style={{ fontSize: 18 }}>🌿</Text>
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionLabel}>Log Cycle</Text>
-                <Text style={styles.actionDesc}>Update your cycle dates</Text>
-              </View>
-              <Text style={styles.arrow}>→</Text>
-            </TouchableOpacity>
-          </View>
+              last
+            />
+          </Section>
 
-          {/* Preferences */}
-          <Text style={styles.sectionLabel}>PREFERENCES</Text>
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.actionRow}
+          {/* PREFERENCES */}
+          <Section label="PREFERENCES">
+            <Row
+              emoji="🌾"
+              label="Rhythm Profile"
+              desc="Regular, PCOS, perimenopause…"
+              iconBg="rgba(122,155,126,0.12)"
               onPress={() => navigation.navigate('RhythmProfile')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(107,127,110,0.12)' }]}>
-                <Text style={{ fontSize: 18 }}>🌾</Text>
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionLabel}>Rhythm Profile</Text>
-                <Text style={styles.actionDesc}>Regular, PCOS, perimenopause…</Text>
-              </View>
-              <Text style={styles.arrow}>→</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.actionRow}
+            />
+            <Row
+              emoji="⚙"
+              label="Settings"
+              desc="App preferences & account"
+              iconBg="rgba(255,255,255,0.06)"
               onPress={() => navigation.navigate('Settings')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(107,127,110,0.08)' }]}>
-                <Text style={{ fontSize: 18 }}>⚙️</Text>
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionLabel}>Settings</Text>
-                <Text style={styles.actionDesc}>App preferences & account</Text>
-              </View>
-              <Text style={styles.arrow}>→</Text>
-            </TouchableOpacity>
-
-            <View style={styles.divider} />
-
-            <TouchableOpacity
-              style={styles.actionRow}
+            />
+            <Row
+              emoji="❤"
+              label="Apple Health"
+              desc="Sync your health data"
+              iconBg="rgba(224,112,112,0.12)"
               onPress={() => navigation.navigate('HealthSync')}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(122,146,168,0.12)' }]}>
-                <Text style={{ fontSize: 18 }}>❤️</Text>
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionLabel}>Apple Health</Text>
-                <Text style={styles.actionDesc}>Sync your health data</Text>
-              </View>
-              <Text style={styles.arrow}>→</Text>
-            </TouchableOpacity>
-          </View>
+              last
+            />
+          </Section>
 
-          {/* Account */}
-          <Text style={styles.sectionLabel}>ACCOUNT</Text>
-          <View style={styles.card}>
-            <TouchableOpacity
-              style={styles.actionRow}
-              onPress={() => Alert.alert(
-                'Logout',
-                'Are you sure you want to logout?',
-                [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Logout', style: 'destructive', onPress: logout },
-                ]
-              )}
-              activeOpacity={0.8}
-            >
-              <View style={[styles.actionIcon, { backgroundColor: 'rgba(200,90,84,0.1)' }]}>
-                <Text style={{ fontSize: 18 }}>👋</Text>
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={[styles.actionLabel, { color: colors.error }]}>Logout</Text>
-                <Text style={styles.actionDesc}>Sign out of your account</Text>
-              </View>
-            </TouchableOpacity>
-          </View>
+          {/* ACCOUNT */}
+          <Section label="ACCOUNT">
+            <Row
+              emoji="👋"
+              label="Sign Out"
+              desc=""
+              onPress={confirmLogout}
+              danger
+              last
+            />
+          </Section>
 
           <View style={{ height: 40 }} />
         </ScrollView>
-      </View>
-    </BotanicalBackground>
+      </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1 },
-  header: {
+const s = StyleSheet.create({
+  root:  { flex: 1 },
+  safe:  { flex: 1 },
+
+  profileHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 16,
-    paddingHorizontal: 24, paddingTop: 64, paddingBottom: 24,
-    backgroundColor: 'rgba(255,255,255,0.85)',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(212,214,212,0.2)',
+    paddingHorizontal: 22, paddingTop: 20, paddingBottom: 28,
+    borderBottomWidth: 1, borderBottomColor: T.glassBorder,
   },
   avatar: {
-    width: 56, height: 56, borderRadius: 28,
-    backgroundColor: 'rgba(107,127,110,0.15)',
+    width: 58, height: 58, borderRadius: 29, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
-    borderWidth: 1, borderColor: 'rgba(107,127,110,0.2)',
   },
-  avatarText: { fontSize: 22, fontWeight: '700', color: colors.forestGreen },
-  name: { fontSize: 20, fontWeight: '700', color: colors.textDark, letterSpacing: -0.3 },
-  email: { fontSize: 13, color: colors.textMuted, marginTop: 2 },
-  content: { flex: 1 },
-  scrollContent: { padding: 20 },
-  sectionLabel: {
-    fontSize: 10, fontWeight: '700', letterSpacing: 1.2,
-    color: 'rgba(107,127,110,0.6)', marginBottom: 10, marginTop: 8,
-  },
-  card: {
-    backgroundColor: 'rgba(255,255,255,0.97)', borderRadius: 18, padding: 6, marginBottom: 16,
-    borderWidth: 1, borderColor: 'rgba(212,214,212,0.25)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
-  },
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 14 },
-  actionIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  actionContent: { flex: 1 },
-  actionLabel: { fontSize: 15, fontWeight: '600', color: colors.textDark, marginBottom: 2 },
-  actionDesc: { fontSize: 12, color: colors.textMuted, lineHeight: 17 },
-  arrow: { fontSize: 18, color: 'rgba(42,45,42,0.25)' },
-  divider: { height: 1, backgroundColor: 'rgba(212,214,212,0.3)', marginHorizontal: 14 },
+  avatarTxt:    { fontSize: 22, fontWeight: '700' },
+  profileInfo:  { flex: 1 },
+  profileName:  { fontSize: 20, fontWeight: '700', color: T.textPrimary, letterSpacing: -0.3 },
+  profileEmail: { fontSize: 13, color: T.textMuted, marginTop: 3 },
+
+  scroll:  { flex: 1 },
+  content: { paddingHorizontal: 22, paddingTop: 28 },
 });

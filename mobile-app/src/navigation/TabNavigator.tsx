@@ -24,7 +24,7 @@ const STROKE = 1.6;
 
 // Home — simple house outline
 function HomeIcon({ focused }: { focused: boolean }) {
-  const color = focused ? colors.forestGreen : 'rgba(42,45,42,0.35)';
+  const color = focused ? 'rgba(154,189,158,0.95)' : 'rgba(240,237,230,0.28)';
   return (
     <Svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none">
       <Path
@@ -32,7 +32,7 @@ function HomeIcon({ focused }: { focused: boolean }) {
         stroke={color}
         strokeWidth={STROKE}
         strokeLinejoin="round"
-        fill={focused ? 'rgba(107,127,110,0.12)' : 'none'}
+        fill={focused ? 'rgba(154,189,158,0.12)' : 'none'}
       />
       <Path
         d="M9 22V12h6v10"
@@ -46,7 +46,7 @@ function HomeIcon({ focused }: { focused: boolean }) {
 
 // Rhythm — wave / sine curve suggesting natural cycles
 function RhythmIcon({ focused }: { focused: boolean }) {
-  const color = focused ? colors.forestGreen : 'rgba(42,45,42,0.35)';
+  const color = focused ? 'rgba(154,189,158,0.95)' : 'rgba(240,237,230,0.28)';
   return (
     <Svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none">
       <Path
@@ -62,7 +62,7 @@ function RhythmIcon({ focused }: { focused: boolean }) {
 
 // Coach — speech bubble outline
 function CoachIcon({ focused }: { focused: boolean }) {
-  const color = focused ? colors.forestGreen : 'rgba(42,45,42,0.35)';
+  const color = focused ? 'rgba(154,189,158,0.95)' : 'rgba(240,237,230,0.28)';
   return (
     <Svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none">
       <Path
@@ -70,7 +70,7 @@ function CoachIcon({ focused }: { focused: boolean }) {
         stroke={color}
         strokeWidth={STROKE}
         strokeLinejoin="round"
-        fill={focused ? 'rgba(107,127,110,0.12)' : 'none'}
+        fill={focused ? 'rgba(154,189,158,0.12)' : 'none'}
       />
     </Svg>
   );
@@ -78,7 +78,7 @@ function CoachIcon({ focused }: { focused: boolean }) {
 
 // Me — person silhouette outline
 function MeIcon({ focused }: { focused: boolean }) {
-  const color = focused ? colors.forestGreen : 'rgba(42,45,42,0.35)';
+  const color = focused ? 'rgba(154,189,158,0.95)' : 'rgba(240,237,230,0.28)';
   return (
     <Svg width={ICON_SIZE} height={ICON_SIZE} viewBox="0 0 24 24" fill="none">
       <Circle
@@ -87,7 +87,7 @@ function MeIcon({ focused }: { focused: boolean }) {
         r="4"
         stroke={color}
         strokeWidth={STROKE}
-        fill={focused ? 'rgba(107,127,110,0.12)' : 'none'}
+        fill={focused ? 'rgba(154,189,158,0.12)' : 'none'}
       />
       <Path
         d="M4 20c0-4 3.6-7 8-7s8 3 8 7"
@@ -167,16 +167,16 @@ export default function TabNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: 'rgba(255,255,255,0.97)',
+    backgroundColor: 'rgba(11,24,16,0.92)',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(212,214,212,0.3)',
+    borderTopColor: 'rgba(255,255,255,0.07)',
     height: Platform.OS === 'ios' ? 82 : 62,
     paddingBottom: Platform.OS === 'ios' ? 22 : 6,
     paddingTop: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.30,
+    shadowRadius: 12,
     elevation: 8,
   },
   tabItem: {
@@ -188,12 +188,12 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 10,
     fontWeight: '500',
-    color: 'rgba(42,45,42,0.35)',
+    color: 'rgba(240,237,230,0.28)',
     letterSpacing: 0.4,
     textAlign: 'center',
   },
   tabLabelFocused: {
-    color: colors.forestGreen,
+    color: 'rgba(154,189,158,0.90)',
     fontWeight: '700',
   },
 });

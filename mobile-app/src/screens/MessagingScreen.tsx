@@ -1,4 +1,7 @@
 // mobile-app/src/screens/MessagingScreen.tsx
+// Upgraded UI — forest dark glassmorphism
+// ALL logic, polling, file attachment, conversation modes preserved
+
 import React, { useEffect, useState, useRef } from 'react';
 import {
   View,
@@ -12,7 +15,10 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,15 +27,10 @@ import type { RootStackParamList } from '../types/navigation';
 import { messageService, Message } from '../services/message.service';
 import { conversationService } from '../services/conversation.service';
 import { useAuthStore } from '../stores/authStore';
-import { colors } from '../theme/colors';
 
-type MessagingScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Messaging'>;
-type MessagingScreenRouteProp = RouteProp<RootStackParamList, 'Messaging'>;
-
-interface Props {
-  navigation: MessagingScreenNavigationProp;
-  route: MessagingScreenRouteProp;
-}
+type NavProp   = NativeStackNavigationProp<RootStackParamList, 'Messaging'>;
+type RouteP    = RouteProp<RootStackParamList, 'Messaging'>;
+const { width: SW } = Dimensions.get('window');
 
 interface AttachedFile {
   uri: string;
@@ -38,421 +39,376 @@ interface AttachedFile {
   size: number;
 }
 
-export default function MessagingScreen({ navigation, route }: Props) {
+// ── Tokens ─────────────────────────────────────────────────────────────────────
+const T = {
+  bgDeep:        '#0F1C12',
+  bgMid:         '#162019',
+  glass:         'rgba(255,255,255,0.06)',
+  glassMid:      'rgba(255,255,255,0.09)',
+  glassBorder:   'rgba(255,255,255,0.10)',
+  glassBorderHi: 'rgba(255,255,255,0.18)',
+  sage:          '#7A9B7E',
+  sageDeep:      '#3D5540',
+  gold:          '#C9A96E',
+  textPrimary:   '#F0EDE6',
+  textSecondary: 'rgba(240,237,230,0.55)',
+  textMuted:     'rgba(240,237,230,0.30)',
+} as const;
+
+// ── Relative time ──────────────────────────────────────────────────────────────
+function relTime(ts: string): string {
+  const diff = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return new Date(ts).toLocaleDateString();
+}
+
+export default function MessagingScreen({ navigation, route }: { navigation: NavProp; route: RouteP }) {
   const { userId, userName, conversationId } = route.params;
   const { user } = useAuthStore();
-  const [messages, setMessages] = useState<Message[]>([]);
-  const [newMessage, setNewMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSending, setIsSending] = useState(false);
-  const [attachedFile, setAttachedFile] = useState<AttachedFile | null>(null);
-  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-  const scrollViewRef = useRef<ScrollView>(null);
 
-  const isConversationMode = !!conversationId;
+  const [messages,          setMessages]          = useState<Message[]>([]);
+  const [newMessage,        setNewMessage]        = useState('');
+  const [isLoading,         setIsLoading]         = useState(true);
+  const [isSending,         setIsSending]         = useState(false);
+  const [attachedFile,      setAttachedFile]      = useState<AttachedFile | null>(null);
+  const [showAttachMenu,    setShowAttachMenu]    = useState(false);
+  const scrollRef = useRef<ScrollView>(null);
+
+  const isConvMode = !!conversationId;
 
   useEffect(() => {
     loadMessages();
-
-    if (isConversationMode && conversationId) {
-      conversationService.markAsRead(conversationId);
-    } else if (userId) {
-      messageService.markAsRead(userId);
-    }
-
-    const interval = setInterval(loadMessages, 5000);
-    return () => clearInterval(interval);
+    if (isConvMode && conversationId) conversationService.markAsRead(conversationId);
+    else if (userId) messageService.markAsRead(userId);
+    const iv = setInterval(loadMessages, 5000);
+    return () => clearInterval(iv);
   }, [conversationId, userId]);
 
   useEffect(() => {
     (async () => {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        console.log('Camera roll permissions not granted');
-      }
+      await ImagePicker.requestMediaLibraryPermissionsAsync();
     })();
   }, []);
 
   const loadMessages = async () => {
     try {
       let data: Message[] = [];
-
-      if (isConversationMode && conversationId) {
+      if (isConvMode && conversationId) {
         data = await conversationService.getMessages(conversationId) as any;
       } else if (userId) {
         data = await messageService.getMessages(userId);
       }
-
       setMessages(data);
       setIsLoading(false);
-
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (error) {
-      console.error('Failed to load messages:', error);
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch (err) {
+      console.error('loadMessages:', err);
       setIsLoading(false);
     }
   };
 
   const handlePickImage = async () => {
-    setShowAttachmentMenu(false);
+    setShowAttachMenu(false);
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.8,
-      base64: false,
+      allowsEditing: true, quality: 0.8,
     });
     if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setAttachedFile({
-        uri: asset.uri,
-        name: asset.fileName || 'image.jpg',
-        type: 'image',
-        size: asset.fileSize || 0,
-      });
+      const a = result.assets[0];
+      setAttachedFile({ uri: a.uri, name: a.fileName || 'image.jpg', type: 'image', size: a.fileSize || 0 });
     }
   };
 
   const handleTakePhoto = async () => {
-    setShowAttachmentMenu(false);
+    setShowAttachMenu(false);
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Camera permission is required to take photos');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      quality: 0.8,
-    });
+    if (status !== 'granted') { Alert.alert('Permission needed', 'Camera permission required'); return; }
+    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.8 });
     if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      setAttachedFile({
-        uri: asset.uri,
-        name: `photo_${Date.now()}.jpg`,
-        type: 'image',
-        size: asset.fileSize || 0,
-      });
+      const a = result.assets[0];
+      setAttachedFile({ uri: a.uri, name: `photo_${Date.now()}.jpg`, type: 'image', size: a.fileSize || 0 });
     }
   };
 
   const handlePickDocument = async () => {
-    setShowAttachmentMenu(false);
+    setShowAttachMenu(false);
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'application/pdf',
-          'application/msword',
-          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        ],
+        type: ['application/pdf', 'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
         copyToCacheDirectory: true,
       });
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setAttachedFile({
-          uri: asset.uri,
-          name: asset.name,
-          type: 'document',
-          size: asset.size || 0,
-        });
+      if (!result.canceled && result.assets?.length) {
+        const a = result.assets[0];
+        setAttachedFile({ uri: a.uri, name: a.name, type: 'document', size: a.size || 0 });
       }
-    } catch (error) {
-      console.error('Error picking document:', error);
-      Alert.alert('Error', 'Failed to select document');
-    }
+    } catch { Alert.alert('Error', 'Failed to select document'); }
   };
 
-  const removeAttachment = () => setAttachedFile(null);
-
-  const handleSendMessage = async () => {
+  const handleSend = async () => {
     if ((!newMessage.trim() && !attachedFile) || isSending) return;
-
     setIsSending(true);
     try {
-      let messageText = newMessage.trim();
-      if (attachedFile) {
-        messageText += `\n[Attachment: ${attachedFile.name}]`;
-      }
-
-      let message;
-      if (isConversationMode && conversationId) {
-        message = await conversationService.sendMessage(conversationId, messageText) as any;
+      let text = newMessage.trim();
+      if (attachedFile) text += `\n[Attachment: ${attachedFile.name}]`;
+      let msg;
+      if (isConvMode && conversationId) {
+        msg = await conversationService.sendMessage(conversationId, text) as any;
       } else if (userId) {
-        message = await messageService.sendMessage(userId, messageText);
+        msg = await messageService.sendMessage(userId, text);
       }
-      if (message) setMessages([...messages, message]);
+      if (msg) setMessages(prev => [...prev, msg]);
       setNewMessage('');
       setAttachedFile(null);
-      setTimeout(() => {
-        scrollViewRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-      Alert.alert('Error', 'Failed to send message');
-    } finally {
-      setIsSending(false);
-    }
+      setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    } catch { Alert.alert('Error', 'Failed to send message'); }
+    finally { setIsSending(false); }
   };
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diff = now.getTime() - date.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    if (hours < 1) {
-      const minutes = Math.floor(diff / (1000 * 60));
-      return minutes < 1 ? 'Just now' : `${minutes}m ago`;
-    }
-    if (hours < 24) return `${hours}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  const formatFileSize = (bytes: number) => {
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-  };
-
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case 'image': return '[IMG]';
-      case 'document': return '[DOC]';
-      default: return '[FILE]';
-    }
-  };
+  const initials = userName.split(' ').map((w: string) => w[0] ?? '').slice(0, 2).join('').toUpperCase();
+  const hue = ((userName.charCodeAt(0) ?? 65) * 41) % 360;
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.sage} />
+      <View style={{ flex: 1, backgroundColor: T.bgDeep, alignItems: 'center', justifyContent: 'center' }}>
+        <LinearGradient colors={[T.bgDeep, T.bgMid]} style={StyleSheet.absoluteFillObject} />
+        <ActivityIndicator color={T.sage} size="large" />
       </View>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={styles.container}
-      keyboardVerticalOffset={90}
-    >
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>{userName}</Text>
-        <View style={{ width: 60 }} />
-      </View>
+    <View style={s.root}>
+      <LinearGradient
+        colors={[T.bgDeep, T.bgMid, '#162819']}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0.2, y: 0 }} end={{ x: 0.8, y: 1 }}
+      />
 
-      {/* Messages */}
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.messagesContainer}
-        contentContainerStyle={styles.messagesContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {messages.length === 0 ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>No messages yet</Text>
-            <Text style={styles.emptySubtext}>Start a conversation!</Text>
-          </View>
-        ) : (
-          messages.map((message, index) => {
-            const isOwnMessage = message.sender_id === user?.id;
-            return (
-              <View
-                key={message.id || index}
-                style={[
-                  styles.messageRow,
-                  isOwnMessage ? styles.ownMessageRow : styles.otherMessageRow,
-                ]}
-              >
-                <View
-                  style={[
-                    styles.messageBubble,
-                    isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.messageText,
-                      isOwnMessage ? styles.ownMessageText : styles.otherMessageText,
-                    ]}
-                  >
-                    {message.message}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.messageTime,
-                      isOwnMessage ? styles.ownMessageTime : styles.otherMessageTime,
-                    ]}
-                  >
-                    {formatTime(message.created_at)}
-                  </Text>
-                </View>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
-
-      {/* Attachment Preview */}
-      {attachedFile && (
-        <View style={styles.attachmentPreview}>
-          <View style={styles.attachmentContent}>
-            {attachedFile.type === 'image' ? (
-              <Image source={{ uri: attachedFile.uri }} style={styles.attachmentImage} />
-            ) : (
-              <View style={styles.documentPreview}>
-                <Text style={styles.documentIcon}>{getFileIcon(attachedFile.type)}</Text>
-              </View>
-            )}
-            <View style={styles.attachmentInfo}>
-              <Text style={styles.attachmentName} numberOfLines={1}>
-                {attachedFile.name}
-              </Text>
-              <Text style={styles.attachmentSize}>{formatFileSize(attachedFile.size)}</Text>
-            </View>
-          </View>
-          <TouchableOpacity onPress={removeAttachment} style={styles.removeButton}>
-            <Text style={styles.removeButtonText}>X</Text>
+      <SafeAreaView style={s.safe} edges={['top']}>
+        {/* ── HEADER ────────────────────────────────────────────────── */}
+        <View style={s.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn} activeOpacity={0.75}>
+            <Text style={s.backArrow}>←</Text>
           </TouchableOpacity>
+
+          {/* Avatar */}
+          <View style={[s.headerAvatar, { backgroundColor: `hsla(${hue},22%,26%,1)` }]}>
+            <Text style={[s.headerAvatarTxt, { color: `hsl(${hue},38%,74%)` }]}>{initials}</Text>
+          </View>
+
+          <View style={s.headerInfo}>
+            <Text style={s.headerName}>{userName}</Text>
+            <Text style={s.headerSub}>Direct message</Text>
+          </View>
         </View>
-      )}
 
-      {/* Attachment Menu */}
-      {showAttachmentMenu && (
-        <View style={styles.attachmentMenu}>
-          <TouchableOpacity style={styles.menuItem} onPress={handleTakePhoto}>
-            <Text style={styles.menuIcon}>[CAM]</Text>
-            <Text style={styles.menuText}>Take Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={handlePickImage}>
-            <Text style={styles.menuIcon}>[IMG]</Text>
-            <Text style={styles.menuText}>Choose Photo</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.menuItem} onPress={handlePickDocument}>
-            <Text style={styles.menuIcon}>[DOC]</Text>
-            <Text style={styles.menuText}>Choose Document</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.menuItem, styles.menuItemCancel]}
-            onPress={() => setShowAttachmentMenu(false)}
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={0}
+        >
+          {/* ── MESSAGES ────────────────────────────────────────────── */}
+          <ScrollView
+            ref={scrollRef}
+            style={s.scroll}
+            contentContainerStyle={s.scrollContent}
+            showsVerticalScrollIndicator={false}
           >
-            <Text style={styles.menuTextCancel}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+            {messages.length === 0 ? (
+              <View style={s.empty}>
+                <Text style={s.emptyEmoji}>✉</Text>
+                <Text style={s.emptyTitle}>No messages yet</Text>
+                <Text style={s.emptySub}>Start the conversation</Text>
+              </View>
+            ) : (
+              messages.map((msg, i) => {
+                const isMe = msg.sender_id === user?.id;
+                const prev = messages[i - 1];
+                const sameAsPrev = prev && prev.sender_id === msg.sender_id;
+                return (
+                  <View
+                    key={msg.id || i}
+                    style={[
+                      s.msgRow,
+                      isMe ? s.msgRowMe : s.msgRowThem,
+                      sameAsPrev && { marginTop: 3 },
+                    ]}
+                  >
+                    <View style={[s.bubble, isMe ? s.bubbleMe : s.bubbleThem]}>
+                      <Text style={[s.bubbleTxt, isMe && s.bubbleTxtMe]}>
+                        {msg.message}
+                      </Text>
+                      <Text style={[s.bubbleTime, isMe && s.bubbleTimeMe]}>
+                        {relTime(msg.created_at)}
+                      </Text>
+                    </View>
+                  </View>
+                );
+              })
+            )}
+          </ScrollView>
 
-      {/* Input */}
-      <View style={styles.inputContainer}>
-        <TouchableOpacity
-          style={styles.attachButton}
-          onPress={() => setShowAttachmentMenu(!showAttachmentMenu)}
-        >
-          <Text style={styles.attachButtonText}>+</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={styles.input}
-          placeholder="Type a message..."
-          placeholderTextColor={colors.textLight}
-          value={newMessage}
-          onChangeText={setNewMessage}
-          multiline
-          maxLength={500}
-        />
-        <TouchableOpacity
-          style={[
-            styles.sendButton,
-            ((!newMessage.trim() && !attachedFile) || isSending) && styles.sendButtonDisabled,
-          ]}
-          onPress={handleSendMessage}
-          disabled={(!newMessage.trim() && !attachedFile) || isSending}
-        >
-          <Text style={styles.sendButtonText}>
-            {isSending ? '...' : 'Send'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          {/* ── ATTACHMENT PREVIEW ──────────────────────────────────── */}
+          {attachedFile && (
+            <View style={s.attachPreview}>
+              {attachedFile.type === 'image' ? (
+                <Image source={{ uri: attachedFile.uri }} style={s.attachImg} />
+              ) : (
+                <View style={s.attachDocIcon}><Text style={s.attachDocTxt}>DOC</Text></View>
+              )}
+              <Text style={s.attachName} numberOfLines={1}>{attachedFile.name}</Text>
+              <TouchableOpacity onPress={() => setAttachedFile(null)} style={s.attachRemove}>
+                <Text style={{ color: T.textMuted, fontSize: 14 }}>✕</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── ATTACH MENU ─────────────────────────────────────────── */}
+          {showAttachMenu && (
+            <View style={s.attachMenu}>
+              {[
+                { label: '📷  Take Photo',     fn: handleTakePhoto },
+                { label: '🖼   Choose Photo',   fn: handlePickImage },
+                { label: '📄  Choose Document', fn: handlePickDocument },
+              ].map(item => (
+                <TouchableOpacity key={item.label} style={s.attachMenuItem} onPress={item.fn} activeOpacity={0.75}>
+                  <Text style={s.attachMenuTxt}>{item.label}</Text>
+                </TouchableOpacity>
+              ))}
+              <TouchableOpacity style={[s.attachMenuItem, s.attachMenuCancel]}
+                onPress={() => setShowAttachMenu(false)} activeOpacity={0.75}>
+                <Text style={[s.attachMenuTxt, { color: T.textMuted }]}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ── INPUT BAR ───────────────────────────────────────────── */}
+          <View style={s.inputBar}>
+            <TouchableOpacity
+              style={s.attachBtn}
+              onPress={() => setShowAttachMenu(v => !v)}
+              activeOpacity={0.75}
+            >
+              <Text style={s.attachBtnTxt}>＋</Text>
+            </TouchableOpacity>
+            <TextInput
+              style={s.input}
+              placeholder="Type a message…"
+              placeholderTextColor={T.textMuted}
+              value={newMessage}
+              onChangeText={setNewMessage}
+              multiline
+              maxLength={500}
+            />
+            <TouchableOpacity
+              style={[s.sendBtn, ((!newMessage.trim() && !attachedFile) || isSending) && s.sendBtnOff]}
+              onPress={handleSend}
+              disabled={(!newMessage.trim() && !attachedFile) || isSending}
+              activeOpacity={0.82}
+            >
+              <Text style={s.sendTxt}>{isSending ? '…' : '↑'}</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.cream },
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: colors.cream },
+const s = StyleSheet.create({
+  root:  { flex: 1 },
+  safe:  { flex: 1 },
+
   header: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16,
-    backgroundColor: colors.white, borderBottomWidth: 1, borderBottomColor: colors.border,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 18, paddingTop: 12, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: T.glassBorder,
+    backgroundColor: 'rgba(15,28,18,0.6)',
+    gap: 12,
   },
-  backButton: { width: 60 },
-  backText: { color: colors.sage, fontSize: 16, fontWeight: '500' },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.charcoal },
-  messagesContainer: { flex: 1 },
-  messagesContent: { padding: 16 },
-  emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 60 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: colors.textDark, marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: colors.textLight },
-  messageRow: { marginBottom: 12, flexDirection: 'row' },
-  ownMessageRow: { justifyContent: 'flex-end' },
-  otherMessageRow: { justifyContent: 'flex-start' },
-  messageBubble: {
-    maxWidth: '75%', borderRadius: 16, padding: 12,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 2, elevation: 1,
+  backBtn:        { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+  backArrow:      { fontSize: 22, color: T.textSecondary },
+  headerAvatar:   { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  headerAvatarTxt:{ fontSize: 13, fontWeight: '600' },
+  headerInfo:     { flex: 1 },
+  headerName:     { fontSize: 16, fontWeight: '700', color: T.textPrimary, letterSpacing: 0.1 },
+  headerSub:      { fontSize: 11, color: T.textMuted, marginTop: 1 },
+
+  scroll:         { flex: 1 },
+  scrollContent:  { paddingHorizontal: 16, paddingTop: 16, paddingBottom: 8 },
+
+  empty:      { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 80, gap: 10 },
+  emptyEmoji: { fontSize: 40, color: T.textMuted },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: T.textPrimary },
+  emptySub:   { fontSize: 14, color: T.textMuted },
+
+  msgRow:      { marginBottom: 8, flexDirection: 'row' },
+  msgRowMe:    { justifyContent: 'flex-end' },
+  msgRowThem:  { justifyContent: 'flex-start' },
+
+  bubble: {
+    maxWidth: SW * 0.72, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 10, gap: 4,
   },
-  ownMessageBubble: { backgroundColor: colors.sage, borderBottomRightRadius: 4 },
-  otherMessageBubble: { backgroundColor: colors.white, borderBottomLeftRadius: 4 },
-  messageText: { fontSize: 15, lineHeight: 20, marginBottom: 4 },
-  ownMessageText: { color: colors.white },
-  otherMessageText: { color: colors.textDark },
-  messageTime: { fontSize: 11, fontWeight: '500' },
-  ownMessageTime: { color: 'rgba(255,255,255,0.7)' },
-  otherMessageTime: { color: colors.textLight },
-  attachmentPreview: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: colors.white,
-    marginHorizontal: 16, marginBottom: 8, padding: 12,
-    borderRadius: 12, borderWidth: 1, borderColor: colors.border,
+  bubbleMe:    { backgroundColor: T.sageDeep, borderBottomRightRadius: 4,
+    borderWidth: 1, borderColor: 'rgba(122,155,126,0.25)' },
+  bubbleThem:  { backgroundColor: T.glassMid, borderBottomLeftRadius: 4,
+    borderWidth: 1, borderColor: T.glassBorder },
+  bubbleTxt:   { fontSize: 15, color: T.textPrimary, lineHeight: 21 },
+  bubbleTxtMe: { color: '#FFFFFF' },
+  bubbleTime:  { fontSize: 10, color: T.textMuted, alignSelf: 'flex-end' },
+  bubbleTimeMe:{ color: 'rgba(255,255,255,0.45)' },
+
+  attachPreview: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    marginHorizontal: 16, marginBottom: 8,
+    backgroundColor: T.glass, borderRadius: 14,
+    borderWidth: 1, borderColor: T.glassBorder, padding: 12,
   },
-  attachmentContent: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  attachmentImage: { width: 50, height: 50, borderRadius: 8, marginRight: 12 },
-  documentPreview: {
-    width: 50, height: 50, borderRadius: 8, backgroundColor: colors.cream,
-    alignItems: 'center', justifyContent: 'center', marginRight: 12,
+  attachImg:     { width: 44, height: 44, borderRadius: 8 },
+  attachDocIcon: {
+    width: 44, height: 44, borderRadius: 8,
+    backgroundColor: 'rgba(201,169,110,0.15)', alignItems: 'center', justifyContent: 'center',
   },
-  documentIcon: { fontSize: 12, fontWeight: '700', color: colors.textDark },
-  attachmentInfo: { flex: 1 },
-  attachmentName: { fontSize: 14, fontWeight: '600', color: colors.textDark, marginBottom: 2 },
-  attachmentSize: { fontSize: 12, color: colors.textLight },
-  removeButton: {
-    width: 28, height: 28, borderRadius: 14, backgroundColor: colors.border,
-    alignItems: 'center', justifyContent: 'center', marginLeft: 8,
+  attachDocTxt:  { fontSize: 10, fontWeight: '700', color: T.gold },
+  attachName:    { flex: 1, fontSize: 13, color: T.textSecondary },
+  attachRemove:  { padding: 4 },
+
+  attachMenu: {
+    backgroundColor: 'rgba(15,28,18,0.95)',
+    borderTopWidth: 1, borderTopColor: T.glassBorder,
   },
-  removeButtonText: { fontSize: 13, color: colors.textLight, fontWeight: '700' },
-  attachmentMenu: {
-    backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: 8,
+  attachMenuItem: {
+    paddingVertical: 15, paddingHorizontal: 22,
+    borderBottomWidth: 1, borderBottomColor: T.glassBorder,
   },
-  menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 20 },
-  menuItemCancel: { borderTopWidth: 1, borderTopColor: colors.border, justifyContent: 'center' },
-  menuIcon: { fontSize: 13, fontWeight: '700', color: colors.textDark, marginRight: 12, width: 40 },
-  menuText: { fontSize: 16, color: colors.textDark, fontWeight: '500' },
-  menuTextCancel: { fontSize: 16, color: colors.textLight, fontWeight: '600' },
-  inputContainer: {
-    flexDirection: 'row', alignItems: 'flex-end',
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: colors.border,
+  attachMenuCancel: { borderBottomWidth: 0 },
+  attachMenuTxt:    { fontSize: 16, color: T.textSecondary, fontWeight: '500' },
+
+  inputBar: {
+    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
+    paddingHorizontal: 16, paddingTop: 10,
+    paddingBottom: Platform.OS === 'ios' ? 28 : 12,
+    borderTopWidth: 1, borderTopColor: T.glassBorder,
+    backgroundColor: 'rgba(15,28,18,0.75)',
   },
-  attachButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center', marginRight: 8 },
-  attachButtonText: { fontSize: 28, color: colors.sage, fontWeight: '300', lineHeight: 32 },
+  attachBtn:    { width: 38, height: 38, alignItems: 'center', justifyContent: 'center' },
+  attachBtnTxt: { fontSize: 26, color: T.textSecondary, lineHeight: 30 },
   input: {
-    flex: 1, minHeight: 40, maxHeight: 100, backgroundColor: colors.cream,
-    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
-    fontSize: 15, color: colors.textDark,
+    flex: 1, backgroundColor: T.glass,
+    borderRadius: 22, borderWidth: 1, borderColor: T.glassBorder,
+    paddingHorizontal: 16, paddingVertical: 10,
+    fontSize: 15, color: T.textPrimary, maxHeight: 100,
   },
-  sendButton: {
-    marginLeft: 8, paddingHorizontal: 20, paddingVertical: 10,
-    backgroundColor: colors.sage, borderRadius: 20, height: 40, justifyContent: 'center',
+  sendBtn: {
+    width: 42, height: 42, borderRadius: 21,
+    backgroundColor: T.sageDeep, borderWidth: 1, borderColor: 'rgba(122,155,126,0.30)',
+    alignItems: 'center', justifyContent: 'center',
   },
-  sendButtonDisabled: { backgroundColor: colors.lightSage, opacity: 0.5 },
-  sendButtonText: { color: colors.white, fontSize: 15, fontWeight: '600' },
+  sendBtnOff: { backgroundColor: 'rgba(61,85,64,0.28)', borderColor: T.glassBorder },
+  sendTxt:    { fontSize: 18, color: '#FFFFFF', fontWeight: '700' },
 });
