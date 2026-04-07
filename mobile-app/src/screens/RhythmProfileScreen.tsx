@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(212,214,212,0.25)',
   },
   backButton: { paddingVertical: 8 },
-  backText: { color: colors.forestGreen, fontSize: 15, fontWeight: '500' },
+  backText: {  fontSize: 15, fontWeight: '500' },
   headerTitle: { fontSize: 20, fontWeight: '600', color: '#2B2B2B', letterSpacing: -0.2 },
   content: { flex: 1 },
   scrollContent: { padding: 20, paddingTop: 24 },
@@ -172,13 +172,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   card: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
+    backgroundColor: 'rgba(183, 180, 183, 0.95)',
     borderRadius: 16,
     padding: 18,
     marginBottom: 12,
     borderWidth: 1.5,
-    borderColor: 'rgba(212,214,212,0.3)',
-    shadowColor: '#000',
+    borderColor: 'rgba(15, 88, 15, 0.3)',
+    shadowColor: '#14af4831',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 6,
@@ -186,7 +186,7 @@ const styles = StyleSheet.create({
   },
   cardSelected: {
     borderColor: colors.forestGreen,
-    backgroundColor: '#FAFCFA',
+    backgroundColor: '#105b3449',
   },
   cardTop: {
     flexDirection: 'row',
@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
   },
   cardDetailText: {
     fontSize: 13,
-    color: 'rgba(42,45,42,0.65)',
+    color: 'rgba(42, 45, 42, 0.95)',
     lineHeight: 20,
     fontStyle: 'italic',
   },

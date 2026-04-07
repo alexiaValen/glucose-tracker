@@ -1,326 +1,9 @@
-// // mobile-app/src/screens/RegisterScreen.tsx
-// import React, { useState } from 'react';
-// import {
-//   View,
-//   Text,
-//   TextInput,
-//   TouchableOpacity,
-//   StyleSheet,
-//   Alert,
-//   KeyboardAvoidingView,
-//   Platform,
-//   ScrollView,
-//   ActivityIndicator,
-// } from 'react-native';
-// import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-// import type { RootStackParamList } from '../types/navigation';
-// import { useAuthStore } from '../stores/authStore';
-// import { BotanicalBackground } from '../components/BotanicalBackground';
-// import { colors } from '../theme/colors';
-// import { SignalRingThin } from '../components/icons';
+// mobile-app/src/screens/RegisterScreen.tsx
+// REFACTORED: Matches LoginScreen exactly — dark forest gradient, glassmorphism card,
+// botanical ring overlays, same token set, same input style.
+// ALL multi-step logic, validation, and auth calls preserved exactly.
 
-// type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
-
-// interface Props {
-//   navigation: RegisterScreenNavigationProp;
-// }
-
-// export default function RegisterScreen({ navigation }: Props) {
-//   const [email, setEmail] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [confirmPassword, setConfirmPassword] = useState('');
-//   const [firstName, setFirstName] = useState('');
-//   const [lastName, setLastName] = useState('');
-//   const { register, isLoading } = useAuthStore();
-
-//   const handleRegister = async () => {
-//     if (!email || !password || !firstName) {
-//       Alert.alert('Error', 'Please fill in all required fields');
-//       return;
-//     }
-
-//     if (password.length < 8) {
-//       Alert.alert('Error', 'Password must be at least 8 characters');
-//       return;
-//     }
-
-//     if (password !== confirmPassword) {
-//       Alert.alert('Error', 'Passwords do not match');
-//       return;
-//     }
-
-//     try {
-//       await register(email, password, firstName, lastName);
-//     } catch (error: any) {
-//       Alert.alert(
-//         'Registration Failed',
-//         error.response?.data?.error || 'Something went wrong'
-//       );
-//     }
-//   };
-
-//   return (
-//     <BotanicalBackground variant="green" intensity="light">
-//       <KeyboardAvoidingView
-//         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-//         style={styles.keyboardView}
-//       >
-//         <ScrollView 
-//           contentContainerStyle={styles.scrollContent}
-//           showsVerticalScrollIndicator={false}
-//           keyboardShouldPersistTaps="handled"
-//         >
-//           <View style={styles.content}>
-//             {/* Header */}
-//             <View style={styles.header}>
-//               <SignalRingThin size={32} muted="rgba(107,127,110,0.3)" />
-//               <Text style={styles.title}>Join GraceFlow</Text>
-//               <Text style={styles.subtitle}>Begin your wellness journey</Text>
-//             </View>
-
-//             {/* Form Card */}
-//             <View style={styles.card}>
-//               <View style={styles.form}>
-//                 {/* Name Row */}
-//                 <View style={styles.nameRow}>
-//                   <View style={[styles.field, styles.fieldHalf]}>
-//                     <Text style={styles.label}>FIRST NAME *</Text>
-//                     <TextInput
-//                       style={styles.input}
-//                       placeholder="Jane"
-//                       placeholderTextColor="rgba(42,45,42,0.35)"
-//                       value={firstName}
-//                       onChangeText={setFirstName}
-//                       editable={!isLoading}
-//                       autoComplete="name-given"
-//                     />
-//                   </View>
-
-//                   <View style={[styles.field, styles.fieldHalf]}>
-//                     <Text style={styles.label}>LAST NAME</Text>
-//                     <TextInput
-//                       style={styles.input}
-//                       placeholder="Doe"
-//                       placeholderTextColor="rgba(42,45,42,0.35)"
-//                       value={lastName}
-//                       onChangeText={setLastName}
-//                       editable={!isLoading}
-//                       autoComplete="name-family"
-//                     />
-//                   </View>
-//                 </View>
-
-//                 <View style={styles.field}>
-//                   <Text style={styles.label}>EMAIL *</Text>
-//                   <TextInput
-//                     style={styles.input}
-//                     placeholder="your@email.com"
-//                     placeholderTextColor="rgba(42,45,42,0.35)"
-//                     value={email}
-//                     onChangeText={setEmail}
-//                     autoCapitalize="none"
-//                     keyboardType="email-address"
-//                     editable={!isLoading}
-//                     autoComplete="email"
-//                   />
-//                 </View>
-
-//                 <View style={styles.field}>
-//                   <Text style={styles.label}>PASSWORD *</Text>
-//                   <TextInput
-//                     style={styles.input}
-//                     placeholder="At least 8 characters"
-//                     placeholderTextColor="rgba(42,45,42,0.35)"
-//                     value={password}
-//                     onChangeText={setPassword}
-//                     secureTextEntry
-//                     editable={!isLoading}
-//                     autoComplete="off"
-//                     textContentType="none"
-//                     autoCorrect={false}
-//                   />
-//                 </View>
-
-//                 <View style={styles.field}>
-//                   <Text style={styles.label}>CONFIRM PASSWORD *</Text>
-//                   <TextInput
-//                     style={styles.input}
-//                     placeholder="Re-enter your password"
-//                     placeholderTextColor="rgba(42,45,42,0.35)"
-//                     value={confirmPassword}
-//                     onChangeText={setConfirmPassword}
-//                     secureTextEntry
-//                     editable={!isLoading}
-//                     autoComplete="off"
-//                     textContentType="none"
-//                     autoCorrect={false}
-//                   />
-//                 </View>
-
-//                 <TouchableOpacity
-//                   style={[styles.button, isLoading && { opacity: 0.5 }]}
-//                   onPress={handleRegister}
-//                   disabled={isLoading}
-//                   activeOpacity={0.85}
-//                 >
-//                   {isLoading ? (
-//                     <ActivityIndicator color="#FFFFFF" />
-//                   ) : (
-//                     <Text style={styles.buttonText}>Create account</Text>
-//                   )}
-//                 </TouchableOpacity>
-
-//                 <View style={styles.divider}>
-//                   <View style={styles.dividerLine} />
-//                   <Text style={styles.dividerText}>or</Text>
-//                   <View style={styles.dividerLine} />
-//                 </View>
-
-//                 <TouchableOpacity
-//                   onPress={() => navigation.navigate('Login')}
-//                   style={styles.linkButton}
-//                   disabled={isLoading}
-//                 >
-//                   <Text style={styles.linkText}>
-//                     Already have an account? <Text style={styles.linkBold}>Sign in</Text>
-//                   </Text>
-//                 </TouchableOpacity>
-//               </View>
-//             </View>
-//           </View>
-//         </ScrollView>
-//       </KeyboardAvoidingView>
-//     </BotanicalBackground>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   keyboardView: {
-//     flex: 1,
-//   },
-//   scrollContent: {
-//     flexGrow: 1,
-//   },
-//   content: {
-//     flex: 1,
-//     paddingHorizontal: 20,
-//     paddingTop: 80,
-//     paddingBottom: 40,
-//     justifyContent: 'center',
-//   },
-//   header: {
-//     marginBottom: 32,
-//     alignItems: 'center',
-//     gap: 12,
-//   },
-//   title: {
-//     fontSize: 32,
-//     fontWeight: '600',
-//     color: '#2B2B2B',
-//     textAlign: 'center',
-//     letterSpacing: -0.5,
-//   },
-//   subtitle: {
-//     fontSize: 15,
-//     color: 'rgba(42,45,42,0.6)',
-//     textAlign: 'center',
-//     fontWeight: '400',
-//   },
-//   card: {
-//     backgroundColor: 'rgba(255,255,255,0.95)',
-//     borderRadius: 24,
-//     padding: 24,
-//     borderWidth: 1,
-//     borderColor: 'rgba(212,214,212,0.3)',
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 8 },
-//     shadowOpacity: 0.08,
-//     shadowRadius: 16,
-//     elevation: 4,
-//   },
-//   form: {
-//     gap: 16,
-//   },
-//   nameRow: {
-//     flexDirection: 'row',
-//     gap: 12,
-//   },
-//   field: {
-//     gap: 8,
-//   },
-//   fieldHalf: {
-//     flex: 1,
-//   },
-//   label: {
-//     fontSize: 11,
-//     fontWeight: '600',
-//     color: 'rgba(42,45,42,0.6)',
-//     letterSpacing: 0.8,
-//   },
-//   input: {
-//     backgroundColor: 'rgba(255,255,255,0.8)',
-//     borderWidth: 1.5,
-//     borderColor: 'rgba(212,214,212,0.5)',
-//     borderRadius: 14,
-//     paddingHorizontal: 16,
-//     paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-//     fontSize: 15,
-//     color: '#2B2B2B',
-//     fontWeight: '400',
-//   },
-//   button: {
-//     backgroundColor: '#6B7F6E',
-//     height: 56,
-//     borderRadius: 14,
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//     marginTop: 8,
-//     shadowColor: '#000',
-//     shadowOffset: { width: 0, height: 4 },
-//     shadowOpacity: 0.12,
-//     shadowRadius: 12,
-//     elevation: 4,
-//   },
-//   buttonText: {
-//     color: '#FFFFFF',
-//     fontSize: 16,
-//     fontWeight: '600',
-//     letterSpacing: 0.3,
-//   },
-//   divider: {
-//     flexDirection: 'row',
-//     alignItems: 'center',
-//     marginVertical: 8,
-//     gap: 12,
-//   },
-//   dividerLine: {
-//     flex: 1,
-//     height: 1,
-//     backgroundColor: 'rgba(212,214,212,0.4)',
-//   },
-//   dividerText: {
-//     fontSize: 12,
-//     color: 'rgba(42,45,42,0.45)',
-//     fontWeight: '500',
-//   },
-//   linkButton: {
-//     paddingVertical: 8,
-//     alignItems: 'center',
-//   },
-//   linkText: {
-//     color: 'rgba(42,45,42,0.6)',
-//     fontSize: 14,
-//     fontWeight: '400',
-//   },
-//   linkBold: {
-//     color: '#6B7F6E',
-//     fontWeight: '600',
-//   },
-// });
-
-
-// mobile-app/src/screens/RegisterScreen_COMPLETE.tsx
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -332,588 +15,651 @@ import {
   Platform,
   ScrollView,
   ActivityIndicator,
+  Animated,
+  Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
-import { BotanicalBackground } from '../components/BotanicalBackground';
-import { colors } from '../theme/colors';
 import DateTimePicker from '@react-native-community/datetimepicker';
 
 type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
+interface Props { navigation: RegisterScreenNavigationProp; }
 
-interface Props {
-  navigation: RegisterScreenNavigationProp;
+const { width: SW, height: SH } = Dimensions.get('window');
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKENS — exact copy from LoginScreen
+// ─────────────────────────────────────────────────────────────────────────────
+const T = {
+  bgDeep:        '#0F1C12',
+  bgMid:         '#162019',
+  bgLayer:       '#1C2B1F',
+  glass:         'rgba(255,255,255,0.07)',
+  glassMid:      'rgba(255,255,255,0.10)',
+  glassBorder:   'rgba(255,255,255,0.11)',
+  glassBorderHi: 'rgba(255,255,255,0.20)',
+  inputBg:       'rgba(255,255,255,0.08)',
+  inputBorder:   'rgba(255,255,255,0.13)',
+  inputFocus:    'rgba(122,155,126,0.45)',
+  sage:          '#7A9B7E',
+  sageBright:    '#9ABD9E',
+  sageDeep:      '#3D5540',
+  sageMid:       '#4E6B52',
+  gold:          '#C9A96E',
+  goldSoft:      '#D4BB8C',
+  textPrimary:   '#F0EDE6',
+  textSecondary: 'rgba(240,237,230,0.55)',
+  textMuted:     'rgba(240,237,230,0.32)',
+  errorRed:      '#E07070',
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BOTANICAL RINGS — same as LoginScreen
+// ─────────────────────────────────────────────────────────────────────────────
+function BotanicRings() {
+  const rings = [
+    { size: 340, top: -100, left: SW * 0.25, op: 0.035 },
+    { size: 180, top: SH * 0.6,  left: -50,  op: 0.030 },
+    { size: 110, top: SH * 0.75, left: SW * 0.72, op: 0.045 },
+    { size: 70,  top: 50,   left: SW * 0.08,  op: 0.040 },
+  ];
+  return (
+    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+      {rings.map((r, i) => (
+        <View key={i} style={{
+          position: 'absolute', top: r.top, left: r.left,
+          width: r.size, height: r.size, borderRadius: r.size / 2,
+          borderWidth: 1,
+          borderColor: `rgba(122,155,126,${r.op * 3})`,
+          backgroundColor: `rgba(122,155,126,${r.op})`,
+        }} />
+      ))}
+    </View>
+  );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GLASS INPUT — same as LoginScreen
+// ─────────────────────────────────────────────────────────────────────────────
+function GlassInput({
+  label, value, onChangeText, placeholder, secureTextEntry,
+  keyboardType, autoCapitalize, autoComplete, editable = true,
+  returnKeyType, onSubmitEditing, inputRef,
+}: {
+  label: string; value: string; onChangeText: (v: string) => void;
+  placeholder?: string; secureTextEntry?: boolean; keyboardType?: any;
+  autoCapitalize?: any; autoComplete?: any; editable?: boolean;
+  returnKeyType?: any; onSubmitEditing?: () => void;
+  inputRef?: React.RefObject<TextInput | null>;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View style={gi.wrap}>
+      <Text style={gi.label}>{label}</Text>
+      <View style={[gi.field, focused && gi.fieldFocused]}>
+        <TextInput
+          ref={inputRef}
+          style={gi.input}
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={T.textMuted}
+          secureTextEntry={secureTextEntry}
+          keyboardType={keyboardType}
+          autoCapitalize={autoCapitalize ?? 'none'}
+          autoComplete={autoComplete}
+          editable={editable}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          autoCorrect={false}
+        />
+      </View>
+    </View>
+  );
+}
+const gi = StyleSheet.create({
+  wrap:  { gap: 8 },
+  label: { fontSize: 10, fontWeight: '700', letterSpacing: 1.8, color: T.textMuted },
+  field: {
+    backgroundColor: T.inputBg,
+    borderRadius: 16, borderWidth: 1, borderColor: T.inputBorder,
+    overflow: 'hidden',
+  },
+  fieldFocused: {
+    borderColor: T.inputFocus,
+    backgroundColor: 'rgba(122,155,126,0.09)',
+  },
+  input: {
+    paddingHorizontal: 18,
+    paddingVertical: Platform.OS === 'ios' ? 16 : 13,
+    fontSize: 16, color: T.textPrimary, fontWeight: '400',
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GLASS DATE BUTTON — same feel as GlassInput
+// ─────────────────────────────────────────────────────────────────────────────
+function GlassDateButton({
+  label, value, onPress,
+}: { label: string; value: string | null; onPress: () => void }) {
+  return (
+    <View style={gi.wrap}>
+      <Text style={gi.label}>{label}</Text>
+      <TouchableOpacity style={gi.field} onPress={onPress} activeOpacity={0.8}>
+        <Text style={[gi.input, { color: value ? T.textPrimary : T.textMuted }]}>
+          {value ?? 'Select date of birth'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ROLE CARD — glass style consistent with the overall screen
+// ─────────────────────────────────────────────────────────────────────────────
+function RoleCard({
+  emoji, title, description, selected, onPress,
+}: {
+  emoji: string; title: string; description: string;
+  selected: boolean; onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      style={[rc.root, selected && rc.rootSelected]}
+      onPress={onPress}
+      activeOpacity={0.82}
+    >
+      <View style={rc.inner}>
+        <Text style={rc.emoji}>{emoji}</Text>
+        <View style={rc.text}>
+          <Text style={rc.title}>{title}</Text>
+          <Text style={rc.desc}>{description}</Text>
+        </View>
+        <View style={[rc.radio, selected && rc.radioSelected]}>
+          {selected && <View style={rc.radioDot} />}
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+}
+const rc = StyleSheet.create({
+  root: {
+    backgroundColor: T.glass,
+    borderRadius: 18, borderWidth: 1,
+    borderColor: T.glassBorder, padding: 18,
+  },
+  rootSelected: {
+    borderColor: 'rgba(122,155,126,0.45)',
+    backgroundColor: 'rgba(122,155,126,0.09)',
+  },
+  inner: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+  emoji: { fontSize: 26 },
+  text:  { flex: 1 },
+  title: { fontSize: 16, fontWeight: '600', color: T.textPrimary, marginBottom: 3 },
+  desc:  { fontSize: 13, color: T.textSecondary, lineHeight: 18 },
+  radio: {
+    width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2, borderColor: T.glassBorderHi,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  radioSelected: { borderColor: T.sage },
+  radioDot: {
+    width: 11, height: 11, borderRadius: 6,
+    backgroundColor: T.sage,
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PROGRESS DOTS — replace progress bar with minimal dots
+// ─────────────────────────────────────────────────────────────────────────────
+function StepDots({ current, total }: { current: number; total: number }) {
+  return (
+    <View style={sd.wrap}>
+      {Array.from({ length: total }).map((_, i) => (
+        <View
+          key={i}
+          style={[
+            sd.dot,
+            i < current ? sd.dotDone : i === current - 1 ? sd.dotActive : sd.dotFuture,
+          ]}
+        />
+      ))}
+    </View>
+  );
+}
+const sd = StyleSheet.create({
+  wrap: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 6 },
+  dot: { width: 6, height: 6, borderRadius: 3 },
+  dotDone:   { backgroundColor: T.sage },
+  dotActive: { backgroundColor: T.sageBright, width: 18 },
+  dotFuture: { backgroundColor: 'rgba(255,255,255,0.15)' },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
 export default function RegisterScreen({ navigation }: Props) {
-  // Step 1: Basic Info
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  // Step 1 — credentials
+  const [email,           setEmail]           = useState('');
+  const [password,        setPassword]        = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  
-  // Step 2: Personal Info
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState<Date | null>(null);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  
-  // Step 3: Role Selection
-  const [role, setRole] = useState<'user' | 'coach'>('user');
-  
-  // Multi-step state
+  // Step 2 — personal
+  const [firstName,       setFirstName]       = useState('');
+  const [lastName,        setLastName]        = useState('');
+  const [phone,           setPhone]           = useState('');
+  const [dateOfBirth,     setDateOfBirth]     = useState<Date | null>(null);
+  const [showDatePicker,  setShowDatePicker]  = useState(false);
+  // Step 3 — role
+  const [role,            setRole]            = useState<'user' | 'coach'>('user');
+
   const [currentStep, setCurrentStep] = useState(1);
   const { register, isLoading } = useAuthStore();
 
-  const validateEmail = (email: string): boolean => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
+  const fadeAnim  = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
+  // ── Validation — preserved exactly ─────────────────────────────────────────
+  const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
+  const validateAge   = (d: Date)   => new Date().getFullYear() - d.getFullYear() >= 18;
+
+  const validateStep1 = () => {
+    if (!email || !password || !confirmPassword) { Alert.alert('Error', 'Please fill in all fields'); return false; }
+    if (!validateEmail(email))   { Alert.alert('Error', 'Please enter a valid email address'); return false; }
+    if (password.length < 8)     { Alert.alert('Error', 'Password must be at least 8 characters'); return false; }
+    if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return false; }
+    return true;
   };
-
-  const validateAge = (dob: Date): boolean => {
-    const today = new Date();
-    const age = today.getFullYear() - dob.getFullYear();
-    return age >= 18;
-  };
-
-  const validateStep1 = (): boolean => {
-    if (!email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return false;
-    }
-
-    if (!validateEmail(email)) {
-      Alert.alert('Error', 'Please enter a valid email address');
-      return false;
-    }
-
-    if (password.length < 8) {
-      Alert.alert('Error', 'Password must be at least 8 characters');
-      return false;
-    }
-
-    if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
-      return false;
-    }
-
+  const validateStep2 = () => {
+    if (!firstName || !lastName)  { Alert.alert('Error', 'Please enter your full name'); return false; }
+    if (!phone)                   { Alert.alert('Error', 'Please enter your phone number'); return false; }
+    if (!dateOfBirth)             { Alert.alert('Error', 'Please enter your date of birth'); return false; }
+    if (!validateAge(dateOfBirth)){ Alert.alert('Error', 'You must be 18 or older to use TLC'); return false; }
     return true;
   };
 
-  const validateStep2 = (): boolean => {
-    if (!firstName || !lastName) {
-      Alert.alert('Error', 'Please enter your full name');
-      return false;
-    }
-
-    if (!phone) {
-      Alert.alert('Error', 'Please enter your phone number');
-      return false;
-    }
-
-    if (!dateOfBirth) {
-      Alert.alert('Error', 'Please enter your date of birth');
-      return false;
-    }
-
-    if (!validateAge(dateOfBirth)) {
-      Alert.alert('Error', 'You must be 18 or older to use GraceFlow');
-      return false;
-    }
-
-    return true;
+  // Animate step transition
+  const animateStep = (next: number) => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 0, duration: 120, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -20, duration: 120, useNativeDriver: true }),
+    ]).start(() => {
+      setCurrentStep(next);
+      slideAnim.setValue(20);
+      Animated.parallel([
+        Animated.timing(fadeAnim,  { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.timing(slideAnim, { toValue: 0, duration: 200, useNativeDriver: true }),
+      ]).start();
+    });
   };
 
   const handleNext = () => {
-    if (currentStep === 1 && validateStep1()) {
-      setCurrentStep(2);
-    } else if (currentStep === 2 && validateStep2()) {
-      setCurrentStep(3);
-    }
+    if (currentStep === 1 && validateStep1()) animateStep(2);
+    else if (currentStep === 2 && validateStep2()) animateStep(3);
   };
-
-  const handleBack = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
+  const handleBack = () => { if (currentStep > 1) animateStep(currentStep - 1); };
 
   const handleRegister = async () => {
     try {
       await register(email, password, firstName, lastName, phone, dateOfBirth, role);
-      // Navigation handled by authStore
     } catch (error: any) {
-      Alert.alert(
-        'Registration Failed',
-        error.response?.data?.error || 'Something went wrong'
-      );
+      Alert.alert('Registration Failed', error.response?.data?.error || 'Something went wrong');
     }
   };
 
-  const formatDate = (date: Date): string => {
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
-    });
-  };
+  const formatDate = (d: Date) =>
+    d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  const renderStep1 = () => (
-    <>
-      <Text style={styles.stepTitle}>Create Your Account</Text>
-      <Text style={styles.stepSubtitle}>Let's start with the basics</Text>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>EMAIL *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="your@email.com"
-          placeholderTextColor="rgba(42,45,42,0.35)"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          editable={!isLoading}
-          autoComplete="email"
-        />
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>PASSWORD *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="At least 8 characters"
-          placeholderTextColor="rgba(42,45,42,0.35)"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          editable={!isLoading}
-          autoComplete="off"
-        />
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>CONFIRM PASSWORD *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Re-enter your password"
-          placeholderTextColor="rgba(42,45,42,0.35)"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          secureTextEntry
-          editable={!isLoading}
-          autoComplete="off"
-        />
-      </View>
-    </>
-  );
-
-  const renderStep2 = () => (
-    <>
-      <Text style={styles.stepTitle}>Tell Us About Yourself</Text>
-      <Text style={styles.stepSubtitle}>Your coach will use this to personalize your care</Text>
-
-      <View style={styles.nameRow}>
-        <View style={[styles.field, styles.fieldHalf]}>
-          <Text style={styles.label}>FIRST NAME *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Jane"
-            placeholderTextColor="rgba(42,45,42,0.35)"
-            value={firstName}
-            onChangeText={setFirstName}
-            editable={!isLoading}
-          />
-        </View>
-
-        <View style={[styles.field, styles.fieldHalf]}>
-          <Text style={styles.label}>LAST NAME *</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="Doe"
-            placeholderTextColor="rgba(42,45,42,0.35)"
-            value={lastName}
-            onChangeText={setLastName}
-            editable={!isLoading}
-          />
-        </View>
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>PHONE NUMBER *</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="(555) 123-4567"
-          placeholderTextColor="rgba(42,45,42,0.35)"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          editable={!isLoading}
-        />
-      </View>
-
-      <View style={styles.field}>
-        <Text style={styles.label}>DATE OF BIRTH *</Text>
-        <TouchableOpacity
-          style={styles.dateButton}
-          onPress={() => setShowDatePicker(true)}
-        >
-          <Text style={[styles.dateText, !dateOfBirth && styles.placeholderText]}>
-            {dateOfBirth ? formatDate(dateOfBirth) : 'Select your date of birth'}
-          </Text>
-        </TouchableOpacity>
-        <Text style={styles.helperText}>You must be 18+ to use GraceFlow</Text>
-      </View>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={dateOfBirth || new Date(1990, 0, 1)}
-          mode="date"
-          display="spinner"
-          onChange={(event, selectedDate) => {
-            setShowDatePicker(false);
-            if (selectedDate) {
-              setDateOfBirth(selectedDate);
-            }
-          }}
-          maximumDate={new Date()}
-        />
-      )}
-    </>
-  );
-
-  const renderStep3 = () => (
-    <>
-      <Text style={styles.stepTitle}>Choose Your Role</Text>
-      <Text style={styles.stepSubtitle}>Are you tracking your health or coaching others?</Text>
-
-      <TouchableOpacity
-        style={[styles.roleCard, role === 'user' && styles.roleCardSelected]}
-        onPress={() => setRole('user')}
-      >
-        <View style={styles.roleHeader}>
-          <Text style={styles.roleEmoji}>👤</Text>
-          <Text style={styles.roleTitle}>I'm a User</Text>
-        </View>
-        <Text style={styles.roleDescription}>
-          Track my glucose, symptoms, and cycle. Connect with my coach.
-        </Text>
-        {role === 'user' && <View style={styles.selectedBadge} />}
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={[styles.roleCard, role === 'coach' && styles.roleCardSelected]}
-        onPress={() => setRole('coach')}
-      >
-        <View style={styles.roleHeader}>
-          <Text style={styles.roleEmoji}>🩺</Text>
-          <Text style={styles.roleTitle}>I'm a Coach</Text>
-        </View>
-        <Text style={styles.roleDescription}>
-          Monitor my clients' health data and provide personalized guidance.
-        </Text>
-        {role === 'coach' && <View style={styles.selectedBadge} />}
-      </TouchableOpacity>
-    </>
-  );
+  // ── Step content ────────────────────────────────────────────────────────────
+  const STEP_TITLES = [
+    { title: 'Create Account',       sub: 'Start with your login details' },
+    { title: 'Tell Us About You',    sub: 'Your coach uses this to personalise your care' },
+    { title: 'Choose Your Role',     sub: 'Tracking your health or coaching others?' },
+  ];
+  const { title, sub } = STEP_TITLES[currentStep - 1];
 
   return (
-    <BotanicalBackground variant="subtle" intensity="light">
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView 
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+    <View style={s.root}>
+      {/* Background gradient — same as LoginScreen */}
+      <LinearGradient
+        colors={[T.bgDeep, T.bgMid, '#162819', '#1A2E1D']}
+        style={StyleSheet.absoluteFillObject}
+        start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }}
+      />
+      <BotanicRings />
+      {/* Top bloom */}
+      <View style={s.topBloom} pointerEvents="none" />
+
+      <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={s.kav}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.content}>
-            {/* Progress Indicator */}
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View style={[styles.progressFill, { width: `${(currentStep / 3) * 100}%` }]} />
+          <ScrollView
+            contentContainerStyle={s.scroll}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+          >
+
+            {/* ── BRAND MARK — same as LoginScreen ─────────────────── */}
+            <View style={s.brand}>
+              <View style={s.ornamentRow}>
+                <View style={s.ornamentLine} />
+                <Text style={s.leafEmoji}>🌿</Text>
+                <View style={s.ornamentLine} />
               </View>
-              <Text style={styles.progressText}>Step {currentStep} of 3</Text>
+              <Text style={s.brandName}>Transforming</Text>
+              <Text style={s.brandName}>Lives Coaching</Text>
             </View>
 
-            {/* Form Card */}
-            <View style={styles.card}>
-              <View style={styles.form}>
-                {currentStep === 1 && renderStep1()}
-                {currentStep === 2 && renderStep2()}
-                {currentStep === 3 && renderStep3()}
+            {/* ── GLASS CARD ────────────────────────────────────────── */}
+            <View style={s.card}>
+              <View style={s.cardGlow} />
 
-                {/* Navigation Buttons */}
-                <View style={styles.buttonRow}>
-                  {currentStep > 1 && (
-                    <TouchableOpacity
-                      style={styles.backButton}
-                      onPress={handleBack}
-                      disabled={isLoading}
-                    >
-                      <Text style={styles.backButtonText}>← Back</Text>
-                    </TouchableOpacity>
-                  )}
+              {/* Step dots + header */}
+              <StepDots current={currentStep} total={3} />
+              <Animated.View style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+                marginBottom: 22,
+              }}>
+                <Text style={s.stepTitle}>{title}</Text>
+                <Text style={s.stepSub}>{sub}</Text>
+              </Animated.View>
 
-                  {currentStep < 3 ? (
-                    <TouchableOpacity
-                      style={[styles.nextButton, currentStep === 1 && styles.nextButtonFull]}
-                      onPress={handleNext}
-                      disabled={isLoading}
-                    >
-                      <Text style={styles.nextButtonText}>Next →</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    <TouchableOpacity
-                      style={[styles.nextButton, styles.nextButtonFull]}
-                      onPress={handleRegister}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? (
-                        <ActivityIndicator color="#FFFFFF" />
-                      ) : (
-                        <Text style={styles.nextButtonText}>Create Account</Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
+              {/* Step content */}
+              <Animated.View style={{
+                opacity: fadeAnim,
+                transform: [{ translateY: slideAnim }],
+                gap: 16,
+              }}>
 
-                <View style={styles.divider}>
-                  <View style={styles.dividerLine} />
-                </View>
+                {/* STEP 1 */}
+                {currentStep === 1 && (
+                  <>
+                    <GlassInput
+                      label="EMAIL"
+                      value={email}
+                      onChangeText={setEmail}
+                      placeholder="your@email.com"
+                      keyboardType="email-address"
+                      autoComplete="email"
+                      editable={!isLoading}
+                    />
+                    <GlassInput
+                      label="PASSWORD"
+                      value={password}
+                      onChangeText={setPassword}
+                      placeholder="At least 8 characters"
+                      secureTextEntry
+                      autoComplete="off"
+                      editable={!isLoading}
+                    />
+                    <GlassInput
+                      label="CONFIRM PASSWORD"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      placeholder="Re-enter your password"
+                      secureTextEntry
+                      autoComplete="off"
+                      editable={!isLoading}
+                    />
+                  </>
+                )}
 
-                <TouchableOpacity
-                  onPress={() => navigation.navigate('Login')}
-                  style={styles.linkButton}
-                  disabled={isLoading}
-                >
-                  <Text style={styles.linkText}>
-                    Already have an account? <Text style={styles.linkBold}>Sign in</Text>
-                  </Text>
-                </TouchableOpacity>
+                {/* STEP 2 */}
+                {currentStep === 2 && (
+                  <>
+                    <View style={s.nameRow}>
+                      <View style={{ flex: 1 }}>
+                        <GlassInput
+                          label="FIRST NAME"
+                          value={firstName}
+                          onChangeText={setFirstName}
+                          placeholder="Jane"
+                          autoCapitalize="words"
+                          editable={!isLoading}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <GlassInput
+                          label="LAST NAME"
+                          value={lastName}
+                          onChangeText={setLastName}
+                          placeholder="Doe"
+                          autoCapitalize="words"
+                          editable={!isLoading}
+                        />
+                      </View>
+                    </View>
+                    <GlassInput
+                      label="PHONE NUMBER"
+                      value={phone}
+                      onChangeText={setPhone}
+                      placeholder="(555) 123-4567"
+                      keyboardType="phone-pad"
+                      editable={!isLoading}
+                    />
+                    <GlassDateButton
+                      label="DATE OF BIRTH"
+                      value={dateOfBirth ? formatDate(dateOfBirth) : null}
+                      onPress={() => setShowDatePicker(true)}
+                    />
+                    <Text style={s.helperTxt}>Must be 18+ to use TLC</Text>
+                    {showDatePicker && (
+                      <DateTimePicker
+                        value={dateOfBirth || new Date(1990, 0, 1)}
+                        mode="date"
+                        display="spinner"
+                        onChange={(_, d) => { setShowDatePicker(false); if (d) setDateOfBirth(d); }}
+                        maximumDate={new Date()}
+                      />
+                    )}
+                  </>
+                )}
+
+                {/* STEP 3 */}
+                {currentStep === 3 && (
+                  <>
+                    <RoleCard
+                      emoji="👤"
+                      title="I'm a User"
+                      description="Track my glucose, symptoms, and cycle. Connect with my coach."
+                      selected={role === 'user'}
+                      onPress={() => setRole('user')}
+                    />
+                    <RoleCard
+                      emoji="🩺"
+                      title="I'm a Coach"
+                      description="Monitor my clients' health data and provide personalised guidance."
+                      selected={role === 'coach'}
+                      onPress={() => setRole('coach')}
+                    />
+                  </>
+                )}
+
+              </Animated.View>
+
+              {/* ── NAV BUTTONS ─────────────────────────────────────── */}
+              <View style={s.btnRow}>
+                {currentStep > 1 && (
+                  <TouchableOpacity
+                    style={s.backBtn}
+                    onPress={handleBack}
+                    disabled={isLoading}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={s.backBtnTxt}>← Back</Text>
+                  </TouchableOpacity>
+                )}
+
+                {currentStep < 3 ? (
+                  <TouchableOpacity
+                    style={[s.nextBtn, currentStep === 1 && s.nextBtnFull]}
+                    onPress={handleNext}
+                    disabled={isLoading}
+                    activeOpacity={0.87}
+                  >
+                    <LinearGradient
+                      colors={[T.sageMid, T.sageDeep, '#2A3D2E']}
+                      style={StyleSheet.absoluteFillObject}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    />
+                    <Text style={s.nextBtnTxt}>Next →</Text>
+                  </TouchableOpacity>
+                ) : (
+                  <TouchableOpacity
+                    style={[s.nextBtn, s.nextBtnFull, isLoading && { opacity: 0.55 }]}
+                    onPress={handleRegister}
+                    disabled={isLoading}
+                    activeOpacity={0.87}
+                  >
+                    <LinearGradient
+                      colors={[T.sageMid, T.sageDeep, '#2A3D2E']}
+                      style={StyleSheet.absoluteFillObject}
+                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+                    />
+                    {isLoading
+                      ? <ActivityIndicator color="#FFFFFF" />
+                      : <Text style={s.nextBtnTxt}>Create Account</Text>
+                    }
+                  </TouchableOpacity>
+                )}
               </View>
+
+              {/* Divider */}
+              <View style={s.divider} />
+
+              {/* Sign in link */}
+              <TouchableOpacity
+                style={s.linkBtn}
+                onPress={() => navigation.navigate('Login')}
+                disabled={isLoading}
+                activeOpacity={0.7}
+              >
+                <Text style={s.linkTxt}>
+                  Already have an account?{' '}
+                  <Text style={s.linkBold}>Sign in</Text>
+                </Text>
+              </TouchableOpacity>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </BotanicalBackground>
+
+            {/* Footer */}
+            <Text style={s.footer}>
+              A calmer way to notice patterns & align glucose, cycle, and life
+            </Text>
+
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
   );
 }
 
-const styles = StyleSheet.create({
-  keyboardView: {
-    flex: 1,
+// ─────────────────────────────────────────────────────────────────────────────
+// ROOT STYLES — mirrors LoginScreen structure exactly
+// ─────────────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root:  { flex: 1 },
+  safe:  { flex: 1 },
+  kav:   { flex: 1 },
+  scroll: {
+    flexGrow: 1, justifyContent: 'center',
+    paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32,
   },
-  scrollContent: {
-    flexGrow: 1,
+
+  topBloom: {
+    position: 'absolute', top: -80,
+    left: SW * 0.5 - 160,
+    width: 320, height: 320, borderRadius: 160,
+    backgroundColor: 'rgba(122,155,126,0.08)',
   },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-    paddingTop: 60,
-    paddingBottom: 40,
-    justifyContent: 'center',
+
+  // Brand — same as LoginScreen
+  brand: { alignItems: 'center', paddingBottom: 32, gap: 6 },
+  ornamentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
+  ornamentLine: { width: 36, height: 1, backgroundColor: 'rgba(122,155,126,0.30)' },
+  leafEmoji:    { fontSize: 20 },
+  brandName: {
+    fontSize: 32, fontWeight: '700',
+    color: T.textPrimary, letterSpacing: -0.8,
+    lineHeight: 38, textAlign: 'center',
   },
-  progressContainer: {
-    marginBottom: 24,
-  },
-  progressBar: {
-    height: 4,
-    backgroundColor: 'rgba(212,214,212,0.3)',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#6B7F6E',
-  },
-  progressText: {
-    fontSize: 12,
-    color: 'rgba(42,45,42,0.5)',
-    textAlign: 'center',
-    marginTop: 8,
-    fontWeight: '500',
-  },
+
+  // Glass card — same as LoginScreen
   card: {
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 24,
+    backgroundColor: T.glass,
+    borderRadius: 28, borderWidth: 1,
+    borderColor: T.glassBorderHi,
+    overflow: 'hidden',
     padding: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(212,214,212,0.3)',
+    gap: 0,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.08,
-    shadowRadius: 16,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 20 },
+    shadowOpacity: 0.30, shadowRadius: 40, elevation: 12,
   },
-  form: {
-    gap: 16,
+  cardGlow: {
+    position: 'absolute', top: 0, left: 0, right: 0,
+    height: 1, backgroundColor: 'rgba(255,255,255,0.18)',
   },
+
+  // Step header
   stepTitle: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#2B2B2B',
-    marginBottom: 8,
+    fontSize: 22, fontWeight: '700',
+    color: T.textPrimary, letterSpacing: -0.4,
+    marginBottom: 4,
   },
-  stepSubtitle: {
-    fontSize: 14,
-    color: 'rgba(42,45,42,0.6)',
-    marginBottom: 16,
+  stepSub: {
+    fontSize: 13, color: T.textSecondary, lineHeight: 18,
   },
-  nameRow: {
-    flexDirection: 'row',
-    gap: 12,
+
+  nameRow: { flexDirection: 'row', gap: 12 },
+
+  helperTxt: {
+    fontSize: 11, color: T.textMuted,
+    marginTop: -8, marginLeft: 2,
   },
-  field: {
-    gap: 8,
+
+  // Buttons — same pattern as LoginScreen login button
+  btnRow: {
+    flexDirection: 'row', gap: 12,
+    marginTop: 24,
   },
-  fieldHalf: {
-    flex: 1,
+  backBtn: {
+    flex: 1, height: 54, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: T.glass,
+    borderWidth: 1, borderColor: T.glassBorder,
   },
-  label: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(42,45,42,0.6)',
-    letterSpacing: 0.8,
+  backBtnTxt: { fontSize: 15, fontWeight: '600', color: T.textSecondary },
+  nextBtn: {
+    flex: 1, height: 54, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1, borderColor: 'rgba(122,155,126,0.30)',
+    shadowColor: T.sageDeep,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35, shadowRadius: 16, elevation: 6,
   },
-  input: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(212,214,212,0.5)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: Platform.OS === 'ios' ? 14 : 12,
-    fontSize: 15,
-    color: '#2B2B2B',
-    fontWeight: '400',
+  nextBtnFull: { flex: 1 },
+  nextBtnTxt: {
+    fontSize: 16, fontWeight: '700',
+    color: '#FFFFFF', letterSpacing: 0.4,
   },
-  dateButton: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderWidth: 1.5,
-    borderColor: 'rgba(212,214,212,0.5)',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  dateText: {
-    fontSize: 15,
-    color: '#2B2B2B',
-  },
-  placeholderText: {
-    color: 'rgba(42,45,42,0.35)',
-  },
-  helperText: {
-    fontSize: 11,
-    color: 'rgba(42,45,42,0.5)',
-    marginTop: 4,
-  },
-  roleCard: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    borderWidth: 2,
-    borderColor: 'rgba(212,214,212,0.5)',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
-    position: 'relative',
-  },
-  roleCardSelected: {
-    borderColor: '#6B7F6E',
-    backgroundColor: 'rgba(107,127,110,0.05)',
-  },
-  roleHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 8,
-  },
-  roleEmoji: {
-    fontSize: 28,
-  },
-  roleTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#2B2B2B',
-  },
-  roleDescription: {
-    fontSize: 14,
-    color: 'rgba(42,45,42,0.6)',
-    lineHeight: 20,
-  },
-  selectedBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#6B7F6E',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
-  },
-  backButton: {
-    flex: 1,
-    height: 56,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: 'rgba(212,214,212,0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  backButtonText: {
-    color: '#2B2B2B',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  nextButton: {
-    flex: 1,
-    backgroundColor: '#6B7F6E',
-    height: 56,
-    borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  nextButtonFull: {
-    flex: 1,
-  },
-  nextButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    letterSpacing: 0.3,
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: 'rgba(212,214,212,0.4)',
-  },
-  linkButton: {
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  linkText: {
-    color: 'rgba(42,45,42,0.6)',
-    fontSize: 14,
-    fontWeight: '400',
-  },
-  linkBold: {
-    color: '#6B7F6E',
-    fontWeight: '600',
+
+  divider: { height: 1, backgroundColor: T.glassBorder, marginVertical: 20 },
+
+  linkBtn: { alignItems: 'center', paddingVertical: 4 },
+  linkTxt:  { fontSize: 14, color: T.textMuted },
+  linkBold: { fontSize: 14, fontWeight: '700', color: T.sageBright },
+
+  footer: {
+    textAlign: 'center', fontSize: 12,
+    color: T.textMuted, lineHeight: 18,
+    paddingTop: 24, paddingHorizontal: 16,
   },
 });

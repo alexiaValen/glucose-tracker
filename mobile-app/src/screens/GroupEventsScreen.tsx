@@ -1,3 +1,7 @@
+// mobile-app/src/screens/GroupEventsScreen.tsx
+// REFACTORED: Matches dashboard design system — cream/sage/forest palette.
+// Default export fixed. ALL logic preserved exactly.
+
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
@@ -13,16 +17,19 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
-import { colors } from '../theme/colors';
 import { api } from '../config/api';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'GroupEvents'>;
+type Nav   = NativeStackNavigationProp<RootStackParamList, 'GroupEvents'>;
 type Route = RouteProp<RootStackParamList, 'GroupEvents'>;
-interface Props { navigation: Nav; route: Route }
+interface Props { navigation: Nav; route: Route; }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TYPES (preserved exactly)
+// ─────────────────────────────────────────────────────────────────────────────
 interface Session {
   id: string;
   title: string;
@@ -37,28 +44,56 @@ interface Session {
   userProgress?: { completed: boolean; homework_submitted: boolean } | null;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKENS
+// ─────────────────────────────────────────────────────────────────────────────
+const T = {
+  pageBg:     '#F0EBE0',
+  cardCream:  '#F8F4EC',
+  cardSage:   '#E2E8DF',
+  cardForest: '#2C4435',
+  cardTan:    '#DDD3C0',
+  inkDark:    '#1C1E1A',
+  inkMid:     '#484B44',
+  inkMuted:   '#8A8E83',
+  inkOnDark:  '#EDE9E1',
+  forest:     '#2C4435',
+  sage:       '#4D6B54',
+  sageLight:  'rgba(77,107,84,0.10)',
+  sageBorder: 'rgba(77,107,84,0.22)',
+  gold:       '#8C6E3C',
+  goldLight:  'rgba(140,110,60,0.10)',
+  ok:         '#3B5E40',
+  okLight:    'rgba(59,94,64,0.10)',
+  border:     'rgba(28,30,26,0.09)',
+  shadow:     '#18201A',
+} as const;
+
 const STATUS_CONFIG = {
-  upcoming: { label: 'Upcoming', color: colors.gold, bg: 'rgba(214,199,161,0.12)' },
-  live: { label: '● Live Now', color: '#4ADE80', bg: 'rgba(74,222,128,0.12)' },
-  completed: { label: 'Completed', color: colors.textMuted, bg: 'rgba(245,243,238,0.06)' },
+  upcoming:  { label: 'Upcoming',   color: T.gold,    bg: T.goldLight },
+  live:      { label: '● Live Now', color: T.ok,      bg: T.okLight   },
+  completed: { label: 'Completed',  color: T.inkMuted, bg: 'rgba(28,30,26,0.05)' },
 };
 
+// ─────────────────────────────────────────────────────────────────────────────
+// SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
 export default function GroupEventsScreen({ navigation, route }: Props) {
   const { groupId, groupName, isCoach } = route.params;
 
-  const [sessions, setSessions] = useState<Session[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [rsvpingId, setRsvpingId] = useState<string | null>(null);
-  const [showCreate, setShowCreate] = useState(false);
+  const [sessions,       setSessions]       = useState<Session[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [refreshing,     setRefreshing]     = useState(false);
+  const [rsvpingId,      setRsvpingId]      = useState<string | null>(null);
+  const [showCreate,     setShowCreate]     = useState(false);
 
   // Create form state
-  const [newTitle, setNewTitle] = useState('');
+  const [newTitle,       setNewTitle]       = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newDate, setNewDate] = useState('');
-  const [newZoom, setNewZoom] = useState('');
-  const [newHomework, setNewHomework] = useState('');
-  const [creating, setCreating] = useState(false);
+  const [newDate,        setNewDate]        = useState('');
+  const [newZoom,        setNewZoom]        = useState('');
+  const [newHomework,    setNewHomework]    = useState('');
+  const [creating,       setCreating]       = useState(false);
 
   const load = useCallback(async (showRefreshing = false) => {
     if (showRefreshing) setRefreshing(true);
@@ -66,23 +101,21 @@ export default function GroupEventsScreen({ navigation, route }: Props) {
     try {
       const res = await api.get(`/groups/${groupId}/sessions`);
       setSessions(res.data?.sessions ?? []);
-    } catch {
-      // leave empty
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    } catch {}
+    finally { setLoading(false); setRefreshing(false); }
   }, [groupId]);
 
   useEffect(() => { load(); }, [load]);
 
+  // Logic preserved exactly
   const handleRsvp = async (sessionId: string) => {
     setRsvpingId(sessionId);
     try {
       await api.post(`/groups/${groupId}/sessions/${sessionId}/rsvp`);
-      setSessions((prev) =>
-        prev.map((s) =>
-          s.id === sessionId ? { ...s, userProgress: { completed: false, homework_submitted: false } } : s
+      setSessions(prev =>
+        prev.map(s => s.id === sessionId
+          ? { ...s, userProgress: { completed: false, homework_submitted: false } }
+          : s
         )
       );
     } catch {
@@ -100,16 +133,16 @@ export default function GroupEventsScreen({ navigation, route }: Props) {
     setCreating(true);
     try {
       await api.post(`/groups/${groupId}/sessions`, {
-        title: newTitle.trim(),
-        description: newDescription.trim(),
+        title:        newTitle.trim(),
+        description:  newDescription.trim(),
         session_date: new Date(newDate).toISOString(),
-        zoom_link: newZoom.trim(),
-        homework: newHomework.trim(),
-        week_number: sessions.length + 1,
+        zoom_link:    newZoom.trim(),
+        homework:     newHomework.trim(),
+        week_number:  sessions.length + 1,
       });
       setShowCreate(false);
-      setNewTitle(''); setNewDescription(''); setNewDate('');
-      setNewZoom(''); setNewHomework('');
+      setNewTitle(''); setNewDescription('');
+      setNewDate('');  setNewZoom(''); setNewHomework('');
       await load();
     } catch {
       Alert.alert('Error', 'Failed to create session.');
@@ -118,232 +151,178 @@ export default function GroupEventsScreen({ navigation, route }: Props) {
     }
   };
 
-  const formatDate = (iso: string) => {
-    const d = new Date(iso);
-    return d.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'short',
-      day: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
+  const formatDate = (iso: string) =>
+    new Date(iso).toLocaleDateString('en-US', {
+      weekday: 'long', month: 'short', day: 'numeric',
+      hour: 'numeric', minute: '2-digit',
     });
-  };
-
-  const isUpcoming = (iso: string) => new Date(iso) > new Date();
 
   return (
-    <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerLabel}>GROUP EVENTS</Text>
-          <Text style={styles.headerTitle} numberOfLines={1}>{groupName}</Text>
-        </View>
-        {isCoach && (
-          <TouchableOpacity style={styles.newBtn} onPress={() => setShowCreate(true)}>
-            <Text style={styles.newBtnText}>+ Event</Text>
+    <View style={s.root}>
+      <SafeAreaView style={{ flex: 1 }} edges={['top']}>
+
+        {/* Header */}
+        <View style={s.header}>
+          <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.75}>
+            <Text style={s.backArrow}>←</Text>
           </TouchableOpacity>
-        )}
-      </View>
-
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.sage} />
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={colors.sage} />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {sessions.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyEmoji}>📅</Text>
-              <Text style={styles.emptyTitle}>No events scheduled</Text>
-              <Text style={styles.emptyBody}>
-                {isCoach
-                  ? 'Create your first group event or live session above.'
-                  : 'Your coach hasn\'t scheduled any events yet. Check back soon.'}
-              </Text>
-            </View>
-          ) : (
-            sessions.map((session) => {
-              const cfg = STATUS_CONFIG[session.status] ?? STATUS_CONFIG.upcoming;
-              const hasRsvp = !!session.userProgress;
-              const upcoming = isUpcoming(session.session_date);
-
-              return (
-                <View key={session.id} style={styles.eventCard}>
-                  {/* Top row */}
-                  <View style={styles.eventTopRow}>
-                    <View style={[styles.statusPill, { backgroundColor: cfg.bg }]}>
-                      <Text style={[styles.statusText, { color: cfg.color }]}>{cfg.label}</Text>
-                    </View>
-                    <Text style={styles.weekLabel}>Week {session.week_number}</Text>
-                  </View>
-
-                  {/* Title */}
-                  <Text style={styles.eventTitle}>{session.title}</Text>
-
-                  {/* Date */}
-                  <View style={styles.eventDateRow}>
-                    <Text style={styles.calIcon}>📅</Text>
-                    <Text style={styles.eventDate}>{formatDate(session.session_date)}</Text>
-                  </View>
-
-                  {/* Description */}
-                  {session.description ? (
-                    <Text style={styles.eventDesc}>{session.description}</Text>
-                  ) : null}
-
-                  {/* Zoom link */}
-                  {session.zoom_link ? (
-                    <View style={styles.zoomRow}>
-                      <Text style={styles.zoomIcon}>📹</Text>
-                      <Text style={styles.zoomText} numberOfLines={1}>{session.zoom_link}</Text>
-                    </View>
-                  ) : null}
-
-                  {/* Recording */}
-                  {session.recording_url && session.status === 'completed' ? (
-                    <View style={styles.zoomRow}>
-                      <Text style={styles.zoomIcon}>▶️</Text>
-                      <Text style={styles.zoomText}>Recording available</Text>
-                    </View>
-                  ) : null}
-
-                  {/* Homework */}
-                  {session.homework ? (
-                    <View style={styles.homeworkCard}>
-                      <Text style={styles.homeworkLabel}>HOMEWORK</Text>
-                      <Text style={styles.homeworkText}>{session.homework}</Text>
-                    </View>
-                  ) : null}
-
-                  {/* RSVP (clients only, upcoming sessions) */}
-                  {!isCoach && upcoming && (
-                    <TouchableOpacity
-                      style={[styles.rsvpBtn, hasRsvp && styles.rsvpBtnDone]}
-                      onPress={() => !hasRsvp && handleRsvp(session.id)}
-                      disabled={hasRsvp || rsvpingId === session.id}
-                      activeOpacity={0.8}
-                    >
-                      {rsvpingId === session.id ? (
-                        <ActivityIndicator size="small" color={hasRsvp ? colors.sage : colors.bg} />
-                      ) : (
-                        <Text style={[styles.rsvpBtnText, hasRsvp && styles.rsvpBtnTextDone]}>
-                          {hasRsvp ? '✓ RSVP\'d' : 'I\'ll be there'}
-                        </Text>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-              );
-            })
+          <View style={{ flex: 1 }}>
+            <Text style={s.headerLabel}>GROUP EVENTS</Text>
+            <Text style={s.headerTitle} numberOfLines={1}>{groupName}</Text>
+          </View>
+          {isCoach && (
+            <TouchableOpacity style={s.newBtn} onPress={() => setShowCreate(true)} activeOpacity={0.85}>
+              <Text style={s.newBtnTxt}>+ Event</Text>
+            </TouchableOpacity>
           )}
+        </View>
 
-          <View style={{ height: 60 }} />
-        </ScrollView>
-      )}
+        {loading ? (
+          <View style={s.center}>
+            <ActivityIndicator size="large" color={T.sage} />
+          </View>
+        ) : (
+          <ScrollView
+            contentContainerStyle={s.content}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor={T.sage} />
+            }
+            showsVerticalScrollIndicator={false}
+          >
+            {sessions.length === 0 ? (
+              <View style={s.emptyState}>
+                <Text style={s.emptyEmoji}>📅</Text>
+                <Text style={s.emptyTitle}>No events scheduled</Text>
+                <Text style={s.emptyBody}>
+                  {isCoach
+                    ? 'Create your first group event or live session above.'
+                    : "Your coach hasn't scheduled any events yet. Check back soon."}
+                </Text>
+              </View>
+            ) : (
+              sessions.map(session => {
+                const cfg      = STATUS_CONFIG[session.status] ?? STATUS_CONFIG.upcoming;
+                const hasRsvp  = !!session.userProgress;
+                const upcoming = new Date(session.session_date) > new Date();
 
-      {/* Create Session Modal (Coach only) */}
+                return (
+                  <View key={session.id} style={s.eventCard}>
+                    <View style={s.eventTopRow}>
+                      <View style={[s.statusPill, { backgroundColor: cfg.bg }]}>
+                        <Text style={[s.statusTxt, { color: cfg.color }]}>{cfg.label}</Text>
+                      </View>
+                      <Text style={s.weekLbl}>Week {session.week_number}</Text>
+                    </View>
+
+                    <Text style={s.eventTitle}>{session.title}</Text>
+
+                    <View style={s.dateRow}>
+                      <Text style={{ fontSize: 12 }}>📅</Text>
+                      <Text style={s.dateText}>{formatDate(session.session_date)}</Text>
+                    </View>
+
+                    {session.description ? (
+                      <Text style={s.eventDesc}>{session.description}</Text>
+                    ) : null}
+
+                    {session.zoom_link ? (
+                      <View style={s.linkRow}>
+                        <Text style={{ fontSize: 12 }}>📹</Text>
+                        <Text style={s.linkTxt} numberOfLines={1}>{session.zoom_link}</Text>
+                      </View>
+                    ) : null}
+
+                    {session.recording_url && session.status === 'completed' ? (
+                      <View style={s.linkRow}>
+                        <Text style={{ fontSize: 12 }}>▶️</Text>
+                        <Text style={s.linkTxt}>Recording available</Text>
+                      </View>
+                    ) : null}
+
+                    {session.homework ? (
+                      <View style={s.homeworkCard}>
+                        <Text style={s.homeworkLabel}>HOMEWORK</Text>
+                        <Text style={s.homeworkTxt}>{session.homework}</Text>
+                      </View>
+                    ) : null}
+
+                    {!isCoach && upcoming && (
+                      <TouchableOpacity
+                        style={[s.rsvpBtn, hasRsvp && s.rsvpBtnDone]}
+                        onPress={() => !hasRsvp && handleRsvp(session.id)}
+                        disabled={hasRsvp || rsvpingId === session.id}
+                        activeOpacity={0.82}
+                      >
+                        {rsvpingId === session.id
+                          ? <ActivityIndicator size="small" color={hasRsvp ? T.sage : T.inkOnDark} />
+                          : <Text style={[s.rsvpBtnTxt, hasRsvp && s.rsvpBtnTxtDone]}>
+                              {hasRsvp ? "✓ RSVP'd" : "I'll be there"}
+                            </Text>
+                        }
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                );
+              })
+            )}
+            <View style={{ height: 60 }} />
+          </ScrollView>
+        )}
+      </SafeAreaView>
+
+      {/* Create session modal (coach only) */}
       <Modal visible={showCreate} animationType="slide" transparent>
-        <View style={styles.modalOverlay}>
+        <View style={s.modalOverlay}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
             style={{ width: '100%' }}
           >
-            <View style={styles.modalSheet}>
-              <View style={styles.modalHandle} />
-              <Text style={styles.modalTitle}>New Group Event</Text>
-
+            <View style={s.modalSheet}>
+              <View style={s.modalHandle} />
+              <Text style={s.modalTitle}>New Group Event</Text>
               <ScrollView showsVerticalScrollIndicator={false}>
-                <View style={styles.modalFieldGroup}>
-                  <Text style={styles.modalFieldLabel}>TITLE</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={newTitle}
-                    onChangeText={setNewTitle}
-                    placeholder="e.g. Week 4 Live Q&A"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                </View>
+                {[
+                  { label: 'TITLE',                  value: newTitle,       onChange: setNewTitle,       placeholder: 'e.g. Week 4 Live Q&A',    multi: false, cap: 'sentences'  },
+                  { label: 'DATE & TIME',             value: newDate,        onChange: setNewDate,        placeholder: '2025-02-12 18:00',        multi: false, cap: 'none'       },
+                  { label: 'ZOOM / MEETING LINK',     value: newZoom,        onChange: setNewZoom,        placeholder: 'https://zoom.us/j/...',   multi: false, cap: 'none'       },
+                  { label: 'SESSION NOTES',           value: newDescription, onChange: setNewDescription, placeholder: 'What will we cover...',   multi: true,  cap: 'sentences'  },
+                  { label: 'HOMEWORK (OPTIONAL)',     value: newHomework,    onChange: setNewHomework,    placeholder: 'Homework or prep work...', multi: true,  cap: 'sentences' },
+                ].map(field => (
+                  <View key={field.label} style={s.modalField}>
+                    <Text style={s.modalFieldLabel}>{field.label}</Text>
+                    <TextInput
+                      style={[s.modalInput, field.multi && { minHeight: 90 }]}
+                      value={field.value}
+                      onChangeText={field.onChange}
+                      placeholder={field.placeholder}
+                      placeholderTextColor={T.inkMuted}
+                      multiline={field.multi}
+                      textAlignVertical={field.multi ? 'top' : 'center'}
+                      autoCapitalize={field.cap as any}
+                    />
+                  </View>
+                ))}
 
-                <View style={styles.modalFieldGroup}>
-                  <Text style={styles.modalFieldLabel}>DATE & TIME</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={newDate}
-                    onChangeText={setNewDate}
-                    placeholder="2025-02-12 18:00"
-                    placeholderTextColor={colors.textMuted}
-                  />
-                </View>
-
-                <View style={styles.modalFieldGroup}>
-                  <Text style={styles.modalFieldLabel}>ZOOM / MEETING LINK</Text>
-                  <TextInput
-                    style={styles.modalInput}
-                    value={newZoom}
-                    onChangeText={setNewZoom}
-                    placeholder="https://zoom.us/j/..."
-                    placeholderTextColor={colors.textMuted}
-                    autoCapitalize="none"
-                  />
-                </View>
-
-                <View style={styles.modalFieldGroup}>
-                  <Text style={styles.modalFieldLabel}>SESSION NOTES / DESCRIPTION</Text>
-                  <TextInput
-                    style={[styles.modalInput, { minHeight: 100 }]}
-                    value={newDescription}
-                    onChangeText={setNewDescription}
-                    placeholder="What will we cover in this session..."
-                    placeholderTextColor={colors.textMuted}
-                    multiline
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                <View style={styles.modalFieldGroup}>
-                  <Text style={styles.modalFieldLabel}>HOMEWORK (OPTIONAL)</Text>
-                  <TextInput
-                    style={[styles.modalInput, { minHeight: 80 }]}
-                    value={newHomework}
-                    onChangeText={setNewHomework}
-                    placeholder="Homework or prep work for this session..."
-                    placeholderTextColor={colors.textMuted}
-                    multiline
-                    textAlignVertical="top"
-                  />
-                </View>
-
-                <View style={styles.modalActions}>
+                <View style={s.modalActions}>
                   <TouchableOpacity
-                    style={styles.modalCancelBtn}
+                    style={s.modalCancelBtn}
                     onPress={() => setShowCreate(false)}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.modalCancelText}>Cancel</Text>
+                    <Text style={s.modalCancelTxt}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity
-                    style={[styles.modalSaveBtn, creating && { opacity: 0.5 }]}
+                    style={[s.modalSaveBtn, creating && { opacity: 0.5 }]}
                     onPress={handleCreateSession}
                     disabled={creating}
+                    activeOpacity={0.85}
                   >
-                    {creating ? (
-                      <ActivityIndicator size="small" color={colors.bg} />
-                    ) : (
-                      <Text style={styles.modalSaveText}>Create Event</Text>
-                    )}
+                    {creating
+                      ? <ActivityIndicator size="small" color={T.inkOnDark} />
+                      : <Text style={s.modalSaveTxt}>Create Event</Text>
+                    }
                   </TouchableOpacity>
                 </View>
-
                 <View style={{ height: 40 }} />
               </ScrollView>
             </View>
@@ -354,229 +333,131 @@ export default function GroupEventsScreen({ navigation, route }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
-    paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassBorder,
-    gap: 12,
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root:    { flex: 1, backgroundColor: T.pageBg },
+  header:  {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16,
+    borderBottomWidth: 1, borderBottomColor: T.border,
+    backgroundColor: T.pageBg, gap: 12,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  backArrow: { fontSize: 18, color: colors.textPrimary },
+  backArrow:   { fontSize: 17, color: T.inkMid },
   headerLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textMuted,
-    marginBottom: 3,
+    fontSize: 9, fontWeight: '700', letterSpacing: 1.5,
+    textTransform: 'uppercase', color: T.inkMuted, marginBottom: 2,
   },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
-  },
+  headerTitle: { fontSize: 17, fontWeight: '600', color: T.inkDark, letterSpacing: -0.2 },
   newBtn: {
-    backgroundColor: colors.gold,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    borderRadius: 12,
+    backgroundColor: T.cardForest,
+    paddingVertical: 9, paddingHorizontal: 14, borderRadius: 10,
   },
-  newBtnText: { fontSize: 13, fontWeight: '700', color: colors.bg },
+  newBtnTxt: { fontSize: 13, fontWeight: '600', color: T.inkOnDark },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 24 },
+  center:  { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  content: { paddingHorizontal: 20, paddingTop: 24 },
+
+  emptyState: { alignItems: 'center', paddingTop: 72, paddingHorizontal: 40 },
+  emptyEmoji: { fontSize: 40, marginBottom: 14 },
+  emptyTitle: { fontSize: 17, fontWeight: '600', color: T.inkDark, marginBottom: 8 },
+  emptyBody:  { fontSize: 14, color: T.inkMuted, textAlign: 'center', lineHeight: 21 },
 
   eventCard: {
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 18,
-    padding: 18,
-    marginBottom: 14,
+    backgroundColor: T.cardCream,
+    borderRadius: 18, borderWidth: 1, borderColor: T.border,
+    padding: 18, marginBottom: 14,
+    shadowColor: T.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05, shadowRadius: 6, elevation: 2,
   },
   eventTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginBottom: 10,
   },
-  statusPill: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 20,
-  },
-  statusText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.5 },
-  weekLabel: { fontSize: 11, color: colors.textMuted, fontWeight: '600' },
+  statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
+  statusTxt:  { fontSize: 11, fontWeight: '700', letterSpacing: 0.4 },
+  weekLbl:    { fontSize: 11, color: T.inkMuted, fontWeight: '600' },
 
   eventTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
-    marginBottom: 10,
-    fontStyle: 'italic',
+    fontSize: 17, fontWeight: '600', color: T.inkDark,
+    letterSpacing: -0.2, marginBottom: 8, fontStyle: 'italic',
   },
-  eventDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 10,
-  },
-  calIcon: { fontSize: 13 },
-  eventDate: { fontSize: 13, color: colors.gold, fontWeight: '500' },
+  dateRow:  { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  dateText: { fontSize: 13, color: T.gold, fontWeight: '500' },
 
-  eventDesc: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 21,
-    marginBottom: 12,
-  },
+  eventDesc: { fontSize: 14, color: T.inkMid, lineHeight: 21, marginBottom: 10 },
 
-  zoomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 8,
-  },
-  zoomIcon: { fontSize: 13 },
-  zoomText: { fontSize: 13, color: colors.sage, flex: 1 },
+  linkRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  linkTxt: { fontSize: 13, color: T.sage, flex: 1 },
 
   homeworkCard: {
-    backgroundColor: 'rgba(214,199,161,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(214,199,161,0.15)',
-    borderRadius: 10,
-    padding: 12,
-    marginTop: 4,
-    marginBottom: 12,
+    backgroundColor: T.goldLight,
+    borderWidth: 1, borderColor: 'rgba(140,110,60,0.18)',
+    borderRadius: 10, padding: 12, marginTop: 4, marginBottom: 12,
   },
   homeworkLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.2,
-    color: colors.gold,
-    marginBottom: 5,
+    fontSize: 9, fontWeight: '700', letterSpacing: 1.2,
+    color: T.gold, marginBottom: 5,
   },
-  homeworkText: { fontSize: 13, color: colors.textSecondary, lineHeight: 20 },
+  homeworkTxt: { fontSize: 13, color: T.inkMid, lineHeight: 20 },
 
   rsvpBtn: {
-    marginTop: 8,
-    backgroundColor: colors.gold,
-    paddingVertical: 12,
-    borderRadius: 12,
-    alignItems: 'center',
+    marginTop: 8, backgroundColor: T.cardForest,
+    paddingVertical: 12, borderRadius: 12, alignItems: 'center',
   },
-  rsvpBtnDone: {
-    backgroundColor: colors.glassSage,
-    borderWidth: 1,
-    borderColor: colors.glassBorderStrong,
-  },
-  rsvpBtnText: { fontSize: 14, fontWeight: '700', color: colors.bg, letterSpacing: 0.3 },
-  rsvpBtnTextDone: { color: colors.sage },
-
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 80,
-    paddingHorizontal: 40,
-  },
-  emptyEmoji: { fontSize: 40, marginBottom: 16 },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 8,
-  },
-  emptyBody: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 21,
-  },
+  rsvpBtnDone:    { backgroundColor: T.sageLight, borderWidth: 1, borderColor: T.sageBorder },
+  rsvpBtnTxt:     { fontSize: 14, fontWeight: '700', color: T.inkOnDark },
+  rsvpBtnTxtDone: { color: T.sage },
 
   // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(11,31,20,0.85)',
+    backgroundColor: 'rgba(15,23,20,0.45)',
     justifyContent: 'flex-end',
   },
   modalSheet: {
-    backgroundColor: '#0F2A1A',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderColor: colors.glassBorder,
-    paddingTop: 12,
-    paddingHorizontal: 20,
-    maxHeight: '90%',
+    backgroundColor: T.pageBg,
+    borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    borderTopWidth: 1, borderColor: T.border,
+    paddingTop: 12, paddingHorizontal: 20, maxHeight: '90%',
   },
   modalHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.glassBorder,
-    alignSelf: 'center',
-    marginBottom: 20,
+    width: 36, height: 4, borderRadius: 2,
+    backgroundColor: T.border, alignSelf: 'center', marginBottom: 20,
   },
   modalTitle: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 24,
-    letterSpacing: -0.2,
-    fontStyle: 'italic',
+    fontSize: 19, fontWeight: '600', color: T.inkDark,
+    marginBottom: 24, letterSpacing: -0.2, fontStyle: 'italic',
   },
-  modalFieldGroup: { marginBottom: 18 },
+  modalField:      { marginBottom: 18 },
   modalFieldLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textMuted,
-    marginBottom: 8,
+    fontSize: 9, fontWeight: '700', letterSpacing: 1.5,
+    textTransform: 'uppercase', color: T.inkMuted, marginBottom: 8,
   },
   modalInput: {
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    fontSize: 15,
-    color: colors.textPrimary,
+    backgroundColor: T.cardCream,
+    borderRadius: 12, borderWidth: 1, borderColor: T.border,
+    paddingVertical: 12, paddingHorizontal: 14,
+    fontSize: 15, color: T.inkDark,
   },
-  modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
+  modalActions:   { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalCancelBtn: {
-    flex: 1,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    alignItems: 'center',
+    flex: 1, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: T.cardTan,
+    borderWidth: 1, borderColor: T.border, alignItems: 'center',
   },
-  modalCancelText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  modalCancelTxt: { fontSize: 14, fontWeight: '600', color: T.inkMid },
   modalSaveBtn: {
-    flex: 2,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: colors.gold,
-    alignItems: 'center',
+    flex: 2, paddingVertical: 14, borderRadius: 14,
+    backgroundColor: T.cardForest, alignItems: 'center',
   },
-  modalSaveText: { fontSize: 14, fontWeight: '700', color: colors.bg },
+  modalSaveTxt: { fontSize: 14, fontWeight: '700', color: T.inkOnDark },
 });

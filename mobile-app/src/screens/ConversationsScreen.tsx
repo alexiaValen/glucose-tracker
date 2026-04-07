@@ -216,6 +216,18 @@ export default function ConversationsScreen({ navigation }: Props) {
   );
 }
 
+const T = {
+  pageBg: '#F0EBE0',
+  card: '#F8F4EC',
+  border: 'rgba(28,30,26,0.08)',
+  inkDark: '#1C1E1A',
+  inkMid: '#484B44',
+  inkMuted: '#8A8E83',
+  sage: '#4D6B54',
+  sageLight: '#E2E8DF',
+  shadow: '#18201A',
+};
+
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.cream },
   loadingContainer: {
@@ -236,7 +248,7 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   backButton: { paddingVertical: 8, paddingRight: 12 },
-  backText: { color: colors.sage, fontSize: 16, fontWeight: '600' },
+  backText: {  fontSize: 16, fontWeight: '600' },
 
   headerCenter: { flex: 1, alignItems: 'center' },
   headerTitle: { fontSize: 20, fontWeight: '700', color: colors.charcoal, marginBottom: 2 },
@@ -281,16 +293,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 6,
   },
-  conversationName: { fontSize: 17, fontWeight: '600', color: colors.textDark },
-  conversationTime: { fontSize: 13, color: colors.textLight },
+  conversationName: { fontSize: 17, fontWeight: '600',  },
+  conversationTime: { fontSize: 13},
 
   conversationFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
-  conversationMessage: { flex: 1, fontSize: 15, color: colors.textLight },
-  conversationMessageUnread: { fontWeight: '600', color: colors.textDark },
+  conversationMessage: { flex: 1, fontSize: 15 },
+  conversationMessageUnread: { fontWeight: '600'},
 
   unreadBadge: {
     backgroundColor: colors.sage,
@@ -302,10 +314,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     marginLeft: 8,
   },
-  unreadBadgeText: { color: colors.white, fontSize: 12, fontWeight: '700' },
+  unreadBadgeText: {  fontSize: 12, fontWeight: '700' },
 
   arrowContainer: { marginLeft: 8 },
-  arrow: { fontSize: 24, color: colors.textLight, fontWeight: '300' },
+  arrow: { fontSize: 24, fontWeight: '300' },
 
   emptyState: { alignItems: 'center', paddingVertical: 80, paddingHorizontal: 40 },
   emptyIcon: { fontSize: 64, marginBottom: 16 },
@@ -316,5 +328,5 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  emptySubtext: { fontSize: 15, color: colors.textLight, textAlign: 'center', lineHeight: 22 },
+  emptySubtext: { fontSize: 15,  textAlign: 'center', lineHeight: 22 },
 });

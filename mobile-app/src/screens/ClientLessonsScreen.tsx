@@ -1,317 +1,392 @@
-import React, { useCallback, useEffect, useState } from 'react';
+// mobile-app/src/screens/CreateLessonScreen.tsx
+// REFACTORED: Matches dashboard design system — cream/sage/forest palette.
+// ALL logic / validation / store calls preserved exactly.
+// "View as Client" removed per request.
+
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
+  TextInput,
   TouchableOpacity,
   StyleSheet,
+  Alert,
+  KeyboardAvoidingView,
+  Platform,
   ScrollView,
   ActivityIndicator,
-  RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
-import { colors } from '../theme/colors';
-import { getMyLessons } from '../services/lessonService';
+import { assignLesson, updateLesson } from '../services/lessonService';
+import { useCoachStore } from '../stores/coachStore';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'ClientLessons'>;
-interface Props { navigation: Nav }
+type Nav   = NativeStackNavigationProp<RootStackParamList, 'CreateLesson'>;
+type Route = RouteProp<RootStackParamList, 'CreateLesson'>;
+interface Props { navigation: Nav; route: Route; }
 
-interface Lesson {
-  id: string;
-  title: string;
-  description?: string;
-  status: 'assigned' | 'viewed' | 'completed';
-  created_at: string;
-  viewed_at?: string;
-  completed_at?: string;
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKENS — exact match to DashboardScreen
+// ─────────────────────────────────────────────────────────────────────────────
+const T = {
+  pageBg:       '#F0EBE0',
+  cardCream:    '#F8F4EC',
+  cardSage:     '#E2E8DF',
+  cardForest:   '#2C4435',
+  cardTan:      '#DDD3C0',
+  cardOffWhite: '#EDE8DF',
+
+  inkDark:      '#1C1E1A',
+  inkMid:       '#484B44',
+  inkMuted:     '#8A8E83',
+  inkOnDark:    '#EDE9E1',
+
+  forest:       '#2C4435',
+  sage:         '#4D6B54',
+  sageMid:      '#698870',
+  sageLight:    'rgba(77,107,84,0.10)',
+  sageBorder:   'rgba(77,107,84,0.22)',
+  gold:         '#8C6E3C',
+  goldLight:    'rgba(140,110,60,0.10)',
+
+  border:       'rgba(28,30,26,0.09)',
+  borderFocus:  'rgba(77,107,84,0.40)',
+  shadow:       '#18201A',
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIELD LABEL
+// ─────────────────────────────────────────────────────────────────────────────
+function FieldLabel({ text }: { text: string }) {
+  return <Text style={fl.txt}>{text}</Text>;
 }
+const fl = StyleSheet.create({
+  txt: {
+    fontSize: 9, fontWeight: '700',
+    letterSpacing: 1.5, textTransform: 'uppercase',
+    color: T.inkMuted, marginBottom: 8,
+  },
+});
 
-const STATUS_ICONS = {
-  assigned: '◦',
-  viewed: '◎',
-  completed: '✦',
-};
-
-const STATUS_COLORS = {
-  assigned: colors.gold,
-  viewed: colors.sage,
-  completed: '#4ADE80',
-};
-
-export default function ClientLessonsScreen({ navigation }: Props) {
-  const [lessons, setLessons] = useState<Lesson[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const load = useCallback(async (showRefreshing = false) => {
-    if (showRefreshing) setRefreshing(true);
-    else setLoading(true);
-    try {
-      const res = await getMyLessons();
-      setLessons(Array.isArray(res.data) ? res.data : []);
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => { load(); }, [load]);
-
-  const active = lessons.filter((l) => l.status !== 'completed');
-  const completed = lessons.filter((l) => l.status === 'completed');
-
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-
-  const renderLesson = (lesson: Lesson) => {
-    const icon = STATUS_ICONS[lesson.status];
-    const accent = STATUS_COLORS[lesson.status];
-
-    return (
-      <TouchableOpacity
-        key={lesson.id}
-        style={styles.lessonCard}
-        onPress={() => navigation.navigate('LessonDetail', { lesson })}
-        activeOpacity={0.85}
-      >
-        {/* Left accent bar */}
-        <View style={[styles.accentBar, { backgroundColor: accent }]} />
-
-        <View style={styles.lessonBody}>
-          <View style={styles.lessonTopRow}>
-            <Text style={[styles.lessonIcon, { color: accent }]}>{icon}</Text>
-            <Text style={styles.lessonDate}>{formatDate(lesson.created_at)}</Text>
-          </View>
-
-          <Text style={styles.lessonTitle}>{lesson.title}</Text>
-
-          {lesson.description ? (
-            <Text style={styles.lessonPreview} numberOfLines={2}>
-              {lesson.description}
-            </Text>
-          ) : null}
-
-          {lesson.status === 'assigned' && (
-            <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>NEW</Text>
-            </View>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
+// ─────────────────────────────────────────────────────────────────────────────
+// CREAM INPUT — consistent with form language
+// ─────────────────────────────────────────────────────────────────────────────
+function CreamInput(props: React.ComponentProps<typeof TextInput>) {
+  const [focused, setFocused] = useState(false);
   return (
-    <View style={styles.root}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Text style={styles.backArrow}>←</Text>
-        </TouchableOpacity>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerLabel}>FROM YOUR COACH</Text>
-          <Text style={styles.headerTitle}>Lessons</Text>
-        </View>
-        {active.length > 0 && (
-          <View style={styles.countBadge}>
-            <Text style={styles.countText}>{active.length}</Text>
-          </View>
-        )}
-      </View>
+    <TextInput
+      {...props}
+      style={[ci.base, focused && ci.focused, props.style]}
+      placeholderTextColor={T.inkMuted}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e  => { setFocused(false); props.onBlur?.(e); }}
+    />
+  );
+}
+const ci = StyleSheet.create({
+  base: {
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
+    borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, color: T.inkDark,
+    fontWeight: '400',
+  },
+  focused: { borderColor: T.borderFocus },
+});
 
-      {loading ? (
-        <View style={styles.center}>
-          <ActivityIndicator size="large" color={colors.sage} />
-        </View>
-      ) : (
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => load(true)}
-              tintColor={colors.sage}
-            />
-          }
-          showsVerticalScrollIndicator={false}
-        >
-          {lessons.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptySymbol}>◌</Text>
-              <Text style={styles.emptyTitle}>No lessons yet</Text>
-              <Text style={styles.emptyBody}>
-                Your coach will share lessons and session notes here. They'll appear as soon as one is assigned.
-              </Text>
-            </View>
-          ) : (
-            <>
-              {/* Active lessons */}
-              {active.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>TO DO</Text>
-                  {active.map(renderLesson)}
-                </View>
-              )}
-
-              {/* Completed lessons */}
-              {completed.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>COMPLETED</Text>
-                  {completed.map(renderLesson)}
-                </View>
-              )}
-            </>
-          )}
-
-          <View style={{ height: 60 }} />
-        </ScrollView>
-      )}
+// ─────────────────────────────────────────────────────────────────────────────
+// AVATAR (mini, for client list)
+// ─────────────────────────────────────────────────────────────────────────────
+function MiniAvatar({ name }: { name: string }) {
+  const hue = ((name.charCodeAt(0) ?? 65) * 41) % 360;
+  return (
+    <View style={{
+      width: 34, height: 34, borderRadius: 17,
+      backgroundColor: `hsla(${hue},20%,82%,1)`,
+      borderWidth: 1, borderColor: `hsla(${hue},20%,68%,0.5)`,
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Text style={{ fontSize: 13, fontWeight: '700', color: `hsl(${hue},28%,28%)` }}>
+        {name.charAt(0).toUpperCase()}
+      </Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
+export default function CreateLessonScreen({ navigation, route }: Props) {
+  const { clientId: prefillClientId, clientName: prefillClientName, lessonId } = route.params ?? {};
+  const { clients, fetchClients } = useCoachStore();
 
+  const [title,              setTitle]              = useState('');
+  const [description,        setDescription]        = useState('');
+  const [selectedClientId,   setSelectedClientId]   = useState(prefillClientId ?? '');
+  const [selectedClientName, setSelectedClientName] = useState(prefillClientName ?? '');
+  const [showClientPicker,   setShowClientPicker]   = useState(false);
+  const [saving,             setSaving]             = useState(false);
+  const isEditing = !!lessonId;
+
+  useEffect(() => { fetchClients(); }, []);
+
+  const safeClients = Array.isArray(clients) ? clients : [];
+
+  // ── Logic preserved exactly ─────────────────────────────────────────────────
+  const handleSave = async () => {
+    if (!title.trim()) {
+      Alert.alert('Required', 'Please add a lesson title.');
+      return;
+    }
+    if (!selectedClientId && !isEditing) {
+      Alert.alert('Required', 'Please select a client.');
+      return;
+    }
+    setSaving(true);
+    try {
+      if (isEditing) {
+        await updateLesson(lessonId!, { title: title.trim(), description: description.trim() });
+      } else {
+        await assignLesson({
+          title: title.trim(),
+          description: description.trim(),
+          client_id: selectedClientId,
+        });
+      }
+      navigation.goBack();
+    } catch {
+      Alert.alert('Error', 'Failed to save lesson. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <View style={s.root}>
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
+        >
+
+          {/* ── HEADER ──────────────────────────────────────────────── */}
+          <View style={s.header}>
+            <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.75}>
+              <Text style={s.backArrow}>←</Text>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={s.headerLabel}>{isEditing ? 'Edit Lesson' : 'New Lesson'}</Text>
+              <Text style={s.headerTitle}>{isEditing ? 'Update content' : 'Assign to client'}</Text>
+            </View>
+            <TouchableOpacity
+              style={[s.saveBtn, saving && { opacity: 0.5 }]}
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving
+                ? <ActivityIndicator size="small" color={T.inkOnDark} />
+                : <Text style={s.saveBtnTxt}>Save</Text>
+              }
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView
+            style={s.scroll}
+            contentContainerStyle={s.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+
+            {/* ── CLIENT SELECTOR ─────────────────────────────────── */}
+            {!isEditing && (
+              <View style={s.fieldGroup}>
+                <FieldLabel text="Client" />
+                <TouchableOpacity
+                  style={[s.selector, showClientPicker && s.selectorOpen]}
+                  onPress={() => setShowClientPicker(v => !v)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={selectedClientId ? s.selectorValue : s.selectorPlaceholder}>
+                    {selectedClientId ? selectedClientName || 'Selected client' : 'Choose a client…'}
+                  </Text>
+                  <Text style={s.selectorChevron}>{showClientPicker ? '↑' : '↓'}</Text>
+                </TouchableOpacity>
+
+                {showClientPicker && (
+                  <View style={s.clientList}>
+                    {safeClients.length === 0 ? (
+                      <Text style={s.noClients}>No clients yet</Text>
+                    ) : (
+                      safeClients.map((c: any, i: number) => {
+                        const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim();
+                        const active = c.id === selectedClientId;
+                        return (
+                          <TouchableOpacity
+                            key={c.id}
+                            style={[
+                              s.clientRow,
+                              active && s.clientRowActive,
+                              i === safeClients.length - 1 && { borderBottomWidth: 0 },
+                            ]}
+                            onPress={() => {
+                              setSelectedClientId(c.id);
+                              setSelectedClientName(name);
+                              setShowClientPicker(false);
+                            }}
+                            activeOpacity={0.78}
+                          >
+                            <MiniAvatar name={name || '?'} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.clientName}>{name}</Text>
+                              <Text style={s.clientEmail}>{c.email}</Text>
+                            </View>
+                            {active && <Text style={s.checkmark}>✓</Text>}
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ── LESSON TITLE ────────────────────────────────────── */}
+            <View style={s.fieldGroup}>
+              <FieldLabel text="Lesson Title" />
+              <CreamInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="e.g. Blood Sugar & Meal Timing"
+                maxLength={120}
+                style={{ fontSize: 17, fontWeight: '500' }}
+              />
+            </View>
+
+            {/* ── SESSION NOTES ───────────────────────────────────── */}
+            <View style={s.fieldGroup}>
+              <FieldLabel text="Session Notes / Content" />
+              <CreamInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder={"Write your notes from today's session here.\n\nThis will be visible to your client on their dashboard."}
+                multiline
+                textAlignVertical="top"
+                maxLength={3000}
+                style={{ minHeight: 180, lineHeight: 22 }}
+              />
+              <Text style={s.charCount}>{description.length} / 3000</Text>
+            </View>
+
+            {/* ── HINT CARD ───────────────────────────────────────── */}
+            <View style={s.hintCard}>
+              <Text style={s.hintTitle}>How this works</Text>
+              <Text style={s.hintBody}>
+                Once saved, your client will see this lesson on their home screen. They can mark it viewed and completed — you'll see the status update here.
+              </Text>
+            </View>
+
+            <View style={{ height: 60 }} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.pageBg },
+  safe: { flex: 1 },
+
+  // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
+    flexDirection: 'row', alignItems: 'center',
+    paddingTop: 12, paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassBorder,
+    borderBottomWidth: 1, borderBottomColor: T.border,
     gap: 12,
+    backgroundColor: T.pageBg,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  backArrow: { fontSize: 18, color: colors.textPrimary },
+  backArrow:   { fontSize: 17, color: T.inkMid },
   headerLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textMuted,
-    marginBottom: 3,
+    fontSize: 9, fontWeight: '700',
+    letterSpacing: 1.5, textTransform: 'uppercase',
+    color: T.inkMuted, marginBottom: 3,
   },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '300',
-    fontStyle: 'italic',
-    color: colors.textPrimary,
-    letterSpacing: -0.3,
+  headerTitle: { fontSize: 17, fontWeight: '600', color: T.inkDark, letterSpacing: -0.2 },
+  saveBtn: {
+    backgroundColor: T.cardForest,
+    paddingVertical: 10, paddingHorizontal: 20, borderRadius: 11,
   },
-  countBadge: {
-    width: 28,
-    height: 28,
+  saveBtnTxt: { fontSize: 14, fontWeight: '600', color: T.inkOnDark, letterSpacing: 0.2 },
+
+  scroll:  { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 28 },
+
+  fieldGroup: { marginBottom: 24 },
+
+  // Client selector
+  selector: {
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
     borderRadius: 14,
-    backgroundColor: colors.gold,
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingVertical: 14, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  countText: { fontSize: 13, fontWeight: '700', color: colors.bg },
+  selectorOpen:        { borderColor: T.borderFocus },
+  selectorValue:       { fontSize: 15, fontWeight: '500', color: T.inkDark },
+  selectorPlaceholder: { fontSize: 15, color: T.inkMuted },
+  selectorChevron:     { fontSize: 13, color: T.inkMuted },
 
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  scroll: { flex: 1 },
-  scrollContent: { paddingTop: 28, paddingHorizontal: 20 },
-
-  section: { marginBottom: 32 },
-  sectionLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textMuted,
-    marginBottom: 14,
+  clientList: {
+    marginTop: 6,
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
+    borderRadius: 14, overflow: 'hidden',
   },
-
-  lessonCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 16,
-    marginBottom: 10,
-    overflow: 'hidden',
+  clientRow: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderBottomWidth: 1, borderBottomColor: T.border,
+    gap: 12,
   },
-  accentBar: {
-    width: 3,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
-  },
-  lessonBody: {
-    flex: 1,
-    padding: 16,
-  },
-  lessonTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  lessonIcon: { fontSize: 16, fontWeight: '700' },
-  lessonDate: { fontSize: 11, color: colors.textMuted, fontWeight: '500' },
-
-  lessonTitle: {
-    fontSize: 16,
-    fontWeight: '500',
-    fontStyle: 'italic',
-    color: colors.textPrimary,
-    letterSpacing: -0.1,
-    marginBottom: 6,
-  },
-  lessonPreview: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 19,
+  clientRowActive: { backgroundColor: T.cardSage },
+  clientName:  { fontSize: 14, fontWeight: '600', color: T.inkDark },
+  clientEmail: { fontSize: 12, color: T.inkMuted, marginTop: 1 },
+  checkmark:   { fontSize: 15, color: T.sage, fontWeight: '700' },
+  noClients: {
+    paddingVertical: 20, textAlign: 'center',
+    color: T.inkMuted, fontSize: 13,
   },
 
-  newBadge: {
-    marginTop: 10,
-    alignSelf: 'flex-start',
-    backgroundColor: 'rgba(214,199,161,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(214,199,161,0.3)',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  newBadgeText: {
-    fontSize: 9,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.gold,
+  charCount: {
+    textAlign: 'right', fontSize: 11,
+    color: T.inkMuted, marginTop: 6,
   },
 
-  emptyState: {
-    alignItems: 'center',
-    paddingTop: 90,
-    paddingHorizontal: 40,
+  // Hint card
+  hintCard: {
+    backgroundColor: T.sageLight,
+    borderWidth: 1, borderColor: T.sageBorder,
+    borderRadius: 14, padding: 16,
   },
-  emptySymbol: {
-    fontSize: 48,
-    color: colors.glassBorderStrong,
-    marginBottom: 20,
+  hintTitle: {
+    fontSize: 12, fontWeight: '700',
+    color: T.sage, marginBottom: 6, letterSpacing: 0.2,
   },
-  emptyTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    marginBottom: 10,
-  },
-  emptyBody: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 22,
+  hintBody: {
+    fontSize: 13, color: T.inkMid, lineHeight: 20,
   },
 });

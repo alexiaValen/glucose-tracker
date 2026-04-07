@@ -1,3 +1,8 @@
+// mobile-app/src/screens/CreateLessonScreen.tsx
+// REFACTORED: Matches dashboard design system — cream/sage/forest palette.
+// ALL logic / validation / store calls preserved exactly.
+// "View as Client" removed per request.
+
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -5,45 +10,132 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  ScrollView,
-  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
+  ScrollView,
+  ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '../types/navigation';
-import { colors } from '../theme/colors';
 import { assignLesson, updateLesson } from '../services/lessonService';
 import { useCoachStore } from '../stores/coachStore';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateLesson'>;
+type Nav   = NativeStackNavigationProp<RootStackParamList, 'CreateLesson'>;
 type Route = RouteProp<RootStackParamList, 'CreateLesson'>;
+interface Props { navigation: Nav; route: Route; }
 
-interface Props {
-  navigation: Nav;
-  route: Route;
+// ─────────────────────────────────────────────────────────────────────────────
+// TOKENS — exact match to DashboardScreen
+// ─────────────────────────────────────────────────────────────────────────────
+const T = {
+  pageBg:       '#F0EBE0',
+  cardCream:    '#F8F4EC',
+  cardSage:     '#E2E8DF',
+  cardForest:   '#2C4435',
+  cardTan:      '#DDD3C0',
+  cardOffWhite: '#EDE8DF',
+
+  inkDark:      '#1C1E1A',
+  inkMid:       '#484B44',
+  inkMuted:     '#8A8E83',
+  inkOnDark:    '#EDE9E1',
+
+  forest:       '#2C4435',
+  sage:         '#4D6B54',
+  sageMid:      '#698870',
+  sageLight:    'rgba(77,107,84,0.10)',
+  sageBorder:   'rgba(77,107,84,0.22)',
+  gold:         '#8C6E3C',
+  goldLight:    'rgba(140,110,60,0.10)',
+
+  border:       'rgba(28,30,26,0.09)',
+  borderFocus:  'rgba(77,107,84,0.40)',
+  shadow:       '#18201A',
+} as const;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FIELD LABEL
+// ─────────────────────────────────────────────────────────────────────────────
+function FieldLabel({ text }: { text: string }) {
+  return <Text style={fl.txt}>{text}</Text>;
+}
+const fl = StyleSheet.create({
+  txt: {
+    fontSize: 9, fontWeight: '700',
+    letterSpacing: 1.5, textTransform: 'uppercase',
+    color: T.inkMuted, marginBottom: 8,
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CREAM INPUT — consistent with form language
+// ─────────────────────────────────────────────────────────────────────────────
+function CreamInput(props: React.ComponentProps<typeof TextInput>) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <TextInput
+      {...props}
+      style={[ci.base, focused && ci.focused, props.style]}
+      placeholderTextColor={T.inkMuted}
+      onFocus={e => { setFocused(true); props.onFocus?.(e); }}
+      onBlur={e  => { setFocused(false); props.onBlur?.(e); }}
+    />
+  );
+}
+const ci = StyleSheet.create({
+  base: {
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
+    borderRadius: 14,
+    paddingHorizontal: 16, paddingVertical: 14,
+    fontSize: 15, color: T.inkDark,
+    fontWeight: '400',
+  },
+  focused: { borderColor: T.borderFocus },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AVATAR (mini, for client list)
+// ─────────────────────────────────────────────────────────────────────────────
+function MiniAvatar({ name }: { name: string }) {
+  const hue = ((name.charCodeAt(0) ?? 65) * 41) % 360;
+  return (
+    <View style={{
+      width: 34, height: 34, borderRadius: 17,
+      backgroundColor: `hsla(${hue},20%,82%,1)`,
+      borderWidth: 1, borderColor: `hsla(${hue},20%,68%,0.5)`,
+      alignItems: 'center', justifyContent: 'center',
+    }}>
+      <Text style={{ fontSize: 13, fontWeight: '700', color: `hsl(${hue},28%,28%)` }}>
+        {name.charAt(0).toUpperCase()}
+      </Text>
+    </View>
+  );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN SCREEN
+// ─────────────────────────────────────────────────────────────────────────────
 export default function CreateLessonScreen({ navigation, route }: Props) {
   const { clientId: prefillClientId, clientName: prefillClientName, lessonId } = route.params ?? {};
   const { clients, fetchClients } = useCoachStore();
 
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [selectedClientId, setSelectedClientId] = useState(prefillClientId ?? '');
+  const [title,              setTitle]              = useState('');
+  const [description,        setDescription]        = useState('');
+  const [selectedClientId,   setSelectedClientId]   = useState(prefillClientId ?? '');
   const [selectedClientName, setSelectedClientName] = useState(prefillClientName ?? '');
-  const [showClientPicker, setShowClientPicker] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [showClientPicker,   setShowClientPicker]   = useState(false);
+  const [saving,             setSaving]             = useState(false);
   const isEditing = !!lessonId;
 
-  useEffect(() => {
-    fetchClients();
-  }, []);
+  useEffect(() => { fetchClients(); }, []);
 
   const safeClients = Array.isArray(clients) ? clients : [];
 
+  // ── Logic preserved exactly ─────────────────────────────────────────────────
   const handleSave = async () => {
     if (!title.trim()) {
       Alert.alert('Required', 'Please add a lesson title.');
@@ -53,7 +145,6 @@ export default function CreateLessonScreen({ navigation, route }: Props) {
       Alert.alert('Required', 'Please select a client.');
       return;
     }
-
     setSaving(true);
     try {
       if (isEditing) {
@@ -66,7 +157,7 @@ export default function CreateLessonScreen({ navigation, route }: Props) {
         });
       }
       navigation.goBack();
-    } catch (err) {
+    } catch {
       Alert.alert('Error', 'Failed to save lesson. Please try again.');
     } finally {
       setSaving(false);
@@ -74,306 +165,228 @@ export default function CreateLessonScreen({ navigation, route }: Props) {
   };
 
   return (
-    <View style={styles.root}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backArrow}>←</Text>
-          </TouchableOpacity>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.headerLabel}>{isEditing ? 'EDIT LESSON' : 'NEW LESSON'}</Text>
-            <Text style={styles.headerTitle}>{isEditing ? 'Update content' : 'Assign to client'}</Text>
-          </View>
-          <TouchableOpacity
-            style={[styles.saveBtn, saving && { opacity: 0.5 }]}
-            onPress={handleSave}
-            disabled={saving}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={colors.bg} />
-            ) : (
-              <Text style={styles.saveBtnText}>Save</Text>
-            )}
-          </TouchableOpacity>
-        </View>
-
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+    <View style={s.root}>
+      <SafeAreaView style={s.safe} edges={['top']}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={{ flex: 1 }}
         >
-          {/* Client selector (only when creating) */}
-          {!isEditing && (
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>CLIENT</Text>
-              <TouchableOpacity
-                style={styles.selectorCard}
-                onPress={() => setShowClientPicker((v) => !v)}
-                activeOpacity={0.8}
-              >
-                <Text style={selectedClientId ? styles.selectorValue : styles.selectorPlaceholder}>
-                  {selectedClientId ? selectedClientName || 'Selected client' : 'Choose a client...'}
-                </Text>
-                <Text style={styles.selectorChevron}>{showClientPicker ? '↑' : '↓'}</Text>
-              </TouchableOpacity>
 
-              {showClientPicker && (
-                <View style={styles.clientList}>
-                  {safeClients.length === 0 ? (
-                    <Text style={styles.noClients}>No clients yet</Text>
-                  ) : (
-                    safeClients.map((c: any) => (
-                      <TouchableOpacity
-                        key={c.id}
-                        style={[
-                          styles.clientRow,
-                          c.id === selectedClientId && styles.clientRowSelected,
-                        ]}
-                        onPress={() => {
-                          setSelectedClientId(c.id);
-                          setSelectedClientName(`${c.firstName ?? ''} ${c.lastName ?? ''}`.trim());
-                          setShowClientPicker(false);
-                        }}
-                      >
-                        <View style={styles.clientRowAvatar}>
-                          <Text style={styles.clientRowInitial}>
-                            {(c.firstName ?? '?').charAt(0)}
-                          </Text>
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <Text style={styles.clientRowName}>
-                            {c.firstName} {c.lastName}
-                          </Text>
-                          <Text style={styles.clientRowEmail}>{c.email}</Text>
-                        </View>
-                        {c.id === selectedClientId && (
-                          <Text style={styles.checkmark}>✓</Text>
-                        )}
-                      </TouchableOpacity>
-                    ))
-                  )}
-                </View>
-              )}
+          {/* ── HEADER ──────────────────────────────────────────────── */}
+          <View style={s.header}>
+            <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()} activeOpacity={0.75}>
+              <Text style={s.backArrow}>←</Text>
+            </TouchableOpacity>
+            <View style={{ flex: 1 }}>
+              <Text style={s.headerLabel}>{isEditing ? 'Edit Lesson' : 'New Lesson'}</Text>
+              <Text style={s.headerTitle}>{isEditing ? 'Update content' : 'Assign to client'}</Text>
             </View>
-          )}
-
-          {/* Title */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>LESSON TITLE</Text>
-            <TextInput
-              style={styles.titleInput}
-              value={title}
-              onChangeText={setTitle}
-              placeholder="e.g. Blood Sugar & Meal Timing"
-              placeholderTextColor={colors.textMuted}
-              maxLength={120}
-            />
-          </View>
-
-          {/* Description / Notes */}
-          <View style={styles.fieldGroup}>
-            <Text style={styles.fieldLabel}>SESSION NOTES / CONTENT</Text>
-            <TextInput
-              style={styles.notesInput}
-              value={description}
-              onChangeText={setDescription}
-              placeholder={
-                'Write your notes from today\'s session here.\n\nThis will be visible to your client on their dashboard.'
+            <TouchableOpacity
+              style={[s.saveBtn, saving && { opacity: 0.5 }]}
+              onPress={handleSave}
+              disabled={saving}
+              activeOpacity={0.85}
+            >
+              {saving
+                ? <ActivityIndicator size="small" color={T.inkOnDark} />
+                : <Text style={s.saveBtnTxt}>Save</Text>
               }
-              placeholderTextColor={colors.textMuted}
-              multiline
-              textAlignVertical="top"
-              maxLength={3000}
-            />
-            <Text style={styles.charCount}>{description.length} / 3000</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Hint */}
-          <View style={styles.hintCard}>
-            <Text style={styles.hintTitle}>How this works</Text>
-            <Text style={styles.hintBody}>
-              Once saved, your client will see this lesson on their home screen. They can mark it viewed and completed — you'll see the status update here.
-            </Text>
-          </View>
+          <ScrollView
+            style={s.scroll}
+            contentContainerStyle={s.content}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
 
-          <View style={{ height: 60 }} />
-        </ScrollView>
-      </KeyboardAvoidingView>
+            {/* ── CLIENT SELECTOR ─────────────────────────────────── */}
+            {!isEditing && (
+              <View style={s.fieldGroup}>
+                <FieldLabel text="Client" />
+                <TouchableOpacity
+                  style={[s.selector, showClientPicker && s.selectorOpen]}
+                  onPress={() => setShowClientPicker(v => !v)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={selectedClientId ? s.selectorValue : s.selectorPlaceholder}>
+                    {selectedClientId ? selectedClientName || 'Selected client' : 'Choose a client…'}
+                  </Text>
+                  <Text style={s.selectorChevron}>{showClientPicker ? '↑' : '↓'}</Text>
+                </TouchableOpacity>
+
+                {showClientPicker && (
+                  <View style={s.clientList}>
+                    {safeClients.length === 0 ? (
+                      <Text style={s.noClients}>No clients yet</Text>
+                    ) : (
+                      safeClients.map((c: any, i: number) => {
+                        const name = `${c.firstName ?? ''} ${c.lastName ?? ''}`.trim();
+                        const active = c.id === selectedClientId;
+                        return (
+                          <TouchableOpacity
+                            key={c.id}
+                            style={[
+                              s.clientRow,
+                              active && s.clientRowActive,
+                              i === safeClients.length - 1 && { borderBottomWidth: 0 },
+                            ]}
+                            onPress={() => {
+                              setSelectedClientId(c.id);
+                              setSelectedClientName(name);
+                              setShowClientPicker(false);
+                            }}
+                            activeOpacity={0.78}
+                          >
+                            <MiniAvatar name={name || '?'} />
+                            <View style={{ flex: 1 }}>
+                              <Text style={s.clientName}>{name}</Text>
+                              <Text style={s.clientEmail}>{c.email}</Text>
+                            </View>
+                            {active && <Text style={s.checkmark}>✓</Text>}
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* ── LESSON TITLE ────────────────────────────────────── */}
+            <View style={s.fieldGroup}>
+              <FieldLabel text="Lesson Title" />
+              <CreamInput
+                value={title}
+                onChangeText={setTitle}
+                placeholder="e.g. Blood Sugar & Meal Timing"
+                maxLength={120}
+                style={{ fontSize: 17, fontWeight: '500' }}
+              />
+            </View>
+
+            {/* ── SESSION NOTES ───────────────────────────────────── */}
+            <View style={s.fieldGroup}>
+              <FieldLabel text="Session Notes / Content" />
+              <CreamInput
+                value={description}
+                onChangeText={setDescription}
+                placeholder={"Write your notes from today's session here.\n\nThis will be visible to your client on their dashboard."}
+                multiline
+                textAlignVertical="top"
+                maxLength={3000}
+                style={{ minHeight: 180, lineHeight: 22 }}
+              />
+              <Text style={s.charCount}>{description.length} / 3000</Text>
+            </View>
+
+            {/* ── HINT CARD ───────────────────────────────────────── */}
+            <View style={s.hintCard}>
+              <Text style={s.hintTitle}>How this works</Text>
+              <Text style={s.hintBody}>
+                Once saved, your client will see this lesson on their home screen. They can mark it viewed and completed — you'll see the status update here.
+              </Text>
+            </View>
+
+            <View style={{ height: 60 }} />
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: colors.bg,
-  },
+// ─────────────────────────────────────────────────────────────────────────────
+// STYLES
+// ─────────────────────────────────────────────────────────────────────────────
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: T.pageBg },
+  safe: { flex: 1 },
+
+  // Header
   header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingTop: 60,
-    paddingBottom: 20,
+    flexDirection: 'row', alignItems: 'center',
+    paddingTop: 12, paddingBottom: 16,
     paddingHorizontal: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassBorder,
+    borderBottomWidth: 1, borderBottomColor: T.border,
     gap: 12,
+    backgroundColor: T.pageBg,
   },
   backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 38, height: 38, borderRadius: 11,
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
+    alignItems: 'center', justifyContent: 'center',
   },
-  backArrow: { fontSize: 18, color: colors.textPrimary },
+  backArrow:   { fontSize: 17, color: T.inkMid },
   headerLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textMuted,
-    marginBottom: 3,
+    fontSize: 9, fontWeight: '700',
+    letterSpacing: 1.5, textTransform: 'uppercase',
+    color: T.inkMuted, marginBottom: 3,
   },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
-  },
+  headerTitle: { fontSize: 17, fontWeight: '600', color: T.inkDark, letterSpacing: -0.2 },
   saveBtn: {
-    backgroundColor: colors.gold,
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 12,
+    backgroundColor: T.cardForest,
+    paddingVertical: 10, paddingHorizontal: 20, borderRadius: 11,
   },
-  saveBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.bg,
-    letterSpacing: 0.3,
-  },
+  saveBtnTxt: { fontSize: 14, fontWeight: '600', color: T.inkOnDark, letterSpacing: 0.2 },
 
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 28 },
+  scroll:  { flex: 1 },
+  content: { paddingHorizontal: 20, paddingTop: 28 },
 
   fieldGroup: { marginBottom: 24 },
-  fieldLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    letterSpacing: 1.5,
-    color: colors.textMuted,
-    marginBottom: 10,
-  },
 
-  selectorCard: {
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
+  // Client selector
+  selector: {
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
     borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingVertical: 14, paddingHorizontal: 16,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
-  selectorValue: { fontSize: 16, color: colors.textPrimary, fontWeight: '500' },
-  selectorPlaceholder: { fontSize: 15, color: colors.textMuted },
-  selectorChevron: { fontSize: 14, color: colors.textMuted },
+  selectorOpen:        { borderColor: T.borderFocus },
+  selectorValue:       { fontSize: 15, fontWeight: '500', color: T.inkDark },
+  selectorPlaceholder: { fontSize: 15, color: T.inkMuted },
+  selectorChevron:     { fontSize: 13, color: T.inkMuted },
 
   clientList: {
-    marginTop: 8,
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 14,
-    overflow: 'hidden',
+    marginTop: 6,
+    backgroundColor: T.cardCream,
+    borderWidth: 1, borderColor: T.border,
+    borderRadius: 14, overflow: 'hidden',
   },
   clientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.glassBorder,
+    flexDirection: 'row', alignItems: 'center',
+    paddingVertical: 12, paddingHorizontal: 14,
+    borderBottomWidth: 1, borderBottomColor: T.border,
     gap: 12,
   },
-  clientRowSelected: { backgroundColor: colors.glassSage },
-  clientRowAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.glassSage,
-    borderWidth: 1,
-    borderColor: colors.glassBorderStrong,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  clientRowInitial: { fontSize: 14, fontWeight: '700', color: colors.sage },
-  clientRowName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  clientRowEmail: { fontSize: 12, color: colors.textMuted, marginTop: 1 },
-  checkmark: { fontSize: 16, color: colors.gold, fontWeight: '700' },
+  clientRowActive: { backgroundColor: T.cardSage },
+  clientName:  { fontSize: 14, fontWeight: '600', color: T.inkDark },
+  clientEmail: { fontSize: 12, color: T.inkMuted, marginTop: 1 },
+  checkmark:   { fontSize: 15, color: T.sage, fontWeight: '700' },
   noClients: {
-    paddingVertical: 20,
-    textAlign: 'center',
-    color: colors.textMuted,
-    fontSize: 14,
+    paddingVertical: 20, textAlign: 'center',
+    color: T.inkMuted, fontSize: 13,
   },
 
-  titleInput: {
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 14,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    fontSize: 17,
-    fontWeight: '500',
-    color: colors.textPrimary,
-    letterSpacing: -0.2,
-  },
-
-  notesInput: {
-    backgroundColor: colors.glass,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 14,
-    padding: 16,
-    fontSize: 15,
-    color: colors.textPrimary,
-    minHeight: 200,
-    lineHeight: 22,
-  },
   charCount: {
-    textAlign: 'right',
-    fontSize: 11,
-    color: colors.textMuted,
-    marginTop: 6,
+    textAlign: 'right', fontSize: 11,
+    color: T.inkMuted, marginTop: 6,
   },
 
+  // Hint card
   hintCard: {
-    backgroundColor: colors.glassSage,
-    borderWidth: 1,
-    borderColor: 'rgba(110,143,122,0.25)',
-    borderRadius: 14,
-    padding: 16,
+    backgroundColor: T.sageLight,
+    borderWidth: 1, borderColor: T.sageBorder,
+    borderRadius: 14, padding: 16,
   },
   hintTitle: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: colors.sage,
-    marginBottom: 6,
-    letterSpacing: 0.2,
+    fontSize: 12, fontWeight: '700',
+    color: T.sage, marginBottom: 6, letterSpacing: 0.2,
   },
   hintBody: {
-    fontSize: 13,
-    color: colors.textSecondary,
-    lineHeight: 20,
+    fontSize: 13, color: T.inkMid, lineHeight: 20,
   },
 });
