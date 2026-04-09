@@ -165,21 +165,19 @@ router.post('/refresh', async (req: Request, res: Response) => {
 
 
 // POST /api/v1/auth/logout
-// router.post('/logout', async (req: Request, res: Response) => {
-//   try {
-//     const { refreshToken } = req.body;
+router.post('/logout', async (req: Request, res: Response) => {
+  try {
+    const { refreshToken } = req.body;
 
-//     if (refreshToken) {
-//       await authService.logout(refreshToken);
-//     }
+    if (refreshToken) {
+      await authService.logout(refreshToken);
+    }
 
-//     res.json({ message: 'Logged out successfully' });
-//   } catch (error: any) {
-//     res.status(500).json({ error: error.message });
-//   }
-
-
-// });
+    res.json({ message: 'Logged out successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
 
 // router.post('/logout-all', async (req: Request, res: Response) => {
 //   try {
