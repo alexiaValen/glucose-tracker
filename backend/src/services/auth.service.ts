@@ -2,6 +2,9 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { pool } from '../config/database';
 import crypto from 'crypto';
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
@@ -51,17 +54,10 @@ export class AuthService {
       [user.id, resetTokenHash, resetCode, expiresAt]
     );
 
-    // TODO: Send email with reset code
-    // For now, just log it (you'll need to integrate an email service)
-    console.log(`🔐 Password reset code for ${email}: ${resetCode}`);
-    console.log(`   Code expires at: ${expiresAt}`);
+    await this.sendPasswordResetEmail(email, resetCode, user.first_name);
 
-    // In production, send email here using service like SendGrid, Mailgun, etc.
-    // await this.sendPasswordResetEmail(email, resetCode, user.first_name);
-
-    return { 
+    return {
       message: 'If that email exists, a reset code has been sent',
-      // TEMPORARY: Return code for testing (REMOVE IN PRODUCTION)
       resetCode: process.env.NODE_ENV === 'development' ? resetCode : undefined
     };
   }
@@ -132,6 +128,34 @@ export class AuthService {
     console.log(`✅ Password reset successful for ${email}`);
 
     return { message: 'Password reset successful' };
+  }
+
+  private async sendPasswordResetEmail(email: string, resetCode: string, firstName: string) {
+    const fromEmail = process.env.FROM_EMAIL || 'noreply@graceflow.app';
+    const appName = 'GraceFlow';
+
+    const { error } = await resend.emails.send({
+      from: `${appName} <${fromEmail}>`,
+      to: email,
+      subject: `Your ${appName} password reset code`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #f9fafb; border-radius: 12px;">
+          <h2 style="color: #2d3a2e; margin-bottom: 8px;">Reset your password</h2>
+          <p style="color: #555; margin-bottom: 24px;">Hi ${firstName || 'there'}, use the code below to reset your password. It expires in 1 hour.</p>
+          <div style="background: #fff; border: 1px solid #e2e8f0; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 24px;">
+            <span style="font-size: 36px; font-weight: 800; letter-spacing: 12px; color: #2d3a2e;">${resetCode}</span>
+          </div>
+          <p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email.</p>
+        </div>
+      `,
+    });
+
+    if (error) {
+      console.error('Failed to send reset email:', error);
+      throw new Error('Failed to send reset email');
+    }
+
+    console.log(`✅ Reset email sent to ${email}`);
   }
 
   async register(
