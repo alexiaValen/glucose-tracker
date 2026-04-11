@@ -19,7 +19,8 @@ A modern glucose tracking dashboard built with React + TypeScript.
 ```bash
 npm install
 npm run dev
+```
 
 ## 📸 Preview
 
-![Glucose Tracker Preview](./web-app/public/preview.png)
+![Glucose Tracker Preview](./public/preview.jpg)
