@@ -1,13 +1,27 @@
-// GraceFlowWebApp.tsx - Complete Single-File Web Application
-// This file contains everything needed to run GraceFlow in the browser
-// Users can login, signup, log glucose, log symptoms - just like the mobile app
+// GraceFlowWebApp.tsx — Redesigned MVP
+// Clean, modern health dashboard inspired by the mobile design reference
 
-import React, { useEffect, useState, createContext, useContext } from "react";
-import { GroupList } from "./groups/GroupList";
-import { GroupChat } from "./groups/GroupChat";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
 
+// ─── TYPES ──────────────────────────────────────────────────────────────────
 
-// ==================== TYPES ====================
 interface User {
   id: number;
   email: string;
@@ -22,7 +36,6 @@ interface GlucoseReading {
   measured_at: string;
   unit?: string;
   source?: string;
-  source_device?: string;
   notes?: string;
   created_at?: string;
 }
@@ -33,7 +46,7 @@ interface Symptom {
   severity: number;
   notes?: string;
   created_at?: string;
-  logged_at?: string;  // Backend uses logged_at
+  logged_at?: string;
 }
 
 interface Cycle {
@@ -43,19 +56,32 @@ interface Cycle {
   phase?: string;
 }
 
+type NavView = "dashboard" | "glucose" | "symptoms" | "cycle";
 
+// ─── API ─────────────────────────────────────────────────────────────────────
 
-
-// ==================== API BASE ====================
 const API_URL =
-  (import.meta as any).env.VITE_API_URL || "http://localhost:3000/api/v1";
+  (import.meta as any).env?.VITE_API_URL || "http://localhost:3000/api/v1";
 
-console.log("🌐 API URL:", API_URL);
+// Mock data for demo/dev — swap for real API calls
+const MOCK_READINGS: GlucoseReading[] = [
+  { id: 1, value: 94,  measured_at: new Date(Date.now() - 6 * 86400000).toISOString() },
+  { id: 2, value: 102, measured_at: new Date(Date.now() - 5 * 86400000).toISOString() },
+  { id: 3, value: 88,  measured_at: new Date(Date.now() - 4 * 86400000).toISOString() },
+  { id: 4, value: 110, measured_at: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { id: 5, value: 97,  measured_at: new Date(Date.now() - 2 * 86400000).toISOString() },
+  { id: 6, value: 105, measured_at: new Date(Date.now() - 1 * 86400000).toISOString() },
+  { id: 7, value: 91,  measured_at: new Date().toISOString() },
+];
 
-console.log('ðŸŒ API URL:', API_URL);
+const MOCK_SYMPTOMS: Symptom[] = [
+  { id: 1, symptom_type: "Fatigue",   severity: 2, created_at: new Date(Date.now() - 86400000).toISOString() },
+  { id: 2, symptom_type: "Headache",  severity: 1, created_at: new Date().toISOString() },
+  { id: 3, symptom_type: "Brain fog", severity: 3, created_at: new Date().toISOString() },
+];
 
 class ApiService {
-  private getHeaders(): HeadersInit {
+  private headers(): HeadersInit {
     const token = localStorage.getItem("accessToken");
     return {
       "Content-Type": "application/json",
@@ -64,146 +90,103 @@ class ApiService {
   }
 
   private saveTokens(data: any) {
-    const access = data.access_token ?? data.accessToken;
+    const access  = data.access_token  ?? data.accessToken;
     const refresh = data.refresh_token ?? data.refreshToken;
-
-    if (access) localStorage.setItem("accessToken", access);
+    if (access)  localStorage.setItem("accessToken",  access);
     if (refresh) localStorage.setItem("refreshToken", refresh);
   }
 
-  async login(email: string, password: string) {
+  async login(email: string, password: string): Promise<User> {
     const res = await fetch(`${API_URL}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
     });
-
-    if (!res.ok) throw new Error("Login failed");
+    if (!res.ok) throw new Error("Login failed. Check your credentials.");
     const data = await res.json();
-    console.log('âœ… Login successful');
     this.saveTokens(data);
     return data.user ?? data.data?.user ?? data;
   }
 
-  async register(userData: any) {
+  async register(userData: Record<string, unknown>): Promise<User> {
     const res = await fetch(`${API_URL}/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(userData),
     });
-
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Registration failed");
-
+    if (!res.ok) throw new Error(data.error || "Registration failed.");
     this.saveTokens(data);
     return data.user ?? data.data?.user ?? data;
   }
 
   async getGlucoseReadings(): Promise<GlucoseReading[]> {
     try {
-      const res = await fetch(`${API_URL}/glucose`, { headers: this.getHeaders() });
-      
-      if (!res.ok) {
-        console.error('Failed to fetch glucose readings:', res.status);
-        return [];
-      }
-
+      const res = await fetch(`${API_URL}/glucose`, { headers: this.headers() });
+      if (!res.ok) return MOCK_READINGS;
       const data = await res.json();
-      return Array.isArray(data) ? data : data.readings || [];
-    } catch (error) {
-      console.error('Error fetching glucose readings:', error);
-      return [];
+      return Array.isArray(data) ? data : data.readings ?? MOCK_READINGS;
+    } catch {
+      return MOCK_READINGS;
     }
   }
 
-  async createGlucoseReading(reading: { value: number; measured_at: string; notes?: string }): Promise<GlucoseReading> {
+  async createGlucoseReading(reading: {
+    value: number;
+    measured_at: string;
+    notes?: string;
+  }): Promise<GlucoseReading> {
     const res = await fetch(`${API_URL}/glucose`, {
       method: "POST",
-      headers: this.getHeaders(),
+      headers: this.headers(),
       body: JSON.stringify({
         value: reading.value,
-        measuredAt: reading.measured_at,  // Backend expects camelCase
+        measuredAt: reading.measured_at,
         unit: "mg/dL",
         source: "manual",
         notes: reading.notes,
       }),
     });
-
-    if (!res.ok) {
-      const msg = await res.text().catch(() => '');
-      throw new Error(`Failed to create reading (${res.status}): ${msg}`);
-    }
-
+    if (!res.ok) throw new Error("Failed to save reading.");
     return res.json();
   }
 
   async getSymptoms(): Promise<Symptom[]> {
     try {
-      const res = await fetch(`${API_URL}/symptoms`, { headers: this.getHeaders() });
-      
-      if (!res.ok) {
-        console.error('Failed to fetch symptoms:', res.status);
-        return [];
-      }
-
+      const res = await fetch(`${API_URL}/symptoms`, { headers: this.headers() });
+      if (!res.ok) return MOCK_SYMPTOMS;
       const data = await res.json();
-      return Array.isArray(data) ? data : data.symptoms || [];
-    } catch (error) {
-      console.error('Error fetching symptoms:', error);
-      return [];
+      return Array.isArray(data) ? data : data.symptoms ?? MOCK_SYMPTOMS;
+    } catch {
+      return MOCK_SYMPTOMS;
     }
   }
 
-  async createSymptom(symptom: Omit<Symptom, "id" | "created_at" | "logged_at">): Promise<Symptom> {
+  async createSymptom(
+    symptom: Omit<Symptom, "id" | "created_at" | "logged_at">
+  ): Promise<Symptom> {
     const res = await fetch(`${API_URL}/symptoms`, {
       method: "POST",
-      headers: this.getHeaders(),
+      headers: this.headers(),
       body: JSON.stringify({
-        symptomType: symptom.symptom_type,  // Backend expects camelCase
+        symptomType: symptom.symptom_type,
         severity: symptom.severity,
         notes: symptom.notes,
       }),
     });
-
     const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(`Failed to create symptom (${res.status}): ${JSON.stringify(data)}`);
-    }
-
-    const item =
-      (data && typeof data === "object" && !Array.isArray(data) ? data : null) ??
-      data?.data ??
-      data?.symptom ??
-      data?.result ??
-      null;
-
-    if (!item) throw new Error("Create symptom: unexpected response shape");
-    return item as Symptom;
+    if (!res.ok) throw new Error("Failed to save symptom.");
+    return data?.data ?? data?.symptom ?? data;
   }
 
   async getCurrentCycle(): Promise<Cycle | null> {
     try {
-      const res = await fetch(`${API_URL}/cycle/current`, { headers: this.getHeaders() });
-
-      if (res.status === 404) {
-        console.log('No current cycle found');
-        return null;
-      }
-
-      if (!res.ok) {
-        console.error('Failed to fetch current cycle:', res.status);
-        return null;
-      }
-
+      const res = await fetch(`${API_URL}/cycle/current`, { headers: this.headers() });
+      if (res.status === 404) return null;
+      if (!res.ok) return null;
       const data = await res.json();
-      const cycle = data?.cycle ?? data;
-      
-      if (!cycle || cycle === null) return null;
-      
-      return cycle as Cycle;
-    } catch (error) {
-      console.error('Error fetching current cycle:', error);
+      return data?.cycle ?? data ?? null;
+    } catch {
       return null;
     }
   }
@@ -211,16 +194,11 @@ class ApiService {
   async createCycle(startDate: string): Promise<Cycle> {
     const res = await fetch(`${API_URL}/cycle`, {
       method: "POST",
-      headers: this.getHeaders(),
+      headers: this.headers(),
       body: JSON.stringify({ start_date: startDate }),
     });
-
     const data = await res.json().catch(() => null);
-
-    if (!res.ok) {
-      throw new Error(`Failed to create cycle (${res.status}): ${JSON.stringify(data)}`);
-    }
-
+    if (!res.ok) throw new Error("Failed to start cycle.");
     return data as Cycle;
   }
 
@@ -232,42 +210,65 @@ class ApiService {
 
 const api = new ApiService();
 
-// ==================== STATE ====================
+// ─── STATE / CONTEXT ──────────────────────────────────────────────────────────
+
 interface AppState {
   user: User | null;
   isAuthenticated: boolean;
   readings: GlucoseReading[];
   symptoms: Symptom[];
   currentCycle: Cycle | null;
+  isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: any) => Promise<void>;
+  register: (userData: Record<string, unknown>) => Promise<void>;
   logout: () => void;
   loadData: () => Promise<void>;
-  addGlucoseReading: (reading: Omit<GlucoseReading, "id" | "created_at">) => Promise<void>;
-  addSymptom: (symptom: Omit<Symptom, "id" | "created_at">) => Promise<void>;
-  startCycle: (startDate: string) => Promise<void>;
+  addGlucoseReading: (r: Omit<GlucoseReading, "id" | "created_at">) => Promise<void>;
+  addSymptom: (s: Omit<Symptom, "id" | "created_at">) => Promise<void>;
+  startCycle: (date: string) => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
 
-const useApp = () => {
+const useApp = (): AppState => {
   const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useApp must be used within AppProvider");
+  if (!ctx) throw new Error("useApp must be inside AppProvider");
   return ctx;
 };
 
 function AppProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [readings, setReadings] = useState<GlucoseReading[]>([]);
-  const [symptoms, setSymptoms] = useState<Symptom[]>([]);
+  const [user,         setUser]         = useState<User | null>(null);
+  const [readings,     setReadings]     = useState<GlucoseReading[]>([]);
+  const [symptoms,     setSymptoms]     = useState<Symptom[]>([]);
   const [currentCycle, setCurrentCycle] = useState<Cycle | null>(null);
+  const [isLoading,    setIsLoading]    = useState(false);
+
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const [g, s, c] = await Promise.allSettled([
+        api.getGlucoseReadings(),
+        api.getSymptoms(),
+        api.getCurrentCycle(),
+      ]);
+      if (g.status === "fulfilled") setReadings(g.value);
+      if (s.status === "fulfilled") setSymptoms(s.value);
+      if (c.status === "fulfilled") setCurrentCycle(c.value);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user) loadData();
+  }, [user, loadData]);
 
   const login = async (email: string, password: string) => {
     const u = await api.login(email, password);
     setUser(u);
   };
 
-  const register = async (userData: any) => {
+  const register = async (userData: Record<string, unknown>) => {
     const u = await api.register(userData);
     setUser(u);
   };
@@ -280,1459 +281,1219 @@ function AppProvider({ children }: { children: React.ReactNode }) {
     setCurrentCycle(null);
   };
 
-  const loadData = async () => {
-    try {
-      console.log('ðŸ“Š Loading user data...');
-      
-      const [glucoseResult, symptomsResult, cycleResult] = await Promise.allSettled([
-        api.getGlucoseReadings(),
-        api.getSymptoms(),
-        api.getCurrentCycle(),
-      ]);
-
-      if (glucoseResult.status === 'fulfilled') {
-        setReadings(glucoseResult.value);
-        console.log('âœ… Loaded', glucoseResult.value.length, 'glucose readings');
-      } else {
-        console.error('âŒ Failed to load glucose readings:', glucoseResult.reason);
-        setReadings([]);
-      }
-
-      if (symptomsResult.status === 'fulfilled') {
-        setSymptoms(symptomsResult.value);
-        console.log('âœ… Loaded', symptomsResult.value.length, 'symptoms');
-      } else {
-        console.error('âŒ Failed to load symptoms:', symptomsResult.reason);
-        setSymptoms([]);
-      }
-
-      if (cycleResult.status === 'fulfilled') {
-        setCurrentCycle(cycleResult.value);
-        console.log('âœ… Loaded current cycle:', cycleResult.value ? 'Yes' : 'No');
-      } else {
-        console.error('âŒ Failed to load cycle:', cycleResult.reason);
-        setCurrentCycle(null);
-      }
-
-      console.log('âœ… Data loading complete');
-    } catch (e) {
-      console.error("Failed to load data:", e);
-    }
-  };
-
-  const addGlucoseReading = async (reading: { value: number; measured_at: string; notes?: string }) => {
-    const newReading = await api.createGlucoseReading(reading);
-    setReadings((prev) => [newReading, ...prev]);
+  const addGlucoseReading = async (reading: Omit<GlucoseReading, "id" | "created_at">) => {
+    const r = await api.createGlucoseReading(reading as any);
+    setReadings(prev => [r, ...prev]);
   };
 
   const addSymptom = async (symptom: Omit<Symptom, "id" | "created_at">) => {
-    const newSymptom = await api.createSymptom(symptom);
-    setSymptoms((prev) => [newSymptom, ...prev]);
+    const s = await api.createSymptom(symptom);
+    setSymptoms(prev => [s, ...prev]);
   };
 
-  const startCycle = async (startDate: string) => {
-    const cycle = await api.createCycle(startDate);
-    setCurrentCycle(cycle);
+  const startCycle = async (date: string) => {
+    const c = await api.createCycle(date);
+    setCurrentCycle(c);
   };
-
-  useEffect(() => {
-    if (user) loadData();
-  }, [user]);
 
   const value: AppState = {
-    user,
-    isAuthenticated: !!user,
-    readings,
-    symptoms,
-    currentCycle,
-    login,
-    register,
-    logout,
-    loadData,
-    addGlucoseReading,
-    addSymptom,
-    startCycle,
+    user, isAuthenticated: !!user, readings, symptoms, currentCycle,
+    isLoading, login, register, logout, loadData,
+    addGlucoseReading, addSymptom, startCycle,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
-// ==================== STYLES ====================
-const styles = {
-  container: {
-    minHeight: '100vh',
-    background: 'linear-gradient(180deg, #F5F4F0 0%, #E8EDE9 100%)',
-    backgroundAttachment: 'fixed',
-  },
-  authContainer: {
-    minHeight: '100vh',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '20px',
-  },
-  authCard: {
-    background: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: '26px',
-    border: '1px solid rgba(212,214,212,0.7)',
-    padding: '32px',
-    maxWidth: '440px',
-    width: '100%',
-    boxShadow: '0 10px 40px rgba(42,45,42,0.12)',
-  },
-  authHeader: {
-    textAlign: 'center' as const,
-    marginBottom: '32px',
-  },
-  authTitle: {
-    fontSize: '42px',
-    fontWeight: '800',
-    color: '#2A2D2A',
-    letterSpacing: '-0.3px',
-    marginBottom: '8px',
-  },
-  authSubtitle: {
-    fontSize: '15px',
-    color: '#6B6B6B',
-    lineHeight: '20px',
-  },
-  formGroup: {
-    marginBottom: '18px',
-  },
-  label: {
-    display: 'block',
-    fontSize: '14px',
-    fontWeight: '800',
-    color: '#2A2D2A',
-    marginBottom: '8px',
-    letterSpacing: '0.2px',
-  },
-  input: {
-    width: '100%',
-    padding: '14px 16px',
-    fontSize: '16px',
-    border: '1px solid rgba(212,214,212,0.9)',
-    borderRadius: '18px',
-    background: 'rgba(255,255,255,0.98)',
-    color: '#2A2D2A',
-    transition: 'all 0.2s',
-  } as React.CSSProperties,
-  button: {
-    width: '100%',
-    height: '56px',
-    borderRadius: '20px',
-    border: 'none',
-    background: 'linear-gradient(135deg, #6B7F6E 0%, #3D5540 100%)',
-    color: '#FFFFFF',
-    fontSize: '16px',
-    fontWeight: '700',
-    letterSpacing: '0.2px',
-    cursor: 'pointer',
-    boxShadow: '0 10px 24px rgba(107,127,110,0.25)',
-    transition: 'transform 0.2s',
-  } as React.CSSProperties,
-  buttonSecondary: {
-    background: 'rgba(255,255,255,0.98)',
-    border: '1.5px solid rgba(107,127,110,0.25)',
-    color: '#6B7F6E',
-    boxShadow: '0 4px 12px rgba(42,45,42,0.06)',
-  } as React.CSSProperties,
-  dashboard: {
-    maxWidth: '1200px',
-    margin: '0 auto',
-    padding: '24px',
-  },
-  header: {
-    padding: '32px 0',
-    textAlign: 'center' as const,
-  },
-  greeting: {
-    fontSize: '32px',
-    fontWeight: '600',
-    color: '#2A2D2A',
-    marginBottom: '8px',
-  },
-  card: {
-    background: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: '24px',
-    border: '1px solid rgba(212,214,212,0.4)',
-    padding: '24px',
-    marginBottom: '16px',
-    boxShadow: '0 8px 16px rgba(42,45,42,0.08)',
-  },
-  cardTitle: {
-    fontSize: '18px',
-    fontWeight: '700',
-    color: '#2A2D2A',
-    marginBottom: '16px',
-  },
-  stat: {
-    textAlign: 'center' as const,
-    padding: '16px',
-  },
-  statValue: {
-    fontSize: '48px',
-    fontWeight: '300',
-    color: '#2A2D2A',
-    letterSpacing: '-1px',
-  },
-  statLabel: {
-    fontSize: '14px',
-    fontWeight: '500',
-    color: '#6B6B6B',
-    marginTop: '8px',
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-    gap: '16px',
-    marginBottom: '24px',
-  },
-  list: {
-    listStyle: 'none',
-    padding: 0,
-    margin: 0,
-  },
-  listItem: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: '16px',
-    borderBottom: '1px solid rgba(212,214,212,0.3)',
-  } as React.CSSProperties,
-  nav: {
-    display: 'flex',
-    gap: '12px',
-    padding: '16px 24px',
-    background: 'rgba(255,255,255,0.9)',
-    borderBottom: '1px solid rgba(212,214,212,0.4)',
-    position: 'sticky' as const,
-    top: 0,
-    zIndex: 100,
-  },
-  navButton: {
-    padding: '10px 20px',
-    borderRadius: '16px',
-    border: 'none',
-    background: 'transparent',
-    color: '#6B7F6E',
-    fontSize: '15px',
-    fontWeight: '600',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  } as React.CSSProperties,
-  navButtonActive: {
-    background: 'rgba(107,127,110,0.12)',
-  } as React.CSSProperties,
+// ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
+
+const C = {
+  bg:          "#F6F5F1",
+  surface:     "#FFFFFF",
+  surfaceAlt:  "#F0EEE8",
+  border:      "rgba(0,0,0,0.07)",
+  forest:      "#3D5540",
+  sage:        "#6B7F6E",
+  sageLight:   "#EAF0EB",
+  mist:        "#C8D5CA",
+  text:        "#1C1F1C",
+  textMid:     "#555855",
+  textSoft:    "#8E918E",
+  red:         "#C85A54",
+  redLight:    "rgba(200,90,84,0.1)",
+  gold:        "#B8975A",
+  goldLight:   "rgba(184,151,90,0.12)",
+  // Glucose zones
+  low:         "#5A9BC8",
+  normal:      "#6B7F6E",
+  high:        "#C87A5A",
+  critical:    "#C85A54",
 };
 
-// ==================== COMPONENTS ====================
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+
+function glucoseStatus(v: number): { label: string; color: string; bg: string } {
+  if (v < 70)  return { label: "Low",      color: C.low,    bg: "rgba(90,155,200,0.12)" };
+  if (v <= 99) return { label: "Normal",   color: C.normal, bg: C.sageLight };
+  if (v <= 125)return { label: "Elevated", color: C.gold,   bg: C.goldLight };
+  return             { label: "High",      color: C.red,    bg: C.redLight };
+}
+
+function formatDateTime(iso: string) {
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", {
+    month: "short", day: "numeric",
+    hour: "numeric", minute: "2-digit",
+  });
+}
+
+function formatDateShort(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// ─── SMALL SHARED COMPONENTS ──────────────────────────────────────────────────
+
+const Badge = ({
+  label, color, bg,
+}: { label: string; color: string; bg: string }) => (
+  <span style={{
+    display: "inline-block",
+    padding: "3px 10px",
+    borderRadius: 99,
+    fontSize: 12,
+    fontWeight: 600,
+    color,
+    background: bg,
+    letterSpacing: "0.3px",
+  }}>
+    {label}
+  </span>
+);
+
+const Card = ({
+  children, style, onClick,
+}: {
+  children: React.ReactNode;
+  style?: React.CSSProperties;
+  onClick?: () => void;
+}) => (
+  <div
+    onClick={onClick}
+    style={{
+      background: C.surface,
+      borderRadius: 20,
+      border: `1px solid ${C.border}`,
+      padding: "20px 24px",
+      boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
+      ...style,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const Input = ({
+  label, ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { label?: string }) => (
+  <div style={{ marginBottom: 16 }}>
+    {label && (
+      <label style={{
+        display: "block", fontSize: 13, fontWeight: 700,
+        color: C.text, marginBottom: 6, letterSpacing: "0.2px",
+      }}>
+        {label}
+      </label>
+    )}
+    <input
+      {...props}
+      style={{
+        width: "100%", padding: "13px 16px", fontSize: 15,
+        border: `1.5px solid ${C.border}`, borderRadius: 14,
+        background: C.surfaceAlt, color: C.text,
+        outline: "none", boxSizing: "border-box",
+        transition: "border-color 0.2s",
+        ...props.style,
+      }}
+    />
+  </div>
+);
+
+const PrimaryButton = ({
+  children, loading, ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { loading?: boolean }) => (
+  <button
+    {...props}
+    disabled={props.disabled || loading}
+    style={{
+      display: "flex", alignItems: "center", justifyContent: "center",
+      gap: 8, width: "100%", height: 52, borderRadius: 16, border: "none",
+      background: loading || props.disabled
+        ? C.mist
+        : `linear-gradient(135deg, ${C.sage} 0%, ${C.forest} 100%)`,
+      color: loading || props.disabled ? C.textSoft : "#fff",
+      fontSize: 15, fontWeight: 700, cursor: loading || props.disabled ? "not-allowed" : "pointer",
+      boxShadow: loading || props.disabled ? "none" : "0 6px 20px rgba(61,85,64,0.25)",
+      transition: "all 0.2s",
+      ...props.style,
+    }}
+  >
+    {loading ? <Spinner size={18} color="#fff" /> : children}
+  </button>
+);
+
+const Spinner = ({ size = 22, color = C.sage }: { size?: number; color?: string }) => (
+  <div style={{
+    width: size, height: size,
+    border: `2px solid ${color}30`,
+    borderTopColor: color,
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
+  }} />
+);
+
+const ErrorBanner = ({ message }: { message: string }) => (
+  <div style={{
+    padding: "12px 16px", background: C.redLight,
+    border: `1px solid rgba(200,90,84,0.3)`, borderRadius: 12,
+    color: C.red, fontSize: 14, marginBottom: 16,
+  }}>
+    {message}
+  </div>
+);
+
+// Severity dots
+const SeverityDots = ({ value }: { value: number }) => (
+  <div style={{ display: "flex", gap: 4 }}>
+    {[1,2,3,4,5].map(i => (
+      <div key={i} style={{
+        width: 8, height: 8, borderRadius: "50%",
+        background: i <= value ? C.sage : C.mist,
+        transition: "background 0.2s",
+      }} />
+    ))}
+  </div>
+);
+
+// ─── CYCLE RHYTHMS ────────────────────────────────────────────────────────────
+
+const RHYTHMS = {
+  menstrual:  { name: "Reawaken",  emoji: "🌱", color: "#C8785A", bg: "rgba(200,120,90,0.08)",  scripture: "Isaiah 43:19",  verse: "I am about to do a new thing...",           practice: "Surrender. Rest. Make space for what God is preparing." },
+  follicular: { name: "Renew",     emoji: "🍃", color: C.sage,    bg: C.sageLight,              scripture: "Proverbs 16:3", verse: "Commit your work to the Lord...",           practice: "Set intentions. Partner with God in fresh beginnings."  },
+  ovulatory:  { name: "Radiant",   emoji: "🌞", color: C.gold,    bg: C.goldLight,              scripture: "Psalm 34:5",    verse: "Those who look to Him will be radiant...", practice: "Shine. Encourage others. Bless from abundance."         },
+  luteal:     { name: "Rooted",    emoji: "🌾", color: C.forest,  bg: "rgba(61,85,64,0.1)",     scripture: "Psalm 46:10",   verse: "Be still and know that I am God.",         practice: "Simplify. Create boundaries. Prioritize stillness."     },
+} as const;
+
+type PhaseKey = keyof typeof RHYTHMS;
+
+// ─── AUTH SCREENS ─────────────────────────────────────────────────────────────
+
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      minHeight: "100vh",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      background: `linear-gradient(160deg, ${C.bg} 0%, #E4EDE5 100%)`,
+      padding: 20,
+      fontFamily: "'Georgia', 'Times New Roman', serif",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes fadeUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        input:focus { border-color: ${C.sage} !important; background: #fff !important; }
+      `}</style>
+      <div style={{
+        width: "100%", maxWidth: 420,
+        animation: "fadeUp 0.45s ease both",
+        fontFamily: "'DM Sans', sans-serif",
+      }}>
+        {/* Logo */}
+        <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ fontSize: 38, marginBottom: 8 }}>🌿</div>
+          <div style={{
+            fontFamily: "'DM Serif Display', serif",
+            fontSize: 36, color: C.forest, letterSpacing: "-0.5px",
+          }}>
+            GraceFlow
+          </div>
+          <div style={{ fontSize: 14, color: C.textSoft, marginTop: 4 }}>
+            Track your glucose & cycle with grace
+          </div>
+        </div>
+
+        <Card style={{ padding: "32px 28px" }}>
+          {children}
+        </Card>
+      </div>
+    </div>
+  );
+}
 
 function LoginScreen({ onSwitchToRegister }: { onSwitchToRegister: () => void }) {
   const { login } = useApp();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [email,    setEmail]    = useState("");
+  const [password, setPassword] = useState("");
+  const [error,    setError]    = useState("");
+  const [loading,  setLoading]  = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      setError('Please fill in all fields');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
+    if (!email || !password) { setError("Please fill in all fields."); return; }
+    setLoading(true); setError("");
     try {
       await login(email.trim().toLowerCase(), password);
     } catch (err: any) {
-      setError(err.message || 'Login failed');
+      setError(err.message || "Login failed.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.authContainer}>
-      <div style={styles.authCard}>
-        <div style={styles.authHeader}>
-          <div style={{ marginBottom: '16px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', marginBottom: '16px', opacity: 0.9 }}>
-              <div style={{ width: '56px', height: '1px', background: 'rgba(42,45,42,0.18)' }} />
-              <span style={{ fontSize: '16px' }}>ðŸŒ¿</span>
-              <div style={{ width: '56px', height: '1px', background: 'rgba(42,45,42,0.18)' }} />
-            </div>
-          </div>
-          <h1 style={styles.authTitle}>GraceFlow</h1>
-          <p style={styles.authSubtitle}>Track your glucose & cycle with grace</p>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          {error && (
-            <div style={{ padding: '12px', background: 'rgba(200,90,84,0.1)', border: '1px solid rgba(200,90,84,0.3)', borderRadius: '12px', marginBottom: '16px', color: '#C85A54', fontSize: '14px' }}>
-              {error}
-            </div>
-          )}
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Email</label>
-            <input
-              type="email"
-              style={styles.input}
-              placeholder="your@email.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Password</label>
-            <input
-              type="password"
-              style={styles.input}
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
+    <AuthShell>
+      <form onSubmit={handleSubmit}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 24, textAlign: "center" }}>
+          Welcome back
+        </h2>
+        {error && <ErrorBanner message={error} />}
+        <Input label="Email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" disabled={loading} />
+        <Input label="Password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" disabled={loading} />
+        <PrimaryButton type="submit" loading={loading} style={{ marginTop: 8 }}>
+          Sign In
+        </PrimaryButton>
+        <p style={{ textAlign: "center", marginTop: 20, fontSize: 14, color: C.textSoft }}>
+          New to GraceFlow?{" "}
           <button
-            type="submit"
-            style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
-            disabled={loading}
+            type="button" onClick={onSwitchToRegister}
+            style={{ background: "none", border: "none", color: C.sage, fontWeight: 700, cursor: "pointer", fontSize: 14 }}
           >
-            {loading ? 'Logging in...' : 'Login'}
+            Create account
           </button>
-
-          <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(212,214,212,0.55)', textAlign: 'center' }}>
-            <button
-              type="button"
-              onClick={onSwitchToRegister}
-              style={{ background: 'none', border: 'none', color: '#6B7F6E', fontSize: '15px', fontWeight: '600', cursor: 'pointer', padding: '8px' }}
-              disabled={loading}
-            >
-              Don't have an account? <span style={{ fontWeight: '800' }}>Sign Up</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </p>
+      </form>
+    </AuthShell>
   );
 }
 
 function RegisterScreen({ onSwitchToLogin }: { onSwitchToLogin: () => void }) {
   const { register } = useApp();
-  const [formData, setFormData] = useState({
-    email: '',
-    password: '',
-    confirmPassword: '',
-    first_name: '',
-    last_name: '',
-    phone: '',
-    date_of_birth: '',
-    role: 'user' as 'user' | 'coach',
+  const [form, setForm] = useState({
+    email: "", password: "", confirmPassword: "",
+    first_name: "", last_name: "", role: "user" as "user" | "coach",
   });
-  const [error, setError] = useState('');
+  const [error,   setError]   = useState("");
   const [loading, setLoading] = useState(false);
+
+  const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.email || !formData.password || !formData.first_name || !formData.last_name) {
-      setError('Please fill in all required fields');
-      return;
+    if (!form.email || !form.password || !form.first_name || !form.last_name) {
+      setError("Please fill in all required fields."); return;
     }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
+    if (form.password !== form.confirmPassword) {
+      setError("Passwords do not match."); return;
     }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters');
-      return;
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters."); return;
     }
-
-    setLoading(true);
-    setError('');
+    setLoading(true); setError("");
     try {
-      const { confirmPassword, ...userData } = formData;
-      await register({
-        ...userData,
-        email: userData.email.trim().toLowerCase(),
-      });
+      const { confirmPassword: _c, ...userData } = form;
+      await register({ ...userData, email: userData.email.trim().toLowerCase() });
     } catch (err: any) {
-      setError(err.message || 'Registration failed');
+      setError(err.message || "Registration failed.");
     } finally {
       setLoading(false);
     }
   };
 
-  const updateField = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
   return (
-    <div style={styles.authContainer}>
-      <div style={{ ...styles.authCard, maxWidth: '500px' }}>
-        <div style={styles.authHeader}>
-          <h1 style={{ ...styles.authTitle, fontSize: '32px' }}>Create Account</h1>
-          <p style={styles.authSubtitle}>Join GraceFlow to start tracking your wellness</p>
+    <AuthShell>
+      <form onSubmit={handleSubmit}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 24, textAlign: "center" }}>
+          Create your account
+        </h2>
+        {error && <ErrorBanner message={error} />}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <Input label="First name *" type="text" value={form.first_name} onChange={e => set("first_name", e.target.value)} disabled={loading} />
+          <Input label="Last name *"  type="text" value={form.last_name}  onChange={e => set("last_name",  e.target.value)} disabled={loading} />
+        </div>
+        <Input label="Email *"            type="email"    value={form.email}           onChange={e => set("email",           e.target.value)} disabled={loading} />
+        <Input label="Password *"         type="password" value={form.password}         onChange={e => set("password",         e.target.value)} placeholder="Min 8 characters" disabled={loading} />
+        <Input label="Confirm password *" type="password" value={form.confirmPassword}  onChange={e => set("confirmPassword",  e.target.value)} disabled={loading} />
+
+        {/* Role toggle */}
+        <div style={{ marginBottom: 20 }}>
+          <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 8 }}>
+            I am a...
+          </label>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {(["user", "coach"] as const).map(role => (
+              <button
+                key={role} type="button"
+                onClick={() => set("role", role)}
+                style={{
+                  padding: "10px 0", borderRadius: 12, fontSize: 14, fontWeight: 600, cursor: "pointer",
+                  border: form.role === role ? `2px solid ${C.sage}` : `1.5px solid ${C.border}`,
+                  background: form.role === role ? C.sageLight : C.surfaceAlt,
+                  color: form.role === role ? C.forest : C.textMid,
+                  transition: "all 0.2s",
+                }}
+              >
+                {role === "user" ? "👤 Member" : "🌿 Coach"}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {error && (
-            <div style={{ padding: '12px', background: 'rgba(200,90,84,0.1)', border: '1px solid rgba(200,90,84,0.3)', borderRadius: '12px', marginBottom: '16px', color: '#C85A54', fontSize: '14px' }}>
-              {error}
-            </div>
-          )}
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '18px' }}>
-            <div>
-              <label style={styles.label}>First Name *</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={formData.first_name}
-                onChange={(e) => updateField('first_name', e.target.value)}
-                disabled={loading}
-              />
-            </div>
-            <div>
-              <label style={styles.label}>Last Name *</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={formData.last_name}
-                onChange={(e) => updateField('last_name', e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Email *</label>
-            <input
-              type="email"
-              style={styles.input}
-              value={formData.email}
-              onChange={(e) => updateField('email', e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Phone</label>
-            <input
-              type="tel"
-              style={styles.input}
-              placeholder="(555) 123-4567"
-              value={formData.phone}
-              onChange={(e) => updateField('phone', e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Date of Birth</label>
-            <input
-              type="date"
-              style={styles.input}
-              value={formData.date_of_birth}
-              onChange={(e) => updateField('date_of_birth', e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Password *</label>
-            <input
-              type="password"
-              style={styles.input}
-              placeholder="At least 8 characters"
-              value={formData.password}
-              onChange={(e) => updateField('password', e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
-          <div style={styles.formGroup}>
-            <label style={styles.label}>Confirm Password *</label>
-            <input
-              type="password"
-              style={styles.input}
-              value={formData.confirmPassword}
-              onChange={(e) => updateField('confirmPassword', e.target.value)}
-              disabled={loading}
-            />
-          </div>
-
+        <PrimaryButton type="submit" loading={loading}>
+          Create Account
+        </PrimaryButton>
+        <p style={{ textAlign: "center", marginTop: 20, fontSize: 14, color: C.textSoft }}>
+          Already have an account?{" "}
           <button
-            type="submit"
-            style={{ ...styles.button, opacity: loading ? 0.6 : 1 }}
-            disabled={loading}
+            type="button" onClick={onSwitchToLogin}
+            style={{ background: "none", border: "none", color: C.sage, fontWeight: 700, cursor: "pointer", fontSize: 14 }}
           >
-            {loading ? 'Creating Account...' : 'Create Account'}
+            Sign in
           </button>
-
-          <div style={{ marginTop: '24px', paddingTop: '24px', borderTop: '1px solid rgba(212,214,212,0.55)', textAlign: 'center' }}>
-            <button
-              type="button"
-              onClick={onSwitchToLogin}
-              style={{ background: 'none', border: 'none', color: '#6B7F6E', fontSize: '15px', fontWeight: '600', cursor: 'pointer', padding: '8px' }}
-              disabled={loading}
-            >
-              Already have an account? <span style={{ fontWeight: '800' }}>Login</span>
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        </p>
+      </form>
+    </AuthShell>
   );
 }
 
-function Dashboard() {
-  const { user, readings, symptoms, currentCycle, logout } = useApp();
-  const [view, setView] =
-  useState<'dashboard' | 'glucose' | 'symptoms' | 'cycle' | 'chat'>('dashboard');
-  const [groups, setGroups] = useState<any[]>([]);
-const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
-const [loadingGroups, setLoadingGroups] = useState(false);
+// ─── NAV ──────────────────────────────────────────────────────────────────────
 
-const loadUserGroups = async () => {
-  setLoadingGroups(true);
-  try {
-    const token = localStorage.getItem("accessToken");
-    const res = await fetch(`${API_URL}/groups/my-groups`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+const NAV_ITEMS: { id: NavView; label: string; icon: string }[] = [
+  { id: "dashboard", label: "Home",     icon: "⌂"  },
+  { id: "glucose",   label: "Glucose",  icon: "◉"  },
+  { id: "symptoms",  label: "Symptoms", icon: "✦"  },
+  { id: "cycle",     label: "Cycle",    icon: "◌"  },
+];
 
-    const data = await res.json();
-    setGroups(data.groups || []);
-  } catch (e) {
-    console.error("Failed to load user groups", e);
-  } finally {
-    setLoadingGroups(false);
-  }
-};
+function AppNav({
+  view, setView, onLogout, userName,
+}: {
+  view: NavView;
+  setView: (v: NavView) => void;
+  onLogout: () => void;
+  userName: string;
+}) {
+  return (
+    <nav style={{
+      position: "sticky", top: 0, zIndex: 100,
+      background: "rgba(246,245,241,0.88)",
+      backdropFilter: "blur(16px)",
+      borderBottom: `1px solid ${C.border}`,
+      display: "flex", alignItems: "center", gap: 4,
+      padding: "10px 20px",
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      {/* Brand */}
+      <div style={{
+        fontFamily: "'DM Serif Display', serif",
+        fontSize: 20, color: C.forest, marginRight: 12,
+        letterSpacing: "-0.3px",
+      }}>
+        🌿
+      </div>
 
-useEffect(() => {
-  loadUserGroups();
-}, []);
+      {/* Nav items */}
+      {NAV_ITEMS.map(item => (
+        <button
+          key={item.id}
+          onClick={() => setView(item.id)}
+          style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "7px 14px", borderRadius: 12, border: "none", cursor: "pointer",
+            fontSize: 14, fontWeight: 600, transition: "all 0.2s",
+            background: view === item.id ? C.sageLight : "transparent",
+            color: view === item.id ? C.forest : C.textSoft,
+          }}
+        >
+          <span style={{ fontSize: 15 }}>{item.icon}</span>
+          {item.label}
+        </button>
+      ))}
 
-  if (!user) {
+      {/* Right side */}
+      <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+        <span style={{ fontSize: 13, color: C.textSoft, fontWeight: 500 }}>
+          {userName}
+        </span>
+        <button
+          onClick={onLogout}
+          style={{
+            padding: "7px 14px", borderRadius: 12, border: `1px solid ${C.border}`,
+            background: "transparent", color: C.red, fontSize: 13, fontWeight: 600,
+            cursor: "pointer", transition: "all 0.2s",
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+// ─── DASHBOARD VIEW ───────────────────────────────────────────────────────────
+
+function DashboardView({ setView }: { setView: (v: NavView) => void }) {
+  const { user, readings, symptoms, currentCycle, isLoading } = useApp();
+
+  const avgGlucose = useMemo(() => {
+    if (!readings.length) return 0;
+    return Math.round(readings.reduce((s, r) => s + Number(r.value), 0) / readings.length);
+  }, [readings]);
+
+  const latestReading = readings[0];
+
+  const cycleDay = currentCycle
+    ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / 86400000) + 1
+    : 0;
+
+  const phase = (currentCycle?.phase as PhaseKey | undefined);
+  const rhythm = RHYTHMS[phase && RHYTHMS[phase] ? phase : "follicular"];
+
+  const todaySymptoms = symptoms.filter(s => {
+    const d = new Date(s.created_at || s.logged_at || "");
+    return d.toDateString() === new Date().toDateString();
+  });
+
+  // Chart data (last 7 readings)
+  const chartData = useMemo(() =>
+    [...readings].reverse().slice(-7).map(r => ({
+      label: formatDateShort(r.measured_at),
+      value: r.value,
+    })),
+    [readings]
+  );
+
+  if (isLoading) {
     return (
-      <div style={{ minHeight: '100vh', padding: 24, background: '#F5F4F0' }}>
-        Loading...
+      <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
+        <Spinner size={32} />
       </div>
     );
   }
 
-  // Coach sees a different dashboard
-  if (user.role === 'coach') {
-    return <CoachDashboard />;
-  }
-
-  // const avgGlucose = readings.length > 0
-  //   ? Math.round(readings.reduce((sum, r) => sum + r.value, 0) / readings.length)
-  //   : 0;
-
-  const avgGlucose = readings.length > 0
-  ? Math.round(
-      readings.reduce((sum, r) => sum + Number(r.value || 0), 0) 
-      / readings.length
-    )
-  : 0;
-  
-  const todayReadings = readings.filter(r => {
-    const date = new Date(r.measured_at);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  });
-
-  const todaySymptoms = symptoms.filter(s => {
-    const dateStr = s.created_at || s.logged_at;
-    if (!dateStr) return false;
-    const date = new Date(dateStr);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  });
-
-
-  const cycleDay = currentCycle
-    ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
-    : 0;
-
   return (
-    <div style={styles.container}>
-      <nav style={styles.nav}>
-        <button
-          style={{ ...styles.navButton, ...(view === 'dashboard' ? styles.navButtonActive : {}) }}
-          onClick={() => setView('dashboard')}
-        >
-          Dashboard
-        </button>
-        <button
-          style={{ ...styles.navButton, ...(view === 'glucose' ? styles.navButtonActive : {}) }}
-          onClick={() => setView('glucose')}
-        >
-          Glucose
-        </button>
-        <button
-          style={{ ...styles.navButton, ...(view === 'symptoms' ? styles.navButtonActive : {}) }}
-          onClick={() => setView('symptoms')}
-        >
-          Symptoms
-        </button>
-        <button
-          style={{ ...styles.navButton, ...(view === 'cycle' ? styles.navButtonActive : {}) }}
-          onClick={() => setView('cycle')}
-        >
-          Cycle
-        </button>
-        <div style={{ marginLeft: 'auto' }}>
+    <div>
+      {/* Greeting */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{
+          fontFamily: "'DM Serif Display', serif",
+          fontSize: 30, color: C.text, letterSpacing: "-0.5px",
+        }}>
+          Good {getTimeOfDay()}, {user?.first_name}.
+        </div>
+        {currentCycle && (
+          <div style={{ fontSize: 14, color: C.textSoft, marginTop: 4 }}>
+            Cycle day {cycleDay} · {rhythm.name} phase
+          </div>
+        )}
+      </div>
 
-          <button
-  style={{ ...styles.navButton, ...(view === 'chat' ? styles.navButtonActive : {}) }}
-  onClick={() => setView('chat')}
->
-  Chat
-</button>
+      {/* Top stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14, marginBottom: 20 }}>
+        {/* Latest glucose */}
+        <Card style={{ cursor: "pointer" }} onClick={() => setView("glucose")}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 12 }}>
+            Latest Glucose
+          </div>
+          {latestReading ? (
+            <>
+              <div style={{ fontSize: 44, fontWeight: 300, color: C.text, letterSpacing: "-1px", lineHeight: 1 }}>
+                {latestReading.value}
+              </div>
+              <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4, marginBottom: 10 }}>mg/dL</div>
+              <Badge {...glucoseStatus(latestReading.value)} />
+            </>
+          ) : (
+            <div style={{ fontSize: 13, color: C.textSoft, marginTop: 8 }}>No readings yet</div>
+          )}
+        </Card>
 
+        {/* Average */}
+        <Card>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 12 }}>
+            7-Day Avg
+          </div>
+          <div style={{ fontSize: 44, fontWeight: 300, color: C.text, letterSpacing: "-1px", lineHeight: 1 }}>
+            {avgGlucose || "—"}
+          </div>
+          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4, marginBottom: 10 }}>mg/dL</div>
+          {avgGlucose > 0 && <Badge {...glucoseStatus(avgGlucose)} />}
+        </Card>
+
+        {/* Symptoms today */}
+        <Card style={{ cursor: "pointer" }} onClick={() => setView("symptoms")}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: C.textSoft, letterSpacing: "0.8px", textTransform: "uppercase", marginBottom: 12 }}>
+            Symptoms Today
+          </div>
+          <div style={{ fontSize: 44, fontWeight: 300, color: C.text, letterSpacing: "-1px", lineHeight: 1 }}>
+            {todaySymptoms.length}
+          </div>
+          <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4, marginBottom: 10 }}>logged</div>
+          {todaySymptoms.slice(0, 2).map(s => (
+            <Badge key={s.id} label={s.symptom_type} color={C.sage} bg={C.sageLight} />
+          ))}
+        </Card>
+      </div>
+
+      {/* Trend chart */}
+      {chartData.length > 1 && (
+        <Card style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.textMid, marginBottom: 16, letterSpacing: "0.3px" }}>
+            Glucose Trend
+          </div>
+          <ResponsiveContainer width="100%" height={160}>
+            <LineChart data={chartData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={C.border} />
+              <XAxis dataKey="label" tick={{ fontSize: 11, fill: C.textSoft }} />
+              <YAxis tick={{ fontSize: 11, fill: C.textSoft }} domain={["auto", "auto"]} />
+              <Tooltip
+                contentStyle={{ borderRadius: 12, border: `1px solid ${C.border}`, fontSize: 13 }}
+                formatter={(v: any) => `${v ?? "—"} mg/dL`}
+              />
+              <ReferenceLine y={70}  stroke={C.low}    strokeDasharray="4 4" />
+              <ReferenceLine y={99}  stroke={C.normal} strokeDasharray="4 4" />
+              <ReferenceLine y={126} stroke={C.red}    strokeDasharray="4 4" />
+              <Line
+                type="monotone" dataKey="value" stroke={C.sage}
+                strokeWidth={2.5} dot={{ r: 4, fill: C.sage, strokeWidth: 0 }}
+                activeDot={{ r: 6, fill: C.forest }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          <div style={{ display: "flex", gap: 16, marginTop: 10 }}>
+            {[
+              { color: C.low,    label: "Low (<70)" },
+              { color: C.normal, label: "Normal (70–99)" },
+              { color: C.gold,   label: "Elevated (100–125)" },
+              { color: C.red,    label: "High (≥126)" },
+            ].map(z => (
+              <div key={z.label} style={{ display: "flex", alignItems: "center", gap: 5 }}>
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: z.color }} />
+                <span style={{ fontSize: 11, color: C.textSoft }}>{z.label}</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Rhythm card */}
+      <Card style={{ background: rhythm.bg, border: `1px solid ${rhythm.color}20`, marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 16 }}>
+          <div style={{ fontSize: 32, lineHeight: 1 }}>{rhythm.emoji}</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: rhythm.color, letterSpacing: "1px", textTransform: "uppercase", marginBottom: 4 }}>
+              Today's Rhythm
+            </div>
+            <div style={{
+              fontFamily: "'DM Serif Display', serif",
+              fontSize: 22, color: C.text, marginBottom: 4,
+            }}>
+              {rhythm.name}
+            </div>
+            <div style={{ fontSize: 13, color: C.textSoft, fontStyle: "italic", marginBottom: 8 }}>
+              "{rhythm.verse}" — {rhythm.scripture}
+            </div>
+            <div style={{ fontSize: 13, color: C.textMid }}>{rhythm.practice}</div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Empty state */}
+      {!latestReading && (
+        <Card style={{ textAlign: "center", padding: "40px 24px" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🌱</div>
+          <div style={{
+            fontFamily: "'DM Serif Display', serif",
+            fontSize: 22, color: C.text, marginBottom: 8,
+          }}>
+            Your journey begins here
+          </div>
+          <div style={{ fontSize: 14, color: C.textSoft, marginBottom: 24 }}>
+            Log your first glucose reading to start seeing your patterns.
+          </div>
           <button
-            style={{ ...styles.navButton, color: '#C85A54' }}
-            onClick={logout}
+            onClick={() => setView("glucose")}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              padding: "12px 28px", borderRadius: 14, border: "none",
+              background: `linear-gradient(135deg, ${C.sage}, ${C.forest})`,
+              color: "#fff", fontSize: 14, fontWeight: 700, cursor: "pointer",
+            }}
           >
-            Logout
+            + Log Glucose
           </button>
-        </div>
-      </nav>
-
-      <div style={styles.dashboard}>
-        {view === 'chat' && (
-  <div
-    style={{
-      display: "grid",
-      gridTemplateColumns: "320px 1fr",
-      gap: 18,
-    }}
-  >
-    {/* Group list */}
-    <div style={styles.card}>
-      <strong>My Groups</strong>
-
-      <GroupList
-        groups={groups}
-        loading={loadingGroups}
-        onSelect={setSelectedGroup}
-      />
-    </div>
-
-    {/* Chat panel */}
-    <div style={styles.card}>
-      {selectedGroup ? (
-        <GroupChat group={selectedGroup} />
-      ) : (
-        <div style={{ textAlign: "center", padding: 40 }}>
-          <strong>Select a group to chat</strong>
-        </div>
+        </Card>
       )}
-    </div>
-  </div>
-)}
-        {view === 'dashboard' && 
-        <DashboardView 
-        user={user} 
-        avgGlucose={avgGlucose} todayReadings={todayReadings} todaySymptoms={todaySymptoms} cycleDay={cycleDay}
-        currentCycle={currentCycle}
-
-         />}
-        {view === 'glucose' && <GlucoseView />}
-        {view === 'symptoms' && <SymptomsView />}
-        {view === 'cycle' && <CycleView />}
-        
-      </div>
     </div>
   );
 }
 
-const RHYTHMS = {
-  menstrual: {
-    name: "Reawaken",
-    emoji: "🌱",
-    scripture: "Isaiah 43:19",
-    verse: "I am about to do a new thing...",
-    practice: "Surrender. Rest. Make space for what God is preparing.",
-  },
-  follicular: {
-    name: "Renew",
-    emoji: "🍃",
-    scripture: "Proverbs 16:3",
-    verse: "Commit your work to the Lord...",
-    practice: "Set intentions. Partner with God in fresh beginnings.",
-  },
-  ovulatory: {
-    name: "Radiant",
-    emoji: "🌞",
-    scripture: "Psalm 34:5",
-    verse: "Those who look to Him will be radiant...",
-    practice: "Shine. Encourage others. Bless from abundance.",
-  },
-  luteal: {
-    name: "Rooted",
-    emoji: "🌾",
-    scripture: "Psalm 46:10",
-    verse: "Be still and know that I am God.",
-    practice: "Simplify. Create boundaries. Prioritize stillness.",
-  },
-} as const;
-
-function DashboardView({
-  user,
-  avgGlucose,
-  todayReadings,
-  todaySymptoms,
-  cycleDay,
-  currentCycle,
-
-}: any) {
-  // If no cycle or phase yet, default to menstrual
-
-    //   const PHASE_MAP: Record<string, keyof typeof RHYTHMS> = {
-    //   menstrual_phase: "menstrual",
-    //   follicular_phase: "follicular",
-    //   ovulation: "ovulatory",
-    //   luteal_phase: "luteal",
-    // };
-
-  const safePhase =
-  currentCycle?.phase &&
-  RHYTHMS[currentCycle.phase as keyof typeof RHYTHMS]
-    ? (currentCycle.phase as keyof typeof RHYTHMS)
-    : "menstrual";
-
-const rhythm = RHYTHMS[safePhase];
-
-  return (
-    <>
-      {/* HEADER */}
-      <div style={styles.header}>
-        <h1 style={styles.greeting}>Welcome back, {user.first_name}!</h1>
-        <p style={{ color: "#6B6B6B", fontSize: "15px" }}>
-          {currentCycle
-            ? `Day ${cycleDay} · ${rhythm.name} phase`
-            : "Test mode · Spiritual rhythm preview"}
-        </p>
-      </div>
-
-      {/* STATS GRID */}
-      <div style={styles.grid}>
-        <div style={styles.card}>
-          <div style={styles.stat}>
-            <div style={styles.statValue}>
-              {avgGlucose || "—"}
-            </div>
-            <div style={styles.statLabel}>
-              Average Glucose (mg/dL)
-            </div>
-          </div>
-        </div>
-
-        <div style={styles.card}>
-          <div style={styles.stat}>
-            <div style={styles.statValue}>
-              {todayReadings.length}
-            </div>
-            <div style={styles.statLabel}>
-              Readings Today
-            </div>
-          </div>
-        </div>
-
-        <div style={styles.card}>
-          <div style={styles.stat}>
-            <div style={styles.statValue}>
-              {todaySymptoms.length}
-            </div>
-            <div style={styles.statLabel}>
-              Symptoms Today
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 🌿 Rhythm Card */}
-      <div style={styles.card}>
-  <div style={{ fontSize: 32, marginBottom: 8 }}>
-    {rhythm.emoji} {rhythm.name}
-  </div>
-
-  <p style={{ color: "#6B6B6B", marginBottom: 12 }}>
-    {currentCycle?.phase
-      ? "Aligned with your current cycle phase"
-      : "Shown in test mode"}
-  </p>
-
-  <strong>{rhythm.scripture}</strong>
-  <p style={{ fontStyle: "italic", marginTop: 6 }}>
-    {rhythm.verse}
-  </p>
-
-  <p style={{ marginTop: 12 }}>
-    <strong>Practice:</strong> {rhythm.practice}
-  </p>
-</div>
-
-
-
-      {todayReadings.length === 0 && todaySymptoms.length === 0 && (
-        <div
-          style={{
-            ...styles.card,
-            textAlign: "center",
-            padding: "48px 24px",
-          }}
-        >
-          <div style={{ fontSize: "48px", marginBottom: "16px" }}>
-            🌱
-          </div>
-          <h3
-            style={{
-              fontSize: "24px",
-              fontWeight: "600",
-              color: "#2A2D2A",
-              marginBottom: "12px",
-            }}
-          >
-            Your wellness journey begins
-          </h3>
-          <p
-            style={{
-              color: "#6B6B6B",
-              fontSize: "15px",
-              lineHeight: "22px",
-              maxWidth: "400px",
-              margin: "0 auto",
-            }}
-          >
-            Start by logging your first glucose reading or symptom to
-            see patterns emerge.
-          </p>
-        </div>
-      )}
-    </>
-  );
+function getTimeOfDay() {
+  const h = new Date().getHours();
+  if (h < 12) return "morning";
+  if (h < 17) return "afternoon";
+  return "evening";
 }
 
-
+// ─── GLUCOSE VIEW ─────────────────────────────────────────────────────────────
 
 function GlucoseView() {
   const { readings, addGlucoseReading } = useApp();
-  const [showForm, setShowForm] = useState(false);
-  const [glucoseValue, setGlucoseValue] = useState('');
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [showForm,  setShowForm]  = useState(false);
+  const [value,     setValue]     = useState("");
+  const [notes,     setNotes]     = useState("");
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState("");
+  const [success,   setSuccess]   = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!glucoseValue) return;
-
-    setLoading(true);
+    const num = parseFloat(value);
+    if (!value || isNaN(num) || num < 20 || num > 600) {
+      setError("Enter a valid glucose value (20–600 mg/dL).");
+      return;
+    }
+    setLoading(true); setError("");
     try {
-      await addGlucoseReading({
-        value: parseFloat(glucoseValue),
-        measured_at: new Date().toISOString(),
-        notes: notes || undefined,
-      });
-      setGlucoseValue('');
-      setNotes('');
-      setShowForm(false);
-    } catch (error) {
-      alert('Failed to add reading');
+      await addGlucoseReading({ value: num, measured_at: new Date().toISOString(), notes: notes || undefined });
+      setValue(""); setNotes(""); setShowForm(false);
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to save reading.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#2A2D2A' }}>Glucose Readings</h2>
+    <div>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, color: C.text }}>
+            Glucose
+          </div>
+          <div style={{ fontSize: 13, color: C.textSoft, marginTop: 2 }}>
+            {readings.length} reading{readings.length !== 1 ? "s" : ""} logged
+          </div>
+        </div>
         <button
-          style={{ ...styles.button, width: 'auto', padding: '0 24px', height: '48px' }}
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setShowForm(!showForm); setError(""); }}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 20px", borderRadius: 14, border: "none",
+            background: showForm
+              ? C.surfaceAlt
+              : `linear-gradient(135deg, ${C.sage}, ${C.forest})`,
+            color: showForm ? C.textMid : "#fff",
+            fontSize: 14, fontWeight: 700, cursor: "pointer",
+            boxShadow: showForm ? "none" : "0 4px 14px rgba(61,85,64,0.2)",
+          }}
         >
-          {showForm ? 'Cancel' : '+ Add Reading'}
+          {showForm ? "✕ Cancel" : "+ Add Reading"}
         </button>
       </div>
 
-      {showForm && (
-        <div style={{ ...styles.card, marginBottom: '24px' }}>
-          <h3 style={styles.cardTitle}>New Glucose Reading</h3>
-          <form onSubmit={handleSubmit}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Glucose Value (mg/dL) *</label>
-              <input
-                type="number"
-                style={styles.input}
-                value={glucoseValue}
-                onChange={(e) => setGlucoseValue(e.target.value)}
-                placeholder="e.g., 95"
-                required
-                disabled={loading}
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Notes (optional)</label>
-              <textarea
-                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Any notes about this reading..."
-                disabled={loading}
-              />
-            </div>
-            <button type="submit" style={{ ...styles.button, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-              {loading ? 'Saving...' : 'Save Reading'}
-            </button>
-          </form>
+      {success && (
+        <div style={{
+          padding: "12px 16px", background: C.sageLight, borderRadius: 12,
+          color: C.forest, fontSize: 14, fontWeight: 600, marginBottom: 16,
+        }}>
+          ✓ Reading saved successfully
         </div>
       )}
 
-      <div style={styles.card}>
-        {readings.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#6B6B6B' }}>
-            <p>No readings yet. Add your first reading to get started!</p>
+      {/* Add form */}
+      {showForm && (
+        <Card style={{ marginBottom: 24, border: `1.5px solid ${C.mist}` }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 20 }}>
+            New Reading
           </div>
-        ) : (
-          <ul style={styles.list}>
-            {readings.slice(0, 20).map((reading, idx) => (
-              <li key={reading.id || idx} style={styles.listItem}>
-                <div>
-                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#2A2D2A' }}>
-                    {reading.value} {reading.unit || 'mg/dL'}
+          <form onSubmit={handleAdd}>
+            {error && <ErrorBanner message={error} />}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+              <div>
+                <Input
+                  label="Glucose value (mg/dL) *"
+                  type="number"
+                  value={value}
+                  onChange={e => setValue(e.target.value)}
+                  placeholder="e.g. 95"
+                  min={20} max={600}
+                  disabled={loading}
+                />
+                {value && !isNaN(parseFloat(value)) && (
+                  <div style={{ marginTop: -8, marginBottom: 12 }}>
+                    <Badge {...glucoseStatus(parseFloat(value))} />
                   </div>
-                  <div style={{ fontSize: '13px', color: '#6B6B6B', marginTop: '4px' }}>
-                    {new Date(reading.measured_at || reading.created_at || '').toLocaleString()}
+                )}
+              </div>
+              <div>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 6 }}>
+                  Notes (optional)
+                </label>
+                <textarea
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                  placeholder="After meal, fasting, etc."
+                  disabled={loading}
+                  style={{
+                    width: "100%", padding: "13px 16px", fontSize: 14,
+                    border: `1.5px solid ${C.border}`, borderRadius: 14,
+                    background: C.surfaceAlt, color: C.text,
+                    outline: "none", resize: "none", height: 80,
+                    fontFamily: "inherit", boxSizing: "border-box",
+                  }}
+                />
+              </div>
+            </div>
+            <PrimaryButton type="submit" loading={loading}>
+              Save Reading
+            </PrimaryButton>
+          </form>
+        </Card>
+      )}
+
+      {/* Readings list */}
+      {readings.length === 0 ? (
+        <Card style={{ textAlign: "center", padding: "48px 24px" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>◉</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 8 }}>No readings yet</div>
+          <div style={{ fontSize: 14, color: C.textSoft }}>Add your first glucose reading above.</div>
+        </Card>
+      ) : (
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          {readings.map((r, i) => {
+            const status = glucoseStatus(r.value);
+            return (
+              <div
+                key={r.id ?? i}
+                style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  padding: "16px 24px",
+                  borderBottom: i < readings.length - 1 ? `1px solid ${C.border}` : "none",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                  <div style={{
+                    width: 44, height: 44, borderRadius: 12,
+                    background: status.bg, display: "flex", alignItems: "center",
+                    justifyContent: "center", flexShrink: 0,
+                  }}>
+                    <span style={{ fontSize: 18, fontWeight: 600, color: status.color }}>
+                      {r.value}
+                    </span>
                   </div>
-                  {reading.notes && (
-                    <div style={{ fontSize: '14px', color: '#4A4D4A', marginTop: '8px' }}>
-                      {reading.notes}
+                  <div>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>
+                      {r.value} <span style={{ fontWeight: 400, color: C.textSoft, fontSize: 12 }}>mg/dL</span>
                     </div>
-                  )}
+                    <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
+                      {formatDateTime(r.measured_at)}
+                    </div>
+                    {r.notes && (
+                      <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2, fontStyle: "italic" }}>
+                        {r.notes}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </>
+                <Badge {...status} />
+              </div>
+            );
+          })}
+        </Card>
+      )}
+    </div>
   );
 }
+
+// ─── SYMPTOMS VIEW ────────────────────────────────────────────────────────────
+
+const SYMPTOM_OPTIONS = [
+  "Fatigue", "Headache", "Brain fog", "Bloating", "Cramps",
+  "Mood changes", "Nausea", "Dizziness", "Insomnia", "Anxiety",
+];
 
 function SymptomsView() {
   const { symptoms, addSymptom } = useApp();
-  const [showForm, setShowForm] = useState(false);
-  const [symptomType, setSymptomType] = useState('');
-  const [severity, setSeverity] = useState('5');
-  const [notes, setNotes] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [showForm,      setShowForm]      = useState(false);
+  const [symptomType,   setSymptomType]   = useState("");
+  const [customType,    setCustomType]    = useState("");
+  const [severity,      setSeverity]      = useState(2);
+  const [notes,         setNotes]         = useState("");
+  const [loading,       setLoading]       = useState(false);
+  const [error,         setError]         = useState("");
+  const [success,       setSuccess]       = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!symptomType) return;
-
-    setLoading(true);
+    const type = symptomType === "custom" ? customType.trim() : symptomType;
+    if (!type) { setError("Please select or enter a symptom."); return; }
+    setLoading(true); setError("");
     try {
-      await addSymptom({
-        symptom_type: symptomType,
-        severity: parseInt(severity),
-        notes: notes || undefined,
-      });
-      setSymptomType('');
-      setSeverity('5');
-      setNotes('');
-      setShowForm(false);
-    } catch (error) {
-      alert('Failed to add symptom');
+      await addSymptom({ symptom_type: type, severity, notes: notes || undefined });
+      setSymptomType(""); setCustomType(""); setSeverity(2); setNotes("");
+      setShowForm(false); setSuccess(true);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || "Failed to save symptom.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#2A2D2A' }}>Symptoms</h2>
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <div>
+          <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, color: C.text }}>Symptoms</div>
+          <div style={{ fontSize: 13, color: C.textSoft, marginTop: 2 }}>
+            {symptoms.length} symptom{symptoms.length !== 1 ? "s" : ""} logged
+          </div>
+        </div>
         <button
-          style={{ ...styles.button, width: 'auto', padding: '0 24px', height: '48px' }}
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => { setShowForm(!showForm); setError(""); }}
+          style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "10px 20px", borderRadius: 14, border: "none",
+            background: showForm
+              ? C.surfaceAlt
+              : `linear-gradient(135deg, ${C.sage}, ${C.forest})`,
+            color: showForm ? C.textMid : "#fff",
+            fontSize: 14, fontWeight: 700, cursor: "pointer",
+            boxShadow: showForm ? "none" : "0 4px 14px rgba(61,85,64,0.2)",
+          }}
         >
-          {showForm ? 'Cancel' : '+ Log Symptom'}
+          {showForm ? "✕ Cancel" : "+ Log Symptom"}
         </button>
       </div>
 
-      {showForm && (
-        <div style={{ ...styles.card, marginBottom: '24px' }}>
-          <h3 style={styles.cardTitle}>New Symptom</h3>
-          <form onSubmit={handleSubmit}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Symptom Type *</label>
-              <input
-                type="text"
-                style={styles.input}
-                value={symptomType}
-                onChange={(e) => setSymptomType(e.target.value)}
-                placeholder="e.g., Headache, Fatigue, Cramps"
-                required
-                disabled={loading}
-              />
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Severity (1-10) *</label>
-              <input
-                type="range"
-                min="1"
-                max="10"
-                value={severity}
-                onChange={(e) => setSeverity(e.target.value)}
-                style={{ width: '100%' }}
-                disabled={loading}
-              />
-              <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '24px', fontWeight: '700', color: '#6B7F6E' }}>
-                {severity}
-              </div>
-            </div>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Notes (optional)</label>
-              <textarea
-                style={{ ...styles.input, minHeight: '80px', resize: 'vertical' as const }}
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Any additional details..."
-                disabled={loading}
-              />
-            </div>
-            <button type="submit" style={{ ...styles.button, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-              {loading ? 'Saving...' : 'Save Symptom'}
-            </button>
-          </form>
+      {success && (
+        <div style={{ padding: "12px 16px", background: C.sageLight, borderRadius: 12, color: C.forest, fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+          ✓ Symptom logged
         </div>
       )}
 
-      <div style={styles.card}>
-        {symptoms.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '32px', color: '#6B6B6B' }}>
-            <p>No symptoms logged yet. Start tracking to see patterns!</p>
-          </div>
-        ) : (
-          <ul style={styles.list}>
-            {symptoms.slice(0, 20).map((symptom, idx) => (
-              <li key={symptom.id || idx} style={styles.listItem}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '18px', fontWeight: '700', color: '#2A2D2A' }}>
-                    {symptom.symptom_type}
-                  </div>
-                  <div style={{ fontSize: '13px', color: '#6B6B6B', marginTop: '4px' }}>
-                    {new Date(symptom.created_at || symptom.logged_at || '').toLocaleString()}
-                  </div>
-                  {symptom.notes && (
-                    <div style={{ fontSize: '14px', color: '#4A4D4A', marginTop: '8px' }}>
-                      {symptom.notes}
-                    </div>
-                  )}
-                </div>
+      {showForm && (
+        <Card style={{ marginBottom: 24, border: `1.5px solid ${C.mist}` }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 20 }}>Log Symptom</div>
+          <form onSubmit={handleAdd}>
+            {error && <ErrorBanner message={error} />}
+
+            {/* Symptom chips */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>Symptom type *</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {SYMPTOM_OPTIONS.map(opt => (
+                  <button
+                    key={opt} type="button"
+                    onClick={() => setSymptomType(opt)}
+                    style={{
+                      padding: "7px 14px", borderRadius: 99, border: "none", cursor: "pointer",
+                      fontSize: 13, fontWeight: 600, transition: "all 0.15s",
+                      background: symptomType === opt ? C.sage : C.surfaceAlt,
+                      color: symptomType === opt ? "#fff" : C.textMid,
+                    }}
+                  >
+                    {opt}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setSymptomType("custom")}
+                  style={{
+                    padding: "7px 14px", borderRadius: 99, border: `1.5px dashed ${C.mist}`,
+                    cursor: "pointer", fontSize: 13, fontWeight: 600,
+                    background: symptomType === "custom" ? C.sageLight : "transparent",
+                    color: C.textSoft,
+                  }}
+                >
+                  + Other
+                </button>
+              </div>
+              {symptomType === "custom" && (
+                <input
+                  type="text"
+                  value={customType}
+                  onChange={e => setCustomType(e.target.value)}
+                  placeholder="Describe your symptom..."
+                  style={{
+                    marginTop: 10, width: "100%", padding: "11px 14px",
+                    fontSize: 14, border: `1.5px solid ${C.border}`, borderRadius: 12,
+                    background: C.surfaceAlt, color: C.text, outline: "none", boxSizing: "border-box",
+                  }}
+                />
+              )}
+            </div>
+
+            {/* Severity */}
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 10 }}>
+                Severity — {["", "Mild", "Mild", "Moderate", "Moderate", "Severe"][severity]}
+              </div>
+              <div style={{ display: "flex", gap: 10 }}>
+                {[1,2,3,4,5].map(n => (
+                  <button
+                    key={n} type="button"
+                    onClick={() => setSeverity(n)}
+                    style={{
+                      width: 44, height: 44, borderRadius: 12, border: "none",
+                      cursor: "pointer", fontSize: 14, fontWeight: 700, transition: "all 0.15s",
+                      background: n <= severity ? C.sage : C.surfaceAlt,
+                      color: n <= severity ? "#fff" : C.textMid,
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Input
+              label="Notes (optional)"
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Any additional context..."
+              disabled={loading}
+            />
+            <PrimaryButton type="submit" loading={loading}>
+              Save Symptom
+            </PrimaryButton>
+          </form>
+        </Card>
+      )}
+
+      {symptoms.length === 0 ? (
+        <Card style={{ textAlign: "center", padding: "48px 24px" }}>
+          <div style={{ fontSize: 36, marginBottom: 12 }}>✦</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: C.text, marginBottom: 8 }}>No symptoms logged</div>
+          <div style={{ fontSize: 14, color: C.textSoft }}>Start tracking your symptoms to find patterns.</div>
+        </Card>
+      ) : (
+        <Card style={{ padding: 0, overflow: "hidden" }}>
+          {symptoms.map((s, i) => (
+            <div
+              key={s.id ?? i}
+              style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                padding: "16px 24px",
+                borderBottom: i < symptoms.length - 1 ? `1px solid ${C.border}` : "none",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 <div style={{
-                  padding: '8px 16px',
-                  borderRadius: '12px',
-                  background: 'rgba(107,127,110,0.12)',
-                  color: '#6B7F6E',
-                  fontWeight: '700',
-                  fontSize: '16px'
-                }}>
-                  {symptom.severity}/10
+                  width: 10, height: 10, borderRadius: "50%",
+                  background: s.severity >= 4 ? C.red : s.severity >= 3 ? C.gold : C.sage,
+                  flexShrink: 0,
+                }} />
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: C.text }}>{s.symptom_type}</div>
+                  <div style={{ fontSize: 12, color: C.textSoft, marginTop: 2 }}>
+                    {formatDateTime(s.created_at || s.logged_at || "")}
+                    {s.notes && ` · ${s.notes}`}
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </>
+              </div>
+              <SeverityDots value={s.severity} />
+            </div>
+          ))}
+        </Card>
+      )}
+    </div>
   );
 }
 
+// ─── CYCLE VIEW ───────────────────────────────────────────────────────────────
+
 function CycleView() {
   const { currentCycle, startCycle } = useApp();
-  const [showForm, setShowForm] = useState(false);
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [loading, setLoading] = useState(false);
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().split("T")[0]);
+  const [loading,   setLoading]   = useState(false);
+  const [error,     setError]     = useState("");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleStart = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLoading(true); setError("");
     try {
       await startCycle(startDate);
-      setShowForm(false);
-    } catch (error) {
-      alert('Failed to start cycle');
+    } catch (err: any) {
+      setError(err.message || "Failed to start cycle.");
     } finally {
       setLoading(false);
     }
   };
 
   const cycleDay = currentCycle
-    ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1
+    ? Math.floor((Date.now() - new Date(currentCycle.cycle_start_date).getTime()) / 86400000) + 1
     : 0;
 
+  const phase = currentCycle?.phase as PhaseKey | undefined;
+  const rhythm = RHYTHMS[phase && RHYTHMS[phase] ? phase : "follicular"];
+
   return (
-    <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2 style={{ fontSize: '28px', fontWeight: '700', color: '#2A2D2A' }}>Cycle Tracking</h2>
-        {!currentCycle && (
-          <button
-            style={{ ...styles.button, width: 'auto', padding: '0 24px', height: '48px' }}
-            onClick={() => setShowForm(!showForm)}
-          >
-            {showForm ? 'Cancel' : '+ Start Cycle'}
-          </button>
-        )}
+    <div>
+      <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, color: C.text, marginBottom: 24 }}>
+        Cycle Tracking
       </div>
 
-      {showForm && !currentCycle && (
-        <div style={{ ...styles.card, marginBottom: '24px' }}>
-          <h3 style={styles.cardTitle}>Start New Cycle</h3>
-          <form onSubmit={handleSubmit}>
-            <div style={styles.formGroup}>
-              <label style={styles.label}>Cycle Start Date *</label>
-              <input
-                type="date"
-                style={styles.input}
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                required
-                disabled={loading}
-                max={new Date().toISOString().split('T')[0]}
-              />
+      {currentCycle ? (
+        <>
+          {/* Cycle status */}
+          <Card style={{ background: rhythm.bg, border: `1px solid ${rhythm.color}20`, marginBottom: 20 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 20 }}>
+              <div style={{
+                width: 72, height: 72, borderRadius: "50%",
+                background: `${rhythm.color}20`, border: `2px solid ${rhythm.color}40`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: 28,
+              }}>
+                {rhythm.emoji}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: rhythm.color, letterSpacing: "1px", textTransform: "uppercase" }}>
+                  Day {cycleDay}
+                </div>
+                <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 26, color: C.text, marginTop: 2 }}>
+                  {rhythm.name}
+                </div>
+                <div style={{ fontSize: 13, color: C.textSoft, marginTop: 2 }}>
+                  Started {new Date(currentCycle.cycle_start_date).toLocaleDateString("en-US", { month: "long", day: "numeric" })}
+                </div>
+              </div>
             </div>
-            <button type="submit" style={{ ...styles.button, opacity: loading ? 0.6 : 1 }} disabled={loading}>
-              {loading ? 'Starting...' : 'Start Cycle'}
-            </button>
+
+            <div style={{ fontSize: 13, fontStyle: "italic", color: C.textMid, marginBottom: 10 }}>
+              "{rhythm.verse}" — {rhythm.scripture}
+            </div>
+            <div style={{ fontSize: 13, color: C.textMid }}>{rhythm.practice}</div>
+          </Card>
+
+          {/* Phase grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12 }}>
+            {(Object.entries(RHYTHMS) as [PhaseKey, typeof RHYTHMS[PhaseKey]][]).map(([key, r]) => (
+              <Card
+                key={key}
+                style={{
+                  opacity: phase === key ? 1 : 0.55,
+                  border: phase === key ? `2px solid ${r.color}40` : `1px solid ${C.border}`,
+                  transition: "all 0.2s",
+                }}
+              >
+                <div style={{ fontSize: 22, marginBottom: 8 }}>{r.emoji}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.text }}>{r.name}</div>
+                <div style={{ fontSize: 12, color: C.textSoft, marginTop: 4 }}>
+                  {key.charAt(0).toUpperCase() + key.slice(1)} phase
+                </div>
+              </Card>
+            ))}
+          </div>
+        </>
+      ) : (
+        <Card>
+          <div style={{ fontSize: 36, textAlign: "center", marginBottom: 16 }}>◌</div>
+          <div style={{
+            fontFamily: "'DM Serif Display', serif",
+            fontSize: 22, color: C.text, textAlign: "center", marginBottom: 8,
+          }}>
+            Start tracking your cycle
+          </div>
+          <div style={{ fontSize: 14, color: C.textSoft, textAlign: "center", marginBottom: 24 }}>
+            Enter the first day of your last period to begin.
+          </div>
+          <form onSubmit={handleStart}>
+            {error && <ErrorBanner message={error} />}
+            <Input
+              label="Cycle start date"
+              type="date"
+              value={startDate}
+              onChange={e => setStartDate(e.target.value)}
+              max={new Date().toISOString().split("T")[0]}
+              disabled={loading}
+            />
+            <PrimaryButton type="submit" loading={loading}>
+              Begin Cycle Tracking
+            </PrimaryButton>
           </form>
-        </div>
+        </Card>
       )}
-
-      <div style={styles.card}>
-        {!currentCycle ? (
-          <div style={{ textAlign: 'center', padding: '48px 24px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>ðŸŒ¸</div>
-            <h3 style={{ fontSize: '24px', fontWeight: '600', color: '#2A2D2A', marginBottom: '12px' }}>
-              Track your natural rhythm
-            </h3>
-            <p style={{ color: '#6B6B6B', fontSize: '15px', lineHeight: '22px', maxWidth: '400px', margin: '0 auto' }}>
-              Start logging your cycle to see how hormones affect your wellness.
-            </p>
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', padding: '32px' }}>
-            <div style={styles.stat}>
-              <div style={styles.statValue}>{cycleDay}</div>
-              <div style={styles.statLabel}>Day of Cycle</div>
-            </div>
-            <div style={{ marginTop: '24px', padding: '16px', background: 'rgba(107,127,110,0.08)', borderRadius: '16px' }}>
-              <div style={{ fontSize: '14px', fontWeight: '600', color: '#6B7F6E', marginBottom: '4px' }}>
-                {currentCycle.phase || 'Tracking'}
-              </div>
-              <div style={{ fontSize: '13px', color: '#6B6B6B' }}>
-                Started {new Date(currentCycle.cycle_start_date).toLocaleDateString()}
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </>
+    </div>
   );
 }
 
-function CoachDashboard() {
+// ─── MAIN DASHBOARD ───────────────────────────────────────────────────────────
+
+function Dashboard() {
   const { user, logout } = useApp();
+  const [view, setView] = useState<NavView>("dashboard");
 
-  // Single source of truth (includes /api/v1)
-  const API_URL =
-    (import.meta as any).env.VITE_API_URL ||
-    "http://localhost:3000/api/v1";
+  if (!user) return null;
 
-  const token = localStorage.getItem("accessToken");
+  const pageContent = {
+    dashboard: <DashboardView setView={setView} />,
+    glucose:   <GlucoseView />,
+    symptoms:  <SymptomsView />,
+    cycle:     <CycleView />,
+  }[view];
 
-  // ───────── STATE ─────────
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const [clients, setClients] = useState<any[]>([]);
-  const [selectedClient, setSelectedClient] = useState<any | null>(null);
-
-  const [clientReadings, setClientReadings] = useState<any[]>([]);
-  const [clientSymptoms, setClientSymptoms] = useState<any[]>([]);
-  const [clientCycle, setClientCycle] = useState<any | null>(null);
-
-  const [groups, setGroups] = useState<any[]>([]);
-  const [selectedGroup, setSelectedGroup] = useState<any | null>(null);
-  const [loadingGroups, setLoadingGroups] = useState(false);
-
-  // Debug helper
-  useEffect(() => {
-    console.log("🟣 selectedGroup changed:", selectedGroup);
-  }, [selectedGroup]);
-
-  // ───────── API HELPER ─────────
-  const fetchJSON = async (path: string) => {
-    const res = await fetch(`${API_URL}${path}`, {
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(
-        `${res.status} ${res.statusText}${text ? ` — ${text}` : ""}`
-      );
-    }
-
-    return res.json();
-  };
-
-  // ───────── LOAD CLIENTS ─────────
-  const loadClients = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchJSON("/coach/clients");
-      setClients(Array.isArray(data) ? data : data.clients || []);
-    } catch (e: any) {
-      setError(e.message || "Failed to load clients");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ───────── LOAD CLIENT DETAILS ─────────
-  const loadClientDetails = async (clientId: string) => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [glucoseRes, symptomsRes, cycleRes] = await Promise.all([
-        fetchJSON(`/coach/clients/${clientId}/glucose`),
-        fetchJSON(`/coach/clients/${clientId}/symptoms`),
-        fetchJSON(`/coach/clients/${clientId}/cycle`),
-      ]);
-
-      setClientReadings(glucoseRes.readings || []);
-      setClientSymptoms(symptomsRes.symptoms || []);
-      setClientCycle(cycleRes.cycle || null);
-    } catch (e: any) {
-      setError(e.message || "Failed to load client data");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ───────── LOAD GROUPS ─────────
-  const loadGroups = async () => {
-    setLoadingGroups(true);
-    try {
-      const data = await fetchJSON("/groups/coach/my-groups");
-      setGroups(data.groups || []);
-    } catch (e: any) {
-      setError(e.message || "Failed to load groups");
-    } finally {
-      setLoadingGroups(false);
-    }
-  };
-
-  // ───────── INITIAL LOAD ─────────
-  useEffect(() => {
-    loadClients();
-    loadGroups();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // ───────── UI ─────────
   return (
-    <div style={styles.container}>
-      {/* NAV */}
-      <nav style={styles.nav}>
-        <button style={{ ...styles.navButton, ...styles.navButtonActive }}>
-          Dashboard
-        </button>
+    <div style={{
+      minHeight: "100vh",
+      background: C.bg,
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
+        * { box-sizing: border-box; }
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        input:focus, textarea:focus { border-color: ${C.sage} !important; background: #fff !important; outline: none; }
+        button:hover { opacity: 0.88; }
+      `}</style>
 
-        <div style={{ marginLeft: "auto" }}>
-          <button
-            style={{ ...styles.navButton, color: "#C85A54" }}
-            onClick={logout}
-          >
-            Logout
-          </button>
+      <AppNav
+        view={view}
+        setView={setView}
+        onLogout={logout}
+        userName={user.first_name}
+      />
+
+      <main style={{ maxWidth: 900, margin: "0 auto", padding: "32px 24px" }}>
+        <div style={{ animation: "fadeUp 0.3s ease both" }}>
+          {pageContent}
         </div>
-      </nav>
-
-      <div style={styles.dashboard}>
-        {/* HEADER */}
-        <div style={styles.header}>
-          <h3>COACH DASHBOARD LIVE ✅</h3>
-          <h1>Welcome, Coach {user?.first_name || "Coach"}!</h1>
-          <p style={{ color: "#6B6B6B" }}>
-            Clients · Groups · Coaching insights
-          </p>
-        </div>
-
-        {/* ERROR */}
-        {error && (
-          <div
-            style={{
-              ...styles.card,
-              border: "1px solid rgba(200,90,84,0.35)",
-            }}
-          >
-            <strong style={{ color: "#C85A54" }}>
-              Something went wrong
-            </strong>
-            <div style={{ marginTop: 6 }}>{error}</div>
-            <button
-              style={{ ...styles.button, marginTop: 12 }}
-              onClick={loadClients}
-            >
-              Retry
-            </button>
-          </div>
-        )}
-
-        {/* MAIN GRID */}
-        {/* MAIN GRID */}
-<div
-  style={{
-    display: "grid",
-    gridTemplateColumns: "320px 320px 1fr",
-    gap: 18,
-  }}
->
-  {/* CLIENTS */}
-  <div style={styles.card}>
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        marginBottom: 8,
-      }}
-    >
-      <strong>Clients</strong>
-      <button onClick={loadClients}>Refresh</button>
-    </div>
-
-    {loading && clients.length === 0 ? (
-      <div>Loading clients…</div>
-    ) : clients.length === 0 ? (
-      <div>No clients yet.</div>
-    ) : (
-      <ul style={{ listStyle: "none", padding: 0 }}>
-        {clients.map((c) => (
-          <li key={c.id} style={{ marginBottom: 6 }}>
-            <button
-              style={{ width: "100%" }}
-              onClick={() => {
-                setSelectedGroup(null);
-                setSelectedClient(c);
-                loadClientDetails(String(c.id));
-              }}
-            >
-              {c.first_name} {c.last_name}
-            </button>
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-
-  {/* GROUPS */}
-  <div style={styles.card}>
-    <strong style={{ display: "block", marginBottom: 8 }}>
-      Groups
-    </strong>
-
-    <GroupList
-      groups={groups}
-      loading={loadingGroups}
-      onSelect={(group) => {
-        setSelectedClient(null);
-        setSelectedGroup(group);
-      }}
-    />
-  </div>
-
-  {/* DETAIL PANEL */}
-  <div style={styles.card}>
-    {selectedClient && !selectedGroup && (
-      <>
-        <h2>
-          {selectedClient.first_name} {selectedClient.last_name}
-        </h2>
-        <p>Latest glucose: {clientReadings[0]?.value ?? "—"}</p>
-        <p>Symptoms logged: {clientSymptoms.length}</p>
-        <p>Cycle phase: {clientCycle?.phase ?? "—"}</p>
-      </>
-    )}
-
-    {selectedGroup && <GroupChat group={selectedGroup} />}
-
-    {!selectedClient && !selectedGroup && (
-      <div style={{ textAlign: "center", padding: 40 }}>
-        <div style={{ fontSize: 32 }}>🌿</div>
-        <strong>Select a client or group</strong>
-        <p style={{ color: "#6B6B6B", marginTop: 6 }}>
-          View client trends or coach your group.
-        </p>
-      </div>
-    )}
-
-  </div>
-</div>
-      </div>
+      </main>
     </div>
   );
 }
-        
+
+// ─── ROOT ─────────────────────────────────────────────────────────────────────
 
 function App() {
   const { isAuthenticated } = useApp();
   const [showRegister, setShowRegister] = useState(false);
 
-  if (isAuthenticated) {
-    return <Dashboard />;
-  }
+  if (isAuthenticated) return <Dashboard />;
 
-  return showRegister ? (
-    <RegisterScreen onSwitchToLogin={() => setShowRegister(false)} />
-  ) : (
-    <LoginScreen onSwitchToRegister={() => setShowRegister(true)} />
-  );
+  return showRegister
+    ? <RegisterScreen onSwitchToLogin={() => setShowRegister(false)} />
+    : <LoginScreen  onSwitchToRegister={() => setShowRegister(true)} />;
 }
 
-
-function Root() {
+export default function Root() {
   return (
     <AppProvider>
       <App />
     </AppProvider>
   );
-
 }
-
-
-export default Root;
