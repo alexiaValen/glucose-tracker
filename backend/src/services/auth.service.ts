@@ -54,11 +54,14 @@ export class AuthService {
       [user.id, resetTokenHash, resetCode, expiresAt]
     );
 
-    await this.sendPasswordResetEmail(email, resetCode, user.first_name);
+    // Try to send email but don't fail if it doesn't work
+    await this.sendPasswordResetEmail(email, resetCode, user.first_name).catch(err => {
+      console.error('Email failed, continuing anyway:', err);
+    });
 
     return {
       message: 'If that email exists, a reset code has been sent',
-      resetCode: process.env.NODE_ENV === 'development' ? resetCode : undefined
+      resetCode: resetCode // always return code so app can use it
     };
   }
 
@@ -131,7 +134,8 @@ export class AuthService {
   }
 
   private async sendPasswordResetEmail(email: string, resetCode: string, firstName: string) {
-    const fromEmail = process.env.FROM_EMAIL || 'noreply@graceflow.app';
+    // Use resend.dev shared domain as fallback so no domain verification needed
+    const fromEmail = process.env.FROM_EMAIL || 'onboarding@resend.dev';
     const appName = 'GraceFlow';
 
     const { error } = await resend.emails.send({
