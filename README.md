@@ -22,4 +22,4 @@ npm run dev
 
 ## 📸 Preview
 
-![Glucose Tracker Preview](./public/preview.png)
+![Glucose Tracker Preview](/web-app/public/preview.png)
