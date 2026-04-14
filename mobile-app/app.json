@@ -38,8 +38,11 @@
       },
       "permissions": [
         "CAMERA",
+        "READ_MEDIA_IMAGES",
         "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "WRITE_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS",
+        "android.permission.health.READ_BLOOD_GLUCOSE"
       ]
     },
     "plugins": [
@@ -48,6 +51,9 @@
         {
           "ios": {
             "deploymentTarget": "15.1"
+          },
+          "android": {
+            "minSdkVersion": 28
           }
         }
       ],
@@ -59,7 +65,13 @@
         }
       ],
       "expo-font",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "react-native-health-connect",
+        {
+          "permissions": ["READ_BLOOD_GLUCOSE"]
+        }
+      ]
     ],
     "extra": {
       "eas": {
