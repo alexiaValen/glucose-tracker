@@ -15,6 +15,7 @@ import groupRoutes from "./routes/group.routes";
 import conversationRoutes from "./routes/conversation.routes";
 import groupMessageRoutes from "./routes/group_message_routes";
 import lessonRoutes from "./routes/lesson.routes";
+import notificationRoutes from "./routes/notifications.routes";
 
 dotenv.config();
 
@@ -89,6 +90,7 @@ app.use("/api/v1/conversations", conversationRoutes);
 app.use("/api/v1/groups", groupRoutes);
 app.use("/api/v1/group-messages", groupMessageRoutes);
 app.use("/api/v1/lessons", lessonRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 app.use("/api/v1/group-messages", groupMessageRoutes);
 app.use("/api/v1/group/:groupId/messages", groupMessageRoutes); // nested route for group messages  
 

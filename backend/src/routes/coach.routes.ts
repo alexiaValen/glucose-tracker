@@ -128,4 +128,40 @@ router.get("/clients", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ==================== GET CLIENT GLUCOSE (for coach) ==========================
+// GET /api/v1/coach/clients/:clientId/glucose
+router.get("/clients/:clientId/glucose", async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId  = req.user?.id;
+    const { clientId } = req.params;
+    const limit = parseInt((req.query.limit as string) || '50', 10);
+
+    if (!coachId) return res.status(401).json({ error: "Unauthorized" });
+
+    // Verify this coach actually coaches this client
+    const { data: rel } = await supabase
+      .from("coach_clients")
+      .select("client_id")
+      .eq("coach_id", coachId)
+      .eq("client_id", clientId)
+      .single();
+
+    if (!rel) return res.status(403).json({ error: "Not your client" });
+
+    const { data: readings, error } = await supabase
+      .from("glucose_readings")
+      .select("id, value, measured_at, unit, source, source_device, notes, created_at")
+      .eq("user_id", clientId)
+      .order("measured_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    res.json(readings ?? []);
+  } catch (err) {
+    console.error("❌ GET /coach/clients/:id/glucose:", err);
+    res.status(500).json({ error: "Failed to fetch client glucose data" });
+  }
+});
+
 export default router;

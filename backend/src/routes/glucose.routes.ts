@@ -1,10 +1,37 @@
-// backend/src/routes/glucose.routes.ts - UPDATED VERSION
+// backend/src/routes/glucose.routes.ts
 import { Router, Response } from 'express';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { body, query, validationResult } from 'express-validator';
 import { pool } from '../config/database';
+import { supabase } from '../config/database';
 import { AuthRequest } from "../middleware/auth.middleware";
 import { GlucoseReading } from '../types/group';
+
+// ── Shared helper: create a notification row ──────────────────────────────────
+async function createNotification(opts: {
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  data?: Record<string, unknown>;
+}) {
+  // Real column names: notification_type, body, data (JSONB)
+  await pool.query(
+    `INSERT INTO notifications (user_id, notification_type, title, body, data)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [opts.userId, opts.type, opts.title, opts.message, opts.data ?? {}]
+  );
+}
+
+// ── Shared helper: find coach for a given client ──────────────────────────────
+async function findCoachId(clientId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('coach_clients')
+    .select('coach_id')
+    .eq('client_id', clientId)
+    .single();
+  return data?.coach_id ?? null;
+}
 
 const router = Router();
 
@@ -157,7 +184,149 @@ router.get('/stats', async (req: AuthRequest, res: Response) => {
   }
 });
 
-// DELETE /api/v1/glucose/:id - Delete glucose reading
+// ── POST /api/v1/glucose/sync ─────────────────────────────────────────────────
+// Bulk-upsert readings from Apple Watch / HealthKit.
+// Deduplicates by (user_id, measured_at). Creates coach + user notifications.
+router.post('/sync', async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.id;
+  const readings: Array<{
+    value: number;
+    measuredAt: string;
+    unit?: string;
+    source?: string;
+    sourceDevice?: string;
+    notes?: string;
+  }> = req.body.readings;
+
+  if (!Array.isArray(readings) || readings.length === 0) {
+    return res.status(400).json({ error: 'readings array is required' });
+  }
+
+  const client = await pool.connect();
+  const synced: any[] = [];
+  const skipped: string[] = [];
+  const alerts: Array<{ value: number; type: string; severity: string }> = [];
+
+  try {
+    await client.query('BEGIN');
+
+    for (const r of readings) {
+      // Basic validation
+      if (!r.value || !r.measuredAt) { skipped.push(r.measuredAt ?? 'unknown'); continue; }
+      const val = Number(r.value);
+      if (val < 20 || val > 600) { skipped.push(r.measuredAt); continue; }
+
+      // Duplicate check
+      const dup = await client.query(
+        `SELECT id FROM glucose_readings WHERE user_id = $1 AND measured_at = $2`,
+        [userId, r.measuredAt]
+      );
+      if (dup.rows.length > 0) { skipped.push(r.measuredAt); continue; }
+
+      const row = await client.query(
+        `INSERT INTO glucose_readings
+           (user_id, value, measured_at, unit, source, source_device, notes)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)
+         RETURNING *`,
+        [userId, val, r.measuredAt, r.unit ?? 'mg/dL',
+         r.source ?? 'healthkit', r.sourceDevice ?? null, r.notes ?? null]
+      );
+      synced.push(row.rows[0]);
+
+      // Collect alert-level readings
+      if (val < 54) {
+        alerts.push({ value: val, type: 'low_glucose', severity: 'critical' });
+      } else if (val < 70) {
+        alerts.push({ value: val, type: 'low_glucose', severity: 'warning' });
+      } else if (val > 180) {
+        alerts.push({ value: val, type: 'high_glucose', severity: 'critical' });
+      }
+    }
+
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('❌ Sync transaction failed:', err);
+    return res.status(500).json({ error: 'Sync failed' });
+  } finally {
+    client.release();
+  }
+
+  // Update last sync timestamp (non-critical — column may not exist yet)
+  pool.query(
+    `UPDATE user_profiles SET healthkit_last_sync = NOW() WHERE user_id = $1`,
+    [userId]
+  ).catch((e) => console.warn('⚠️ healthkit_last_sync update skipped:', e?.message));
+
+  // ── Post-sync notifications (non-blocking) ─────────────────────────────────
+  try {
+    const coachId = await findCoachId(userId);
+
+    // Fetch user name for coach notification
+    const userRow = await pool.query(
+      `SELECT first_name, last_name FROM users WHERE id = $1`,
+      [userId]
+    );
+    const userName = userRow.rows[0]
+      ? `${userRow.rows[0].first_name} ${userRow.rows[0].last_name}`.trim()
+      : 'Your client';
+
+    // Notify coach: client synced
+    if (coachId && synced.length > 0) {
+      const highCount = alerts.filter(a => a.type === 'high_glucose').length;
+      const lowCount  = alerts.filter(a => a.type === 'low_glucose').length;
+      let msg = `${userName} synced ${synced.length} new reading${synced.length !== 1 ? 's' : ''} from Apple Watch.`;
+      if (highCount)   msg += ` ${highCount} high reading${highCount !== 1 ? 's' : ''}.`;
+      if (lowCount)    msg += ` ${lowCount} low reading${lowCount !== 1 ? 's' : ''}.`;
+
+      await createNotification({
+        userId:  coachId,
+        type:    'client_synced',
+        title:   `${userName} synced data`,
+        message: msg,
+        data:    { clientId: userId, synced: synced.length, highCount, lowCount },
+      });
+    }
+
+    // Notify coach + user on critical readings
+    for (const alert of alerts) {
+      const isCritical = alert.severity === 'critical';
+      const notifType  = isCritical ? 'critical_glucose' : alert.type as any;
+      const prefix     = alert.type === 'high_glucose' ? 'High' : 'Low';
+
+      if (coachId) {
+        await createNotification({
+          userId:  coachId,
+          type:    notifType,
+          title:   `${isCritical ? '⚠️ Critical: ' : ''}${prefix} glucose — ${userName}`,
+          message: `${userName} had a ${prefix.toLowerCase()} glucose reading of ${alert.value} mg/dL.`,
+          data:    { clientId: userId, value: alert.value, severity: alert.severity },
+        });
+      }
+
+      // Notify the user themselves
+      await createNotification({
+        userId,
+        type:    notifType,
+        title:   `${isCritical ? '⚠️ ' : ''}${prefix} glucose detected`,
+        message: `A ${prefix.toLowerCase()} glucose reading of ${alert.value} mg/dL was found during your sync.`,
+        data:    { value: alert.value, severity: alert.severity },
+      });
+    }
+  } catch (notifErr) {
+    // Never fail the sync because a notification errored
+    console.error('⚠️ Notification creation failed (non-fatal):', notifErr);
+  }
+
+  console.log(`✅ Sync complete for user ${userId}: ${synced.length} synced, ${skipped.length} skipped`);
+  res.json({
+    synced:  synced.length,
+    skipped: skipped.length,
+    alerts:  alerts.map(a => ({ value: a.value, type: a.type, severity: a.severity })),
+  });
+});
+
+// ── DELETE /api/v1/glucose/:id - Delete glucose reading
 router.delete('/:id', async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user!.id;

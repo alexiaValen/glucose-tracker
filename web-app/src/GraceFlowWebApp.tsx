@@ -58,6 +58,18 @@ interface Cycle {
 
 type NavView = "dashboard" | "glucose" | "symptoms" | "cycle";
 
+// ─── NOTIFICATION TYPES ───────────────────────────────────────────────────────
+
+interface AppNotification {
+  id: string;
+  type: "sync_complete" | "client_synced" | "high_glucose" | "low_glucose" | "critical_glucose";
+  title: string;
+  message: string;
+  data: Record<string, any>;
+  is_read: boolean;
+  created_at: string;
+}
+
 // ─── API ─────────────────────────────────────────────────────────────────────
 
 const API_URL =
@@ -200,6 +212,35 @@ class ApiService {
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error("Failed to start cycle.");
     return data as Cycle;
+  }
+
+  async getNotifications(): Promise<AppNotification[]> {
+    try {
+      const res = await fetch(`${API_URL}/notifications`, { headers: this.headers() });
+      if (!res.ok) return [];
+      return res.json();
+    } catch { return []; }
+  }
+
+  async getUnreadCount(): Promise<number> {
+    try {
+      const res = await fetch(`${API_URL}/notifications/unread-count`, { headers: this.headers() });
+      if (!res.ok) return 0;
+      const data = await res.json();
+      return data.count ?? 0;
+    } catch { return 0; }
+  }
+
+  async markNotificationRead(id: string): Promise<void> {
+    await fetch(`${API_URL}/notifications/${id}/read`, {
+      method: "PATCH", headers: this.headers(),
+    });
+  }
+
+  async markAllNotificationsRead(): Promise<void> {
+    await fetch(`${API_URL}/notifications/read-all`, {
+      method: "PATCH", headers: this.headers(),
+    });
   }
 
   logout() {
@@ -665,6 +706,194 @@ function RegisterScreen({ onSwitchToLogin }: { onSwitchToLogin: () => void }) {
   );
 }
 
+// ─── NOTIFICATION BELL (coach + user alerts) ──────────────────────────────────
+
+function timeAgo(iso: string): string {
+  const diffMs  = Date.now() - new Date(iso).getTime();
+  const diffMin = Math.floor(diffMs / 60_000);
+  if (diffMin < 1)  return "just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24)  return `${diffHr}h ago`;
+  return `${Math.floor(diffHr / 24)}d ago`;
+}
+
+function notifColor(type: AppNotification["type"]): string {
+  if (type === "critical_glucose")          return C.red;
+  if (type === "high_glucose")              return C.gold;
+  if (type === "low_glucose")               return C.low;
+  if (type === "client_synced")             return C.sage;
+  return C.textSoft;
+}
+
+function NotificationBell() {
+  const [open,          setOpen]          = useState(false);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [unreadCount,   setUnreadCount]   = useState(0);
+  const [loading,       setLoading]       = useState(false);
+
+  // Poll for unread count every 30 s
+  useEffect(() => {
+    let mounted = true;
+    const fetchCount = async () => {
+      const count = await api.getUnreadCount();
+      if (mounted) setUnreadCount(count);
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30_000);
+    return () => { mounted = false; clearInterval(interval); };
+  }, []);
+
+  // Load full list when bell is opened
+  const openPanel = async () => {
+    setOpen(true);
+    setLoading(true);
+    const list = await api.getNotifications();
+    setNotifications(list);
+    setUnreadCount(list.filter(n => !n.is_read).length);
+    setLoading(false);
+  };
+
+  const markRead = async (id: string) => {
+    await api.markNotificationRead(id);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    setUnreadCount(prev => Math.max(0, prev - 1));
+  };
+
+  const markAll = async () => {
+    await api.markAllNotificationsRead();
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    setUnreadCount(0);
+  };
+
+  return (
+    <div style={{ position: "relative" }}>
+      {/* Bell button */}
+      <button
+        onClick={() => open ? setOpen(false) : openPanel()}
+        style={{
+          position: "relative", width: 38, height: 38, borderRadius: 12,
+          border: `1px solid ${C.border}`, background: open ? C.sageLight : "transparent",
+          cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 17, transition: "all 0.2s",
+        }}
+        title="Notifications"
+      >
+        🔔
+        {unreadCount > 0 && (
+          <span style={{
+            position: "absolute", top: -4, right: -4,
+            minWidth: 18, height: 18, borderRadius: 9,
+            background: C.red, color: "#fff",
+            fontSize: 10, fontWeight: 700,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: "0 4px", border: "2px solid #F6F5F1",
+          }}>
+            {unreadCount > 9 ? "9+" : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {/* Dropdown panel */}
+      {open && (
+        <>
+          {/* Backdrop */}
+          <div
+            onClick={() => setOpen(false)}
+            style={{
+              position: "fixed", inset: 0, zIndex: 199,
+            }}
+          />
+          <div style={{
+            position: "absolute", top: 46, right: 0,
+            width: 340, maxHeight: 480,
+            background: C.surface,
+            borderRadius: 18, border: `1px solid ${C.border}`,
+            boxShadow: "0 12px 40px rgba(0,0,0,0.12)",
+            zIndex: 200, overflow: "hidden",
+            display: "flex", flexDirection: "column",
+          }}>
+            {/* Panel header */}
+            <div style={{
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              padding: "14px 18px",
+              borderBottom: `1px solid ${C.border}`,
+            }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>
+                Notifications
+              </span>
+              {unreadCount > 0 && (
+                <button
+                  onClick={markAll}
+                  style={{
+                    background: "none", border: "none", cursor: "pointer",
+                    fontSize: 12, color: C.sage, fontWeight: 600,
+                  }}
+                >
+                  Mark all read
+                </button>
+              )}
+            </div>
+
+            {/* List */}
+            <div style={{ overflowY: "auto", flex: 1 }}>
+              {loading ? (
+                <div style={{ display: "flex", justifyContent: "center", padding: 32 }}>
+                  <Spinner size={24} />
+                </div>
+              ) : notifications.length === 0 ? (
+                <div style={{
+                  padding: "40px 24px", textAlign: "center",
+                  fontSize: 14, color: C.textSoft,
+                }}>
+                  <div style={{ fontSize: 28, marginBottom: 12 }}>🔔</div>
+                  No notifications yet
+                </div>
+              ) : (
+                notifications.map((n, i) => (
+                  <div
+                    key={n.id}
+                    onClick={() => { if (!n.is_read) markRead(n.id); }}
+                    style={{
+                      padding: "14px 18px",
+                      borderBottom: i < notifications.length - 1 ? `1px solid ${C.border}` : "none",
+                      background: n.is_read ? "transparent" : `${C.sageLight}80`,
+                      cursor: n.is_read ? "default" : "pointer",
+                      transition: "background 0.2s",
+                      display: "flex", alignItems: "flex-start", gap: 12,
+                    }}
+                  >
+                    {/* Color dot */}
+                    <div style={{
+                      width: 8, height: 8, borderRadius: "50%", flexShrink: 0, marginTop: 5,
+                      background: n.is_read ? C.mist : notifColor(n.type),
+                    }} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{
+                        fontSize: 13, fontWeight: n.is_read ? 500 : 700,
+                        color: n.is_read ? C.textMid : C.text,
+                        marginBottom: 3,
+                      }}>
+                        {n.title}
+                      </div>
+                      <div style={{ fontSize: 12, color: C.textSoft, lineHeight: 1.5 }}>
+                        {n.message}
+                      </div>
+                      <div style={{ fontSize: 11, color: C.textSoft, marginTop: 5 }}>
+                        {timeAgo(n.created_at)}
+                      </div>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ─── NAV ──────────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS: { id: NavView; label: string; icon: string }[] = [
@@ -721,6 +950,7 @@ function AppNav({
 
       {/* Right side */}
       <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
+        <NotificationBell />
         <span style={{ fontSize: 13, color: C.textSoft, fontWeight: 500 }}>
           {userName}
         </span>
