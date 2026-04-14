@@ -19,6 +19,7 @@ export type RootStackParamList = {
 
   // Coach screens
   CoachDashboard: undefined;
+  CoachSettings: undefined;
   ClientDetail: { clientId: string };
   ClientPreview: { clientId: string; clientName: string };
   CreateLesson: { clientId?: string; clientName?: string; lessonId?: string };

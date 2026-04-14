@@ -28,6 +28,7 @@ import SessionDetailScreen from '../screens/SessionDetailScreen';
 
 // Coach Screens
 import CoachDashboardScreen from '../screens/CoachDashboardScreen';
+import CoachSettingsScreen from '../screens/CoachSettingsScreen';
 import ClientDetailScreen from '../screens/ClientDetailScreen';
 import ConversationsScreen from '../screens/ConversationsScreen';
 
@@ -63,6 +64,7 @@ export default function AppNavigator() {
             // ── Coach stack (unchanged) ──────────────────────────────
             <>
               <Stack.Screen name="CoachDashboard" component={CoachDashboardScreen} />
+              <Stack.Screen name="CoachSettings" component={CoachSettingsScreen} />
               <Stack.Screen name="ClientDetail" component={ClientDetailScreen} />
               <Stack.Screen name="Conversations" component={ConversationsScreen} />
               <Stack.Screen name="Messaging" component={MessagingScreen} />

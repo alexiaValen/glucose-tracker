@@ -1,6 +1,6 @@
 // mobile-app/src/screens/LoginScreen.tsx
-// REFACTORED: Bright botanical paper collage aesthetic.
-// Layered cream/sage/tan shapes, pressed leaf accents, airy and modern.
+// REDESIGN: Premium minimal SaaS login — Grid Nexus / Novum Hub
+// Off-white ground, centered card, serif headline, clean form.
 // ALL auth logic, navigation, store calls preserved exactly.
 
 import React, { useState, useRef } from 'react';
@@ -16,7 +16,6 @@ import {
   ScrollView,
   ActivityIndicator,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -26,188 +25,69 @@ import { useAuthStore } from '../stores/authStore';
 type NavProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 interface Props { navigation: NavProp; }
 
-const { width: SW, height: SH } = Dimensions.get('window');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOKENS — bright botanical paper palette
+// DESIGN TOKENS — premium neutral palette
 // ─────────────────────────────────────────────────────────────────────────────
 const T = {
-  // Page background — warm white paper
-  pageBg:       '#F5F1E8',
+  // Ground
+  pageBg:       '#F7F5F2',    // warm off-white
 
-  // Layered shape tones
-  shapeForest:  '#3D5C45',   // deep sage green — large background shape
-  shapeSage:    '#7A9B7E',   // mid sage
-  shapeSageWash:'#C5D5C8',  // pale sage wash
-  shapeCream:   '#F0EBE0',   // warm cream
-  shapePaper:   '#FDFCF8',   // pressed paper white
-  shapeTan:     '#D9CDB8',   // warm tan
+  // Card surface
+  cardBg:       '#FFFFFF',
 
-  // Form surface
-  cardBg:       '#FDFCF8',
-  inputBg:      '#F5F1E8',
-  inputBorder:  'rgba(61,92,69,0.15)',
-  inputFocus:   'rgba(61,92,69,0.35)',
+  // Inputs
+  inputBg:      '#FAFAF8',
+  inputBorder:  '#E5E2DB',    // thin warm stone border
+  inputFocus:   '#B5B0A8',    // slightly deeper on focus
 
   // Text
-  inkDark:      '#1C1E1A',
-  inkMid:       '#3D4039',
-  inkMuted:     '#8A8E83',
-  inkOnForest:  '#EDE9E1',
+  inkDark:      '#1A1814',    // near-black, warm
+  inkMid:       '#4A4640',
+  inkMuted:     '#9B9690',    // subdued stone
 
-  // Accents
-  forest:       '#3D5C45',
-  sage:         '#4D6B54',
-  sageMid:      '#698870',
-  gold:         '#8C6E3C',
+  // Button — muted dark green, slightly earthy
+  btnBg:        '#2B4535',
+  btnText:      '#F0EDE8',
 
-  border:       'rgba(28,30,26,0.08)',
-  shadow:       '#1A1D18',
+  // Accent — restrained gold for focus ring / link
+  gold:         '#A8916A',
+
+  // Structural
+  cardBorder:   'rgba(0,0,0,0.05)',
+  divider:      '#EDEAE5',
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BOTANICAL BACKGROUND SHAPES
-// Layered paper-like shapes mimicking the collage moodboard
+// FIELD — thin border, clean focus state, no excess radius
 // ─────────────────────────────────────────────────────────────────────────────
-function BotanicalBackground() {
-  return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {/* Large forest green shape — top left, torn paper feel */}
-      <View style={bg.shapeForestLarge} />
-      {/* Sage wash blob — top right */}
-      <View style={bg.shapeSageTopRight} />
-      {/* Cream paper layer — center background */}
-      <View style={bg.shapeCreamCenter} />
-      {/* Tan warm shape — bottom left */}
-      <View style={bg.shapeTanBottomLeft} />
-      {/* Pale sage — bottom right */}
-      <View style={bg.shapeSageBottomRight} />
-
-      {/* Botanical leaf accents — SVG-free, emoji-based pressed leaves */}
-      <Text style={bg.leafTopLeft}>🌿</Text>
-      <Text style={bg.leafTopRight}>🍃</Text>
-      <Text style={bg.leafBottomLeft}>🌱</Text>
-      <Text style={bg.leafBottomRight}>🌾</Text>
-    </View>
-  );
-}
-const bg = StyleSheet.create({
-  // Large forest shape — fills top-left quadrant, slightly rotated
-  shapeForestLarge: {
-    position: 'absolute',
-    top: -SH * 0.12,
-    left: -SW * 0.18,
-    width: SW * 0.75,
-    height: SH * 0.38,
-    backgroundColor: T.shapeForest,
-    borderRadius: 999,
-    transform: [{ rotate: '-12deg' }],
-    opacity: 0.88,
-  },
-  // Soft sage blob — top right
-  shapeSageTopRight: {
-    position: 'absolute',
-    top: -20,
-    right: -SW * 0.1,
-    width: SW * 0.55,
-    height: SW * 0.55,
-    backgroundColor: T.shapeSageWash,
-    borderRadius: 999,
-    opacity: 0.75,
-  },
-  // Cream paper — large center/upper-mid layer
-  shapeCreamCenter: {
-    position: 'absolute',
-    top: SH * 0.18,
-    left: -SW * 0.05,
-    width: SW * 1.1,
-    height: SH * 0.38,
-    backgroundColor: T.shapeCream,
-    borderRadius: 40,
-    transform: [{ rotate: '2deg' }],
-    opacity: 0.90,
-  },
-  // Tan warm — bottom left
-  shapeTanBottomLeft: {
-    position: 'absolute',
-    bottom: SH * 0.04,
-    left: -SW * 0.2,
-    width: SW * 0.65,
-    height: SW * 0.65,
-    backgroundColor: T.shapeTan,
-    borderRadius: 999,
-    opacity: 0.55,
-  },
-  // Pale sage — bottom right corner
-  shapeSageBottomRight: {
-    position: 'absolute',
-    bottom: -SW * 0.1,
-    right: -SW * 0.08,
-    width: SW * 0.5,
-    height: SW * 0.5,
-    backgroundColor: T.shapeSageWash,
-    borderRadius: 999,
-    opacity: 0.50,
-  },
-
-  // Pressed botanical leaves
-  leafTopLeft: {
-    position: 'absolute',
-    top: SH * 0.08,
-    left: 24,
-    fontSize: 52,
-    opacity: 0.55,
-    transform: [{ rotate: '-25deg' }],
-  },
-  leafTopRight: {
-    position: 'absolute',
-    top: SH * 0.04,
-    right: 20,
-    fontSize: 38,
-    opacity: 0.45,
-    transform: [{ rotate: '18deg' }],
-  },
-  leafBottomLeft: {
-    position: 'absolute',
-    bottom: SH * 0.12,
-    left: 16,
-    fontSize: 36,
-    opacity: 0.40,
-    transform: [{ rotate: '10deg' }],
-  },
-  leafBottomRight: {
-    position: 'absolute',
-    bottom: SH * 0.08,
-    right: 18,
-    fontSize: 44,
-    opacity: 0.38,
-    transform: [{ rotate: '-15deg' }],
-  },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CLEAN INPUT — light surface, minimal border
-// ─────────────────────────────────────────────────────────────────────────────
-function CleanInput({
+function Field({
   label, value, onChangeText, placeholder,
   secureTextEntry, keyboardType, autoCapitalize,
   autoComplete, editable = true, returnKeyType,
   onSubmitEditing, inputRef,
 }: {
-  label: string; value: string; onChangeText: (v: string) => void;
-  placeholder?: string; secureTextEntry?: boolean; keyboardType?: any;
-  autoCapitalize?: any; autoComplete?: any; editable?: boolean;
-  returnKeyType?: any; onSubmitEditing?: () => void;
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  secureTextEntry?: boolean;
+  keyboardType?: any;
+  autoCapitalize?: any;
+  autoComplete?: any;
+  editable?: boolean;
+  returnKeyType?: any;
+  onSubmitEditing?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
-    <View style={ci.wrap}>
-      <Text style={ci.label}>{label}</Text>
-      <View style={[ci.field, focused && ci.fieldFocused]}>
+    <View style={f.wrap}>
+      <Text style={f.label}>{label}</Text>
+      <View style={[f.field, focused && f.fieldFocused]}>
         <TextInput
           ref={inputRef}
-          style={ci.input}
+          style={f.input}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
@@ -227,29 +107,66 @@ function CleanInput({
     </View>
   );
 }
-const ci = StyleSheet.create({
-  wrap:  { gap: 7 },
+
+const f = StyleSheet.create({
+  wrap:  { gap: 8 },
   label: {
-    fontSize: 10, fontWeight: '700',
-    letterSpacing: 1.6, color: T.inkMuted,
+    fontSize: 11,
+    fontWeight: '500',
+    letterSpacing: 0.8,
+    color: T.inkMuted,
     textTransform: 'uppercase',
   },
   field: {
     backgroundColor: T.inputBg,
-    borderRadius: 14,
-    borderWidth: 1.5,
+    borderRadius: 10,
+    borderWidth: 1,
     borderColor: T.inputBorder,
-    overflow: 'hidden',
   },
   fieldFocused: {
     borderColor: T.inputFocus,
-    backgroundColor: '#FDFCF8',
+    backgroundColor: '#FFFFFF',
   },
   input: {
-    paddingHorizontal: 18,
-    paddingVertical: Platform.OS === 'ios' ? 15 : 12,
-    fontSize: 16, color: T.inkDark,
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 15 : 13,
+    fontSize: 15,
+    color: T.inkDark,
     fontWeight: '400',
+    letterSpacing: 0.1,
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOGOTYPE — minimal wordmark, no icon
+// ─────────────────────────────────────────────────────────────────────────────
+function Logotype() {
+  return (
+    <View style={logo.wrap}>
+      {/* Thin rule above — structural, not decorative */}
+      <View style={logo.rule} />
+      <Text style={logo.mark}>TLC</Text>
+    </View>
+  );
+}
+const logo = StyleSheet.create({
+  wrap: {
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 32,
+  },
+  rule: {
+    width: 28,
+    height: 1,
+    backgroundColor: T.gold,
+    borderRadius: 1,
+  },
+  mark: {
+    fontSize: 13,
+    fontWeight: '600',
+    letterSpacing: 4,
+    color: T.inkMid,
+    textTransform: 'uppercase',
   },
 });
 
@@ -263,13 +180,13 @@ export default function LoginScreen({ navigation }: Props) {
 
   const passwordRef = useRef<TextInput>(null);
   const fadeAnim    = useRef(new Animated.Value(0)).current;
-  const slideAnim   = useRef(new Animated.Value(20)).current;
+  const slideAnim   = useRef(new Animated.Value(16)).current;
 
   // Entrance animation — preserved logic
   React.useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 600, delay: 80, useNativeDriver: true }),
-      Animated.timing(slideAnim, { toValue: 0, duration: 500, delay: 80, useNativeDriver: true }),
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 540, delay: 60, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 480, delay: 60, useNativeDriver: true }),
     ]).start();
   }, []);
 
@@ -291,9 +208,6 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={s.root}>
-      {/* Layered botanical background shapes */}
-      <BotanicalBackground />
-
       <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           style={s.kav}
@@ -309,95 +223,83 @@ export default function LoginScreen({ navigation }: Props) {
               { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
             ]}>
 
-              {/* ── BRAND MARK ──────────────────────────────────────── */}
-              <View style={s.brand}>
-                {/* Washi-tape style ornament strip */}
-                <View style={s.ornamentRow}>
-                  <View style={s.ornamentLine} />
-                  <Text style={s.leafMark}>🌿</Text>
-                  <View style={s.ornamentLine} />
-                </View>
+              {/* ── LOGOTYPE ─────────────────────────────────────────── */}
+              <Logotype />
 
-                <Text style={s.brandName}>Transforming</Text>
-                <Text style={s.brandName}>Lives Coaching</Text>
-                <Text style={s.brandTagline}>Track your glucose & cycle with grace</Text>
+              {/* ── HEADLINE ─────────────────────────────────────────── */}
+              <View style={s.header}>
+                <Text style={s.headline}>Welcome back</Text>
+                <Text style={s.sub}>Rooted in faith. Moving in health.</Text>
               </View>
 
-              {/* ── FORM CARD — pressed paper surface ───────────────── */}
+              {/* ── CARD ─────────────────────────────────────────────── */}
               <View style={s.card}>
-                {/* Subtle tape strip at top — paper collage touch */}
-                <View style={s.tapeStrip} />
 
-                <View style={s.form}>
-                  <CleanInput
-                    label="Email"
-                    value={email}
-                    onChangeText={setEmail}
-                    placeholder="your@email.com"
-                    keyboardType="email-address"
-                    autoComplete="email"
-                    returnKeyType="next"
-                    onSubmitEditing={() => passwordRef.current?.focus()}
-                    editable={!isLoading}
-                  />
+                <Field
+                  label="Email"
+                  value={email}
+                  onChangeText={setEmail}
+                  placeholder="you@example.com"
+                  keyboardType="email-address"
+                  autoComplete="email"
+                  returnKeyType="next"
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  editable={!isLoading}
+                />
 
-                  <CleanInput
-                    label="Password"
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="••••••••"
-                    secureTextEntry
-                    autoComplete="password"
-                    returnKeyType="done"
-                    onSubmitEditing={handleLogin}
-                    editable={!isLoading}
-                    inputRef={passwordRef}
-                  />
+                <Field
+                  label="Password"
+                  value={password}
+                  onChangeText={setPassword}
+                  placeholder="••••••••"
+                  secureTextEntry
+                  autoComplete="password"
+                  returnKeyType="done"
+                  onSubmitEditing={handleLogin}
+                  editable={!isLoading}
+                  inputRef={passwordRef}
+                />
 
-                  {/* Sign in button */}
+                {/* Forgot password */}
+                <TouchableOpacity
+                  style={s.forgotWrap}
+                  onPress={() => navigation.navigate('ForgotPassword')}
+                  disabled={isLoading}
+                  activeOpacity={0.65}
+                >
+                  <Text style={s.forgotTxt}>Forgot password?</Text>
+                </TouchableOpacity>
+
+                {/* Primary CTA */}
+                <TouchableOpacity
+                  style={[s.ctaBtn, isLoading && s.ctaBtnDisabled]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                  activeOpacity={0.88}
+                >
+                  {isLoading
+                    ? <ActivityIndicator color={T.btnText} />
+                    : <Text style={s.ctaBtnTxt}>Enter your system  →</Text>
+                  }
+                </TouchableOpacity>
+
+                {/* Divider */}
+                <View style={s.divider} />
+
+                {/* Create account */}
+                <View style={s.registerRow}>
+                  <Text style={s.registerPrompt}>Don't have an account? </Text>
                   <TouchableOpacity
-                    style={[s.signInBtn, isLoading && s.signInBtnDisabled]}
-                    onPress={handleLogin}
+                    onPress={() => navigation.navigate('Register')}
                     disabled={isLoading}
-                    activeOpacity={0.86}
+                    activeOpacity={0.65}
                   >
-                    {isLoading
-                      ? <ActivityIndicator color={T.inkOnForest} />
-                      : <Text style={s.signInBtnTxt}>Sign in</Text>
-                    }
+                    <Text style={s.registerLink}>Create one</Text>
                   </TouchableOpacity>
-
-                  {/* Divider */}
-                  <View style={s.divider} />
-
-                  {/* Forgot password */}
-                  <TouchableOpacity
-                    style={s.linkBtn}
-                    onPress={() => navigation.navigate('ForgotPassword')}
-                    disabled={isLoading}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={s.forgotTxt}>Forgot password?</Text>
-                  </TouchableOpacity>
-
-                  {/* Sign up */}
-                  <View style={s.signUpRow}>
-                    <Text style={s.signUpPrompt}>Don't have an account? </Text>
-                    <TouchableOpacity
-                      onPress={() => navigation.navigate('Register')}
-                      disabled={isLoading}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={s.signUpLink}>Sign up</Text>
-                    </TouchableOpacity>
-                  </View>
                 </View>
-              </View>
 
-              {/* ── FOOTER ──────────────────────────────────────────── */}
-              <Text style={s.footer}>
-                A calmer way to notice patterns & align glucose, cycle, and life
-              </Text>
+              </View>
+              {/* ── END CARD ─────────────────────────────────────────── */}
 
             </Animated.View>
           </ScrollView>
@@ -417,109 +319,106 @@ const s = StyleSheet.create({
   scroll: {
     flexGrow: 1,
     justifyContent: 'center',
-    paddingHorizontal: 28,
-    paddingTop: 48,
-    paddingBottom: 36,
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 48,
   },
   inner: {},
 
-  // Brand section — sits above the card, text is dark on light bg
-  brand: {
+  // Headline block — sits above the card, clean hierarchy
+  header: {
     alignItems: 'center',
-    paddingBottom: 32,
-    gap: 5,
+    marginBottom: 32,
+    gap: 8,
   },
-  ornamentRow: {
-    flexDirection: 'row', alignItems: 'center',
-    gap: 10, marginBottom: 8,
+  headline: {
+    fontSize: 30,
+    fontWeight: '300',           // light serif feel via weight
+    letterSpacing: -0.4,
+    color: T.inkDark,
+    textAlign: 'center',
   },
-  ornamentLine: {
-    width: 32, height: 1.5,
-    backgroundColor: 'rgba(61,92,69,0.25)',
-    borderRadius: 1,
-  },
-  leafMark: { fontSize: 20 },
-  brandName: {
-    fontSize: 34, fontWeight: '800',
-    color: T.inkDark, letterSpacing: -0.8,
-    lineHeight: 40, textAlign: 'center',
-  },
-  brandTagline: {
-    fontSize: 13, fontWeight: '400',
-    color: T.inkMuted, letterSpacing: 0.2,
-    marginTop: 6, textAlign: 'center',
+  sub: {
+    fontSize: 14,
+    fontWeight: '400',
+    color: T.inkMuted,
+    letterSpacing: 0.1,
+    textAlign: 'center',
   },
 
-  // Form card — pressed paper white surface
+  // Form card
   card: {
     backgroundColor: T.cardBg,
-    borderRadius: 24,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: T.border,
-    overflow: 'hidden',
-    shadowColor: T.shadow,
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.10,
-    shadowRadius: 32,
-    elevation: 10,
+    borderColor: T.cardBorder,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    gap: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 30,
+    elevation: 6,
   },
 
-  // Tape strip — decorative collage accent at top of card
-  tapeStrip: {
-    position: 'absolute',
-    top: -4,
-    alignSelf: 'center',
-    left: '35%',
-    width: 60,
-    height: 14,
-    backgroundColor: 'rgba(196,168,115,0.45)',
-    borderRadius: 3,
-    zIndex: 1,
+  // Forgot
+  forgotWrap: {
+    alignSelf: 'flex-end',
+    marginTop: -4,
+  },
+  forgotTxt: {
+    fontSize: 13,
+    fontWeight: '400',
+    color: T.inkMuted,
+    letterSpacing: 0.1,
   },
 
-  form: { padding: 28, gap: 18, paddingTop: 32 },
-
-  // Sign in button — solid forest green
-  signInBtn: {
-    height: 54,
-    backgroundColor: T.forest,
-    borderRadius: 14,
+  // Primary CTA button
+  ctaBtn: {
+    height: 52,
+    backgroundColor: T.btnBg,
+    borderRadius: 11,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 4,
-    shadowColor: T.forest,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.28,
-    shadowRadius: 14,
-    elevation: 6,
+    shadowColor: T.btnBg,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  signInBtnDisabled: { opacity: 0.55 },
-  signInBtnTxt: {
-    fontSize: 16, fontWeight: '700',
-    color: T.inkOnForest, letterSpacing: 0.3,
+  ctaBtnDisabled: { opacity: 0.50 },
+  ctaBtnTxt: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: T.btnText,
+    letterSpacing: 0.2,
   },
 
   // Divider
   divider: {
     height: 1,
-    backgroundColor: T.border,
+    backgroundColor: T.divider,
     marginVertical: 2,
   },
 
-  // Links
-  linkBtn:      { alignItems: 'center', paddingVertical: 4 },
-  forgotTxt:    { fontSize: 14, fontWeight: '600', color: T.sage },
-  signUpRow:    { flexDirection: 'row', justifyContent: 'center', alignItems: 'center' },
-  signUpPrompt: { fontSize: 14, color: T.inkMuted },
-  signUpLink:   { fontSize: 14, fontWeight: '700', color: T.forest },
-
-  // Footer
-  footer: {
-    textAlign: 'center',
-    fontSize: 12,
+  // Register row
+  registerRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  registerPrompt: {
+    fontSize: 13,
     color: T.inkMuted,
-    lineHeight: 18,
-    paddingTop: 28,
-    paddingHorizontal: 12,
+    fontWeight: '400',
+  },
+  registerLink: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: T.inkDark,
+    textDecorationLine: 'underline',
+    textDecorationColor: T.gold,
   },
 });

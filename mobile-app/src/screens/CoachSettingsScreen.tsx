@@ -1,56 +1,40 @@
-// mobile-app/src/screens/SettingsScreen.tsx
-// REDESIGN: Premium light-mode settings — matches LoginScreen palette.
-// ALL logic, AsyncStorage, auth, navigation preserved exactly.
+// mobile-app/src/screens/CoachSettingsScreen.tsx
+// Coach settings — premium light-mode, same palette as SettingsScreen.
+// Sections appropriate for coach role: Profile, Clients, Account.
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Switch,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { CYCLE_PROFILE_KEY, CycleProfile } from './RhythmProfileScreen';
 
-const CYCLE_TRACKING_KEY = 'cycleTrackingEnabled';
-
-const PROFILE_LABELS: Record<CycleProfile, string> = {
-  regular:       'Regular Cycle',
-  irregular:     'Irregular / PCOS',
-  perimenopause: 'Perimenopause',
-  menopause:     'Menopause',
-  unknown:       'Not Sure',
-};
-
-type NavProp = NativeStackNavigationProp<RootStackParamList, 'Settings'>;
+type NavProp = NativeStackNavigationProp<RootStackParamList, 'CoachSettings'>;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOKENS — warm off-white palette, matches LoginScreen
+// TOKENS — identical to SettingsScreen
 // ─────────────────────────────────────────────────────────────────────────────
 const T = {
-  pageBg:      '#F7F5F2',
-  cardBg:      '#FFFFFF',
-  cardBorder:  'rgba(0,0,0,0.05)',
-  divider:     '#EDEAE5',
+  pageBg:     '#F7F5F2',
+  cardBg:     '#FFFFFF',
+  cardBorder: 'rgba(0,0,0,0.05)',
+  divider:    '#EDEAE5',
 
-  inkDark:     '#1A1814',
-  inkMid:      '#4A4640',
-  inkMuted:    '#9B9690',
+  inkDark:    '#1A1814',
+  inkMid:     '#4A4640',
+  inkMuted:   '#9B9690',
 
-  forest:      '#2B4535',
-  gold:        '#A8916A',
+  forest:     '#2B4535',
+  gold:       '#A8916A',
 
-  switchTrack: '#D6D2CC',
-  switchThumb: '#2B4535',
-
-  danger:      '#C0413A',
+  danger:     '#C0413A',
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -167,104 +151,10 @@ const r = StyleSheet.create({
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// TOGGLE ROW
-// ─────────────────────────────────────────────────────────────────────────────
-function ToggleRow({
-  icon, label, desc, value, onChange, last,
-}: {
-  icon?: string; label: string; desc?: string;
-  value: boolean; onChange: (v: boolean) => void; last?: boolean;
-}) {
-  return (
-    <>
-      <View style={tr.row}>
-        {icon ? (
-          <View style={tr.iconWrap}>
-            <Text style={tr.iconTxt}>{icon}</Text>
-          </View>
-        ) : null}
-        <View style={tr.info}>
-          <Text style={tr.label}>{label}</Text>
-          {desc ? <Text style={tr.desc}>{desc}</Text> : null}
-        </View>
-        <Switch
-          value={value}
-          onValueChange={onChange}
-          trackColor={{ false: T.switchTrack, true: T.forest }}
-          thumbColor="#FFFFFF"
-          ios_backgroundColor={T.switchTrack}
-        />
-      </View>
-      {!last && <View style={tr.div} />}
-    </>
-  );
-}
-const tr = StyleSheet.create({
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
-    paddingVertical: 15,
-    paddingHorizontal: 18,
-  },
-  iconWrap: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: '#F3F0EB',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconTxt: { fontSize: 16 },
-  info:    { flex: 1 },
-  label: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: T.inkDark,
-    marginBottom: 1,
-  },
-  desc: {
-    fontSize: 12,
-    color: T.inkMuted,
-    lineHeight: 17,
-  },
-  div: {
-    height: 1,
-    backgroundColor: T.divider,
-    marginHorizontal: 18,
-  },
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // MAIN
 // ─────────────────────────────────────────────────────────────────────────────
-export default function SettingsScreen({ navigation }: { navigation: NavProp }) {
+export default function CoachSettingsScreen({ navigation }: { navigation: NavProp }) {
   const { user, logout } = useAuthStore();
-  const [cycleEnabled, setCycleEnabled] = useState(true);
-  const [cycleProfile, setCycleProfile] = useState<CycleProfile>('regular');
-
-  const loadSettings = async () => {
-    try {
-      const en = await AsyncStorage.getItem(CYCLE_TRACKING_KEY);
-      if (en !== null) setCycleEnabled(en === 'true');
-      const pr = await AsyncStorage.getItem(CYCLE_PROFILE_KEY);
-      if (pr) setCycleProfile(pr as CycleProfile);
-    } catch {}
-  };
-
-  useEffect(() => { loadSettings(); }, []);
-  useEffect(() => {
-    const unsub = navigation.addListener('focus', loadSettings);
-    return unsub;
-  }, [navigation]);
-
-  const toggleCycle = async (v: boolean) => {
-    try {
-      await AsyncStorage.setItem(CYCLE_TRACKING_KEY, v.toString());
-      setCycleEnabled(v);
-      if (!v) Alert.alert('Rhythm Tracking Disabled', 'You can re-enable it anytime in settings.');
-    } catch { Alert.alert('Error', 'Failed to save setting'); }
-  };
 
   const confirmLogout = () =>
     Alert.alert('Sign out?', "You'll need to log in again.", [
@@ -306,35 +196,25 @@ export default function SettingsScreen({ navigation }: { navigation: NavProp }) 
             <View style={s.profileInfo}>
               <Text style={s.profileName}>{user?.firstName} {user?.lastName}</Text>
               <Text style={s.profileEmail}>{user?.email}</Text>
+              <View style={s.roleBadge}>
+                <Text style={s.roleTxt}>Coach</Text>
+              </View>
             </View>
           </View>
 
-          {/* FEATURES */}
-          <Section label="Features">
+          {/* PRACTICE */}
+          <Section label="Practice">
             <Row
-              icon="◎"
-              label="Rhythm Profile"
-              desc="Your cycle type"
-              value={PROFILE_LABELS[cycleProfile]}
-              onPress={() => navigation.navigate('RhythmProfile')}
+              icon="◈"
+              label="Client Notifications"
+              desc="Alerts when clients log or message"
+              onPress={() => Alert.alert('Coming soon', 'Notification preferences coming in a future update.')}
             />
-            <ToggleRow
-              icon="〜"
-              label="Rhythm Tracking"
-              desc="Show spiritual rhythm on dashboard"
-              value={cycleEnabled}
-              onChange={toggleCycle}
-              last
-            />
-          </Section>
-
-          {/* INTEGRATIONS */}
-          <Section label="Integrations">
             <Row
-              icon="♡"
-              label="Apple Health"
-              desc="Sync glucose data"
-              onPress={() => navigation.navigate('HealthSync')}
+              icon="⊞"
+              label="Session Templates"
+              desc="Manage your default session structure"
+              onPress={() => Alert.alert('Coming soon', 'Session templates coming in a future update.')}
               last
             />
           </Section>
@@ -352,6 +232,17 @@ export default function SettingsScreen({ navigation }: { navigation: NavProp }) 
               label="Sign Out"
               onPress={confirmLogout}
               danger
+              last
+            />
+          </Section>
+
+          {/* APP */}
+          <Section label="App">
+            <Row
+              icon="◎"
+              label="About TLC"
+              desc="Version, licenses, and support"
+              onPress={() => Alert.alert('TLC', 'Transforming Lives Coaching\nRooted in faith. Moving in health.')}
               last
             />
           </Section>
@@ -436,6 +327,21 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: T.inkMuted,
     marginTop: 3,
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    marginTop: 7,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    backgroundColor: 'rgba(43,69,53,0.08)',
+    borderRadius: 5,
+  },
+  roleTxt: {
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    color: T.forest,
+    textTransform: 'uppercase',
   },
 
   scroll:  { flex: 1 },

@@ -265,6 +265,7 @@ export default function CoachDashboardScreen() {
     userName: `${c.firstName} ${c.lastName}`.trim() || c.email,
   });
   const goToConversations = () => navigation.navigate('Conversations');
+  const goToSettings      = () => navigation.navigate('CoachSettings');
   const goToNewLesson     = () => navigation.navigate('CreateLesson' as any, {});
   const goToAllLessons    = () => navigation.navigate('CoachLessons' as any);
 
@@ -293,13 +294,22 @@ export default function CoachDashboardScreen() {
                 <Text style={s.greetSm}>{greet}</Text>
                 <Text style={s.greetLg}>{firstName}</Text>
               </View>
-              <TouchableOpacity
-                style={s.iconBtn}
-                onPress={goToConversations}
-                activeOpacity={0.75}
-              >
-                <Text style={s.iconBtnTxt}>✉</Text>
-              </TouchableOpacity>
+              <View style={s.headerActions}>
+                <TouchableOpacity
+                  style={s.iconBtn}
+                  onPress={goToConversations}
+                  activeOpacity={0.75}
+                >
+                  <Text style={s.iconBtnTxt}>✉</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={s.iconBtn}
+                  onPress={goToSettings}
+                  activeOpacity={0.75}
+                >
+                  <Text style={s.iconBtnTxt}>⚙</Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
             {/* ── QUICK ACTIONS ─────────────────────────────────────── */}
@@ -399,6 +409,11 @@ const s = StyleSheet.create({
   greetLg: {
     fontSize: 28, fontWeight: '300',
     color: T.inkDark, letterSpacing: -0.6, marginTop: 2,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   iconBtn: {
     width: 40, height: 40, borderRadius: 12,
