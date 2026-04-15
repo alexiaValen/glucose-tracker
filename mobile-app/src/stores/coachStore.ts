@@ -12,6 +12,9 @@ interface CoachState {
   viewingClientName: string | null;
 
   fetchClients: () => Promise<void>;
+  addClient: (email: string) => Promise<void>;
+  removeClient: (clientId: string) => Promise<void>;
+  editClient: (clientId: string, updates: { firstName?: string; lastName?: string; phone?: string }) => Promise<void>;
   selectClient: (client: ClientSummary) => void;
   clearSelectedClient: () => void;
   setViewingClient: (clientId: string, clientName: string) => void;
@@ -34,6 +37,23 @@ export const useCoachStore = create<CoachState>((set) => ({
       console.error('Failed to fetch clients:', error);
       set({ isLoading: false });
     }
+  },
+
+  addClient: async (email: string) => {
+    const newClient = await coachService.addClient(email);
+    set(state => ({ clients: [...state.clients, newClient] }));
+  },
+
+  removeClient: async (clientId: string) => {
+    await coachService.removeClient(clientId);
+    set(state => ({ clients: state.clients.filter(c => c.id !== clientId) }));
+  },
+
+  editClient: async (clientId: string, updates) => {
+    const updated = await coachService.editClient(clientId, updates);
+    set(state => ({
+      clients: state.clients.map(c => c.id === clientId ? { ...c, ...updated } : c),
+    }));
   },
 
   selectClient: (client: ClientSummary) => {

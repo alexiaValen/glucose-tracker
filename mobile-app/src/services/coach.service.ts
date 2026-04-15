@@ -44,6 +44,20 @@ export const coachService = {
     return raw.map(normalizeClient);
   },
 
+  async addClient(email: string): Promise<ClientSummary> {
+    const response = await api.post('/coach/clients', { email });
+    return normalizeClient(response.data.client);
+  },
+
+  async removeClient(clientId: string): Promise<void> {
+    await api.delete(`/coach/clients/${clientId}`);
+  },
+
+  async editClient(clientId: string, updates: { firstName?: string; lastName?: string; phone?: string }): Promise<ClientSummary> {
+    const response = await api.patch(`/coach/clients/${clientId}`, updates);
+    return normalizeClient(response.data.client);
+  },
+
   async getClientGlucose(clientId: string, limit = 50) {
     const response = await api.get(`/coach/clients/${clientId}/glucose`, {
       params: { limit },

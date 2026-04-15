@@ -12,7 +12,6 @@ export type RootStackParamList = {
 
   // User screens
   AddGlucose: undefined;
-  AddSymptom: undefined;
   LogCycle: undefined;
   LessonDetail: { lesson: any };
   ClientLessons: undefined;

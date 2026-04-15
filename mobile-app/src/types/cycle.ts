@@ -56,7 +56,7 @@ export const SYMPTOM_OPTIONS = [
   'Nausea',
 ] as const;
 
-export type Symptom = typeof SYMPTOM_OPTIONS[number];
+export type SymptomOption = typeof SYMPTOM_OPTIONS[number];
 
 /**
  * A single day's log entry.

@@ -16,7 +16,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
 
-type NavProp = NativeStackNavigationProp<RootStackParamList, 'CoachSettings'>;
+type NavProp = NativeStackNavigationProp<RootStackParamList>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TOKENS — identical to SettingsScreen
@@ -209,6 +209,12 @@ export default function CoachSettingsScreen({ navigation }: { navigation: NavPro
               label="Client Notifications"
               desc="Alerts when clients log or message"
               onPress={() => Alert.alert('Coming soon', 'Notification preferences coming in a future update.')}
+            />
+            <Row
+              icon="♡"
+              label="Health Sync"
+              desc="Connect Apple Health or Google Health Connect"
+              onPress={() => navigation.navigate('HealthSync')}
             />
             <Row
               icon="⊞"

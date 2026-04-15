@@ -1,6 +1,8 @@
 // GraceFlowWebApp.tsx — Redesigned MVP
 // Clean, modern health dashboard inspired by the mobile design reference
 
+import CoachDashboard from "./coach/CoachDashboard";
+
 import React, {
   createContext,
   useContext,
@@ -1710,10 +1712,15 @@ function Dashboard() {
 // ─── ROOT ─────────────────────────────────────────────────────────────────────
 
 function App() {
-  const { isAuthenticated } = useApp();
+  const { isAuthenticated, user, logout } = useApp();
   const [showRegister, setShowRegister] = useState(false);
 
-  if (isAuthenticated) return <Dashboard />;
+  if (isAuthenticated) {
+    if (user?.role === "coach") {
+      return <CoachDashboard user={user as any} logout={logout} />;
+    }
+    return <Dashboard />;
+  }
 
   return showRegister
     ? <RegisterScreen onSwitchToLogin={() => setShowRegister(false)} />

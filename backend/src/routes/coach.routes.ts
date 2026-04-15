@@ -128,6 +128,140 @@ router.get("/clients", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ==================== ADD CLIENT BY EMAIL =====================================
+// POST /api/v1/coach/clients
+router.post("/clients", async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId = req.user?.id;
+    const { email } = req.body;
+
+    if (!coachId) return res.status(401).json({ error: "Unauthorized" });
+    if (!email)   return res.status(400).json({ error: "email is required" });
+
+    // Find the user by email
+    const { data: user, error: userErr } = await supabase
+      .from("users")
+      .select("id, email, first_name, last_name")
+      .eq("email", email.toLowerCase().trim())
+      .single();
+
+    if (userErr || !user) {
+      return res.status(404).json({ error: "No account found with that email address." });
+    }
+
+    if (user.id === coachId) {
+      return res.status(400).json({ error: "You cannot add yourself as a client." });
+    }
+
+    // Check not already linked
+    const { data: existing } = await supabase
+      .from("coach_clients")
+      .select("client_id")
+      .eq("coach_id", coachId)
+      .eq("client_id", user.id)
+      .single();
+
+    if (existing) {
+      return res.status(409).json({ error: "This person is already in your client list." });
+    }
+
+    const { error: insertErr } = await supabase
+      .from("coach_clients")
+      .insert({ coach_id: coachId, client_id: user.id });
+
+    if (insertErr) throw insertErr;
+
+    res.status(201).json({
+      client: {
+        id: user.id,
+        firstName: user.first_name,
+        lastName:  user.last_name,
+        email:     user.email,
+        recentStats: { avgGlucose: 0, lastReading: 0, timeInRange: 0 },
+      },
+    });
+  } catch (err) {
+    console.error("❌ POST /coach/clients:", err);
+    res.status(500).json({ error: "Failed to add client" });
+  }
+});
+
+// ==================== REMOVE CLIENT ==========================================
+// DELETE /api/v1/coach/clients/:clientId
+router.delete("/clients/:clientId", async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId   = req.user?.id;
+    const { clientId } = req.params;
+
+    if (!coachId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { error } = await supabase
+      .from("coach_clients")
+      .delete()
+      .eq("coach_id",  coachId)
+      .eq("client_id", clientId);
+
+    if (error) throw error;
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ DELETE /coach/clients/:id:", err);
+    res.status(500).json({ error: "Failed to remove client" });
+  }
+});
+
+// ==================== EDIT CLIENT INFO =======================================
+// PATCH /api/v1/coach/clients/:clientId
+router.patch("/clients/:clientId", async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId   = req.user?.id;
+    const { clientId } = req.params;
+    const { firstName, lastName, phone } = req.body;
+
+    if (!coachId) return res.status(401).json({ error: "Unauthorized" });
+
+    // Verify relationship
+    const { data: rel } = await supabase
+      .from("coach_clients")
+      .select("client_id")
+      .eq("coach_id",  coachId)
+      .eq("client_id", clientId)
+      .single();
+
+    if (!rel) return res.status(403).json({ error: "Not your client" });
+
+    const updates: Record<string, string> = {};
+    if (firstName) updates.first_name = firstName.trim();
+    if (lastName)  updates.last_name  = lastName.trim();
+    if (phone)     updates.phone      = phone.trim();
+
+    if (Object.keys(updates).length === 0) {
+      return res.status(400).json({ error: "Nothing to update" });
+    }
+
+    const { data: updated, error } = await supabase
+      .from("users")
+      .update(updates)
+      .eq("id", clientId)
+      .select("id, email, first_name, last_name")
+      .single();
+
+    if (error) throw error;
+
+    res.json({
+      client: {
+        id:        updated.id,
+        firstName: updated.first_name,
+        lastName:  updated.last_name,
+        email:     updated.email,
+      },
+    });
+  } catch (err) {
+    console.error("❌ PATCH /coach/clients/:id:", err);
+    res.status(500).json({ error: "Failed to update client" });
+  }
+});
+
 // ==================== GET CLIENT GLUCOSE (for coach) ==========================
 // GET /api/v1/coach/clients/:clientId/glucose
 router.get("/clients/:clientId/glucose", async (req: AuthRequest, res: Response) => {

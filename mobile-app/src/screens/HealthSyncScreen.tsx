@@ -20,7 +20,26 @@ import { Ionicons } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
 import { healthKitService, SyncResult } from '../services/healthkit.service';
 import { healthConnectService, SdkStatus } from '../services/healthconnect.service';
-import { colors } from '../theme/colors';
+
+// ─── Design tokens — matches Settings/Login palette ──────────────────────────
+const T = {
+  pageBg:     '#F7F5F2',
+  cardBg:     '#FFFFFF',
+  cardBorder: 'rgba(0,0,0,0.05)',
+  divider:    '#EDEAE5',
+  inkDark:    '#1A1814',
+  inkMid:     '#4A4640',
+  inkMuted:   '#9B9690',
+  forest:     '#2B4535',
+  forestLight:'rgba(43,69,53,0.09)',
+  gold:       '#A8916A',
+  switchTrack:'#D6D2CC',
+  danger:     '#C0413A',
+  warnBg:     'rgba(184,151,90,0.10)',
+  warnBorder: 'rgba(184,151,90,0.28)',
+  errorBg:    'rgba(192,65,58,0.08)',
+  errorBorder:'rgba(192,65,58,0.28)',
+} as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -154,10 +173,10 @@ function IOSHealthSync({ navigation }: { navigation: any }) {
           icon={hkReady ? 'heart' : 'heart-outline'}
           iconActive={hkReady}
           title={
-            !hkReady     ? 'Connect Apple Health' :
-            status === 'syncing'  ? 'Syncing…' :
-            status === 'success'  ? 'Sync Complete' :
-            status === 'error'    ? 'Sync Failed' :
+            !hkReady             ? 'Connect Apple Health' :
+            status === 'syncing' ? 'Syncing…' :
+            status === 'success' ? 'Sync Complete' :
+            status === 'error'   ? 'Sync Failed' :
             'Apple Health Connected'
           }
           subtitle={
@@ -298,7 +317,7 @@ function AndroidHealthSync({ navigation }: { navigation: any }) {
       <SafeAreaView style={s.root} edges={['top']}>
         <SyncHeader title="Health Connect" onBack={() => navigation.goBack()} />
         <View style={s.center}>
-          <Ionicons name="phone-portrait-outline" size={52} color={colors.textSecondary} />
+          <Ionicons name="phone-portrait-outline" size={52} color={T.inkMuted} />
           <Text style={s.bigTitle}>Not Supported</Text>
           <Text style={s.subtitle}>
             Health Connect requires Android 9 or higher. Please update your device to use this feature.
@@ -316,7 +335,7 @@ function AndroidHealthSync({ navigation }: { navigation: any }) {
         <ScrollView style={s.scroll} contentContainerStyle={s.content} showsVerticalScrollIndicator={false}>
           <View style={s.heroCard}>
             <View style={s.heroIcon}>
-              <Ionicons name="heart-circle-outline" size={32} color={colors.textSecondary} />
+              <Ionicons name="heart-circle-outline" size={32} color={T.inkMuted} />
             </View>
             <Text style={s.heroTitle}>Health Connect Required</Text>
             <Text style={s.heroSub}>
@@ -333,10 +352,10 @@ function AndroidHealthSync({ navigation }: { navigation: any }) {
           </View>
           <WhatGetsSynced
             bullets={[
-              { icon: 'fitness-outline',        text: 'Reads blood glucose from any Health Connect-compatible app or device' },
-              { icon: 'cloud-upload-outline',   text: 'Uploads only new readings — no duplicates' },
-              { icon: 'people-outline',         text: 'Your coach can see your readings in real time' },
-              { icon: 'lock-closed-outline',    text: 'You control access — revoke any time in Health Connect settings' },
+              { icon: 'fitness-outline',      text: 'Reads blood glucose from any Health Connect-compatible app or device' },
+              { icon: 'cloud-upload-outline', text: 'Uploads only new readings — no duplicates' },
+              { icon: 'people-outline',       text: 'Your coach can see your readings in real time' },
+              { icon: 'lock-closed-outline',  text: 'You control access — revoke any time in Health Connect settings' },
             ]}
           />
           <View style={{ height: 48 }} />
@@ -378,16 +397,15 @@ function AndroidHealthSync({ navigation }: { navigation: any }) {
           onCta={hcReady ? runSync : requestPermissions}
         />
 
-        {/* Manage via Health Connect settings */}
         {hcReady && (
           <TouchableOpacity
             style={s.openSettingsRow}
             onPress={() => healthConnectService.openSettings()}
             activeOpacity={0.7}
           >
-            <Ionicons name="settings-outline" size={16} color={colors.primary} />
+            <Ionicons name="settings-outline" size={16} color={T.forest} />
             <Text style={s.openSettingsTxt}>Manage permissions in Health Connect</Text>
-            <Ionicons name="open-outline" size={14} color={colors.textSecondary} />
+            <Ionicons name="open-outline" size={14} color={T.inkMuted} />
           </TouchableOpacity>
         )}
 
@@ -403,10 +421,10 @@ function AndroidHealthSync({ navigation }: { navigation: any }) {
 
         <WhatGetsSynced
           bullets={[
-            { icon: 'fitness-outline',        text: 'Blood glucose from any Health Connect compatible app or CGM' },
-            { icon: 'cloud-upload-outline',   text: 'New readings only — existing data is never duplicated' },
-            { icon: 'people-outline',         text: 'Synced data is visible to your coach' },
-            { icon: 'lock-closed-outline',    text: 'Revoke access any time in Health Connect → App permissions' },
+            { icon: 'fitness-outline',      text: 'Blood glucose from any Health Connect compatible app or CGM' },
+            { icon: 'cloud-upload-outline', text: 'New readings only — existing data is never duplicated' },
+            { icon: 'people-outline',       text: 'Synced data is visible to your coach' },
+            { icon: 'lock-closed-outline',  text: 'Revoke access any time in Health Connect → App permissions' },
           ]}
         />
         <View style={{ height: 48 }} />
@@ -422,16 +440,11 @@ function AndroidHealthSync({ navigation }: { navigation: any }) {
 function SyncHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
     <View style={s.header}>
-      <TouchableOpacity
-        onPress={onBack}
-        style={s.backBtn}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <Ionicons name="chevron-back" size={22} color={colors.primary} />
-        <Text style={s.backTxt}>Back</Text>
+      <TouchableOpacity onPress={onBack} style={s.backBtn} activeOpacity={0.65}>
+        <Text style={s.backArrow}>←</Text>
       </TouchableOpacity>
       <Text style={s.headerTitle}>{title}</Text>
-      <View style={{ width: 70 }} />
+      <View style={{ width: 36 }} />
     </View>
   );
 }
@@ -454,7 +467,7 @@ function HeroCard({
         <Ionicons
           name={icon as any}
           size={28}
-          color={iconActive ? colors.primary : colors.textSecondary}
+          color={iconActive ? T.forest : T.inkMuted}
         />
       </View>
       <Text style={s.heroTitle}>{title}</Text>
@@ -462,14 +475,14 @@ function HeroCard({
       <TouchableOpacity
         style={[s.syncBtn, isBusy && s.syncBtnDisabled]}
         onPress={onCta}
-        activeOpacity={0.8}
+        activeOpacity={0.85}
         disabled={isBusy}
       >
         {isBusy
           ? <ActivityIndicator color="#fff" />
           : (
             <>
-              <Ionicons name={ctaIcon as any} size={18} color="#fff" />
+              <Ionicons name={ctaIcon as any} size={17} color="#fff" />
               <Text style={s.syncBtnTxt}>{ctaLabel}</Text>
             </>
           )
@@ -489,23 +502,25 @@ function AlertBanners({
   return (
     <View style={s.section}>
       <Text style={s.sectionLabel}>READINGS FLAGGED</Text>
-      {result.alerts.map((a, i) => (
-        <View
-          key={i}
-          style={[s.alertRow, a.severity === 'critical' ? s.alertCritical : s.alertWarning]}
-        >
-          <Ionicons
-            name={a.severity === 'critical' ? 'warning' : 'alert-circle-outline'}
-            size={18}
-            color={a.severity === 'critical' ? '#C85A54' : '#B8975A'}
-          />
-          <Text style={[s.alertTxt, a.severity === 'critical' && s.alertTxtCritical]}>
-            {a.type === 'high_glucose' ? 'High' : 'Low'} glucose: {a.value} mg/dL
-            {a.severity === 'critical' ? ' — Critical' : ''}
-          </Text>
-        </View>
-      ))}
-      <Text style={s.alertNote}>Your coach has been notified about these readings.</Text>
+      <View style={s.card}>
+        {result.alerts.map((a, i) => (
+          <View
+            key={i}
+            style={[s.alertRow, a.severity === 'critical' ? s.alertCritical : s.alertWarning]}
+          >
+            <Ionicons
+              name={a.severity === 'critical' ? 'warning' : 'alert-circle-outline'}
+              size={18}
+              color={a.severity === 'critical' ? T.danger : '#B8975A'}
+            />
+            <Text style={[s.alertTxt, a.severity === 'critical' && s.alertTxtCritical]}>
+              {a.type === 'high_glucose' ? 'High' : 'Low'} glucose: {a.value} mg/dL
+              {a.severity === 'critical' ? ' — Critical' : ''}
+            </Text>
+          </View>
+        ))}
+        <Text style={s.alertNote}>Your coach has been notified about these readings.</Text>
+      </View>
     </View>
   );
 }
@@ -520,8 +535,11 @@ function SyncSettings({
   return (
     <View style={s.section}>
       <Text style={s.sectionLabel}>SETTINGS</Text>
-      <View style={s.settingsCard}>
+      <View style={s.card}>
         <View style={s.settingRow}>
+          <View style={[s.settingIconWrap]}>
+            <Ionicons name="sync-outline" size={17} color={T.inkMid} />
+          </View>
           <View style={s.settingText}>
             <Text style={s.settingTitle}>Background Sync</Text>
             <Text style={s.settingSub}>Sync automatically every 15 minutes</Text>
@@ -529,18 +547,21 @@ function SyncSettings({
           <Switch
             value={autoSync}
             onValueChange={onToggleAutoSync}
-            trackColor={{ false: colors.border, true: colors.primary + '66' }}
-            thumbColor={autoSync ? colors.primary : '#ccc'}
-            ios_backgroundColor={colors.border}
+            trackColor={{ false: T.switchTrack, true: T.forest }}
+            thumbColor="#FFFFFF"
+            ios_backgroundColor={T.switchTrack}
           />
         </View>
         <View style={s.divider} />
         <TouchableOpacity style={s.settingRow} onPress={onFullResync} activeOpacity={0.7}>
+          <View style={s.settingIconWrap}>
+            <Ionicons name="refresh-outline" size={17} color={T.inkMid} />
+          </View>
           <View style={s.settingText}>
             <Text style={s.settingTitle}>Full Re-sync (Last 7 Days)</Text>
             <Text style={s.settingSub}>Re-fetch all readings — skips duplicates</Text>
           </View>
-          <Ionicons name="chevron-forward" size={16} color={colors.textSecondary} />
+          <Text style={s.chevron}>›</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -555,11 +576,11 @@ function WhatGetsSynced({
   return (
     <View style={s.section}>
       <Text style={s.sectionLabel}>WHAT GETS SYNCED</Text>
-      <View style={s.infoCard}>
+      <View style={s.card}>
         {bullets.map((item, i) => (
-          <View key={i} style={[s.bulletRow, i > 0 && { marginTop: 12 }]}>
+          <View key={i} style={[s.bulletRow, i > 0 && s.bulletRowDivider]}>
             <View style={s.bulletIcon}>
-              <Ionicons name={item.icon as any} size={17} color={colors.primary} />
+              <Ionicons name={item.icon as any} size={17} color={T.forest} />
             </View>
             <Text style={s.bulletTxt}>{item.text}</Text>
           </View>
@@ -570,106 +591,168 @@ function WhatGetsSynced({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Styles
+// Styles — matches Settings/Login palette
 // ─────────────────────────────────────────────────────────────────────────────
 
 const s = StyleSheet.create({
-  root:    { flex: 1, backgroundColor: '#F0EBE0' },
+  root:    { flex: 1, backgroundColor: T.pageBg },
   scroll:  { flex: 1 },
-  content: { padding: 20 },
+  content: { paddingHorizontal: 20, paddingTop: 24 },
 
+  // Header — matches SettingsScreen exactly
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 14,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: 'rgba(0,0,0,0.07)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: T.divider,
   },
-  backBtn:     { flexDirection: 'row', alignItems: 'center', gap: 2, minWidth: 70 },
-  backTxt:     { fontSize: 16, color: colors.primary, fontWeight: '600' },
-  headerTitle: { fontSize: 17, fontWeight: '700', color: '#1C1F1C' },
+  backBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backArrow: {
+    fontSize: 20,
+    color: T.inkMid,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: T.inkDark,
+    letterSpacing: -0.2,
+  },
 
+  // Hero card
   heroCard: {
-    backgroundColor: '#fff',
-    borderRadius: 20, padding: 24, alignItems: 'center',
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06, shadowRadius: 10, elevation: 3,
-    marginBottom: 20,
+    backgroundColor: T.cardBg,
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: T.cardBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
+    marginBottom: 24,
   },
   heroIcon: {
     width: 64, height: 64, borderRadius: 32,
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: '#F3F0EB',
     alignItems: 'center', justifyContent: 'center',
     marginBottom: 16,
   },
-  heroIconActive: { backgroundColor: colors.primaryLight ?? 'rgba(61,85,64,0.1)' },
-  heroTitle:      { fontSize: 20, fontWeight: '700', color: '#1C1F1C', marginBottom: 8, textAlign: 'center' },
+  heroIconActive: { backgroundColor: T.forestLight },
+  heroTitle: {
+    fontSize: 20, fontWeight: '600',
+    color: T.inkDark, marginBottom: 8, textAlign: 'center',
+    letterSpacing: -0.2,
+  },
   heroSub: {
-    fontSize: 14, color: '#8E918E', textAlign: 'center',
-    lineHeight: 20, marginBottom: 24, paddingHorizontal: 8,
+    fontSize: 14, color: T.inkMuted,
+    textAlign: 'center', lineHeight: 20,
+    marginBottom: 24, paddingHorizontal: 8,
   },
   syncBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: colors.primary ?? '#3D5540',
+    backgroundColor: T.forest,
     paddingVertical: 14, paddingHorizontal: 32,
-    borderRadius: 14, minWidth: 200, justifyContent: 'center',
-    shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25, shadowRadius: 8, elevation: 4,
+    borderRadius: 11, minWidth: 200, justifyContent: 'center',
+    shadowColor: T.forest,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 4,
   },
-  syncBtnDisabled: { opacity: 0.6 },
-  syncBtnTxt:      { fontSize: 16, fontWeight: '700', color: '#fff' },
+  syncBtnDisabled: { opacity: 0.5 },
+  syncBtnTxt: { fontSize: 15, fontWeight: '500', color: '#F0EDE8', letterSpacing: 0.2 },
 
   openSettingsRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: '#fff',
-    borderRadius: 12, borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+    backgroundColor: T.cardBg,
+    borderRadius: 12, borderWidth: 1, borderColor: T.cardBorder,
     paddingHorizontal: 16, paddingVertical: 12,
-    marginBottom: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03, shadowRadius: 6, elevation: 1,
   },
-  openSettingsTxt: { flex: 1, fontSize: 14, color: colors.primary, fontWeight: '500' },
+  openSettingsTxt: { flex: 1, fontSize: 14, color: T.forest, fontWeight: '500' },
 
-  alertRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    padding: 12, borderRadius: 12, marginBottom: 8,
-  },
-  alertWarning:     { backgroundColor: 'rgba(184,151,90,0.12)', borderWidth: 1, borderColor: 'rgba(184,151,90,0.3)' },
-  alertCritical:    { backgroundColor: 'rgba(200,90,84,0.10)', borderWidth: 1, borderColor: 'rgba(200,90,84,0.3)' },
-  alertTxt:         { flex: 1, fontSize: 14, color: '#555855' },
-  alertTxtCritical: { color: '#C85A54', fontWeight: '600' },
-  alertNote:        { fontSize: 12, color: '#8E918E', marginTop: 4, fontStyle: 'italic' },
-
+  // Section
   section:      { marginBottom: 20 },
   sectionLabel: {
-    fontSize: 10, fontWeight: '700', letterSpacing: 1.4,
-    color: '#8E918E', marginBottom: 10, textTransform: 'uppercase',
+    fontSize: 10, fontWeight: '600', letterSpacing: 1.2,
+    color: T.inkMuted, marginBottom: 10,
+    textTransform: 'uppercase', paddingHorizontal: 2,
   },
 
-  settingsCard: {
-    backgroundColor: '#fff', borderRadius: 16,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)', overflow: 'hidden',
+  // Shared card (settings rows, info rows)
+  card: {
+    backgroundColor: T.cardBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: T.cardBorder,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 2,
   },
+
+  // Settings rows
   settingRow: {
     flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 18, paddingVertical: 14, gap: 14,
+    paddingHorizontal: 18, paddingVertical: 15, gap: 14,
+  },
+  settingIconWrap: {
+    width: 34, height: 34, borderRadius: 9,
+    backgroundColor: '#F3F0EB',
+    alignItems: 'center', justifyContent: 'center',
   },
   settingText:  { flex: 1 },
-  settingTitle: { fontSize: 15, fontWeight: '600', color: '#1C1F1C' },
-  settingSub:   { fontSize: 12, color: '#8E918E', marginTop: 2 },
-  divider:      { height: 1, backgroundColor: 'rgba(0,0,0,0.06)', marginHorizontal: 18 },
+  settingTitle: { fontSize: 15, fontWeight: '500', color: T.inkDark, marginBottom: 1 },
+  settingSub:   { fontSize: 12, color: T.inkMuted, lineHeight: 17 },
+  divider:      { height: 1, backgroundColor: T.divider, marginHorizontal: 18 },
+  chevron:      { fontSize: 20, color: T.inkMuted, lineHeight: 22 },
 
-  infoCard: {
-    backgroundColor: '#fff', borderRadius: 16, padding: 18,
-    borderWidth: 1, borderColor: 'rgba(0,0,0,0.07)',
+  // Alert rows (inside card)
+  alertRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    padding: 14, marginHorizontal: 12, marginTop: 12,
+    borderRadius: 10,
   },
-  bulletRow:  { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  alertWarning:     { backgroundColor: T.warnBg, borderWidth: 1, borderColor: T.warnBorder },
+  alertCritical:    { backgroundColor: T.errorBg, borderWidth: 1, borderColor: T.errorBorder },
+  alertTxt:         { flex: 1, fontSize: 14, color: T.inkMid },
+  alertTxtCritical: { color: T.danger, fontWeight: '600' },
+  alertNote: {
+    fontSize: 12, color: T.inkMuted, margin: 14,
+    marginTop: 8, fontStyle: 'italic',
+  },
+
+  // Bullet rows
+  bulletRow: {
+    flexDirection: 'row', alignItems: 'flex-start', gap: 14,
+    paddingHorizontal: 18, paddingVertical: 14,
+  },
+  bulletRowDivider: {
+    borderTopWidth: 1,
+    borderTopColor: T.divider,
+  },
   bulletIcon: {
-    width: 32, height: 32, borderRadius: 10,
-    backgroundColor: colors.primaryLight ?? 'rgba(61,85,64,0.1)',
+    width: 34, height: 34, borderRadius: 9,
+    backgroundColor: T.forestLight,
     alignItems: 'center', justifyContent: 'center', flexShrink: 0,
   },
-  bulletTxt: { flex: 1, fontSize: 14, color: '#555855', lineHeight: 20 },
+  bulletTxt: { flex: 1, fontSize: 14, color: T.inkMid, lineHeight: 20 },
 
   center:   { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 40 },
-  bigTitle: { fontSize: 24, fontWeight: '700', color: '#1C1F1C', marginTop: 20, marginBottom: 12 },
-  subtitle: { fontSize: 15, color: '#8E918E', textAlign: 'center', lineHeight: 22 },
+  bigTitle: { fontSize: 24, fontWeight: '600', color: T.inkDark, marginTop: 20, marginBottom: 12 },
+  subtitle: { fontSize: 15, color: T.inkMuted, textAlign: 'center', lineHeight: 22 },
 });

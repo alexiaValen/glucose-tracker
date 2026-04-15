@@ -1,6 +1,5 @@
 // mobile-app/src/screens/RegisterScreen.tsx
-// REFACTORED: Matches LoginScreen exactly — dark forest gradient, glassmorphism card,
-// botanical ring overlays, same token set, same input style.
+// Matches LoginScreen exactly — warm off-white ground, white card, clean form.
 // ALL multi-step logic, validation, and auth calls preserved exactly.
 
 import React, { useState, useRef } from 'react';
@@ -16,10 +15,8 @@ import {
   ScrollView,
   ActivityIndicator,
   Animated,
-  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
 import { useAuthStore } from '../stores/authStore';
@@ -28,85 +25,61 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 type RegisterScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Register'>;
 interface Props { navigation: RegisterScreenNavigationProp; }
 
-const { width: SW, height: SH } = Dimensions.get('window');
-
 // ─────────────────────────────────────────────────────────────────────────────
 // TOKENS — exact copy from LoginScreen
 // ─────────────────────────────────────────────────────────────────────────────
 const T = {
-  bgDeep:        '#0F1C12',
-  bgMid:         '#162019',
-  bgLayer:       '#1C2B1F',
-  glass:         'rgba(255,255,255,0.07)',
-  glassMid:      'rgba(255,255,255,0.10)',
-  glassBorder:   'rgba(255,255,255,0.11)',
-  glassBorderHi: 'rgba(255,255,255,0.20)',
-  inputBg:       'rgba(255,255,255,0.08)',
-  inputBorder:   'rgba(255,255,255,0.13)',
-  inputFocus:    'rgba(122,155,126,0.45)',
-  sage:          '#7A9B7E',
-  sageBright:    '#9ABD9E',
-  sageDeep:      '#3D5540',
-  sageMid:       '#4E6B52',
-  gold:          '#C9A96E',
-  goldSoft:      '#D4BB8C',
-  textPrimary:   '#F0EDE6',
-  textSecondary: 'rgba(240,237,230,0.55)',
-  textMuted:     'rgba(240,237,230,0.32)',
-  errorRed:      '#E07070',
+  pageBg:      '#F7F5F2',
+  cardBg:      '#FFFFFF',
+  inputBg:     '#FAFAF8',
+  inputBorder: '#E5E2DB',
+  inputFocus:  '#B5B0A8',
+  inkDark:     '#1A1814',
+  inkMid:      '#4A4640',
+  inkMuted:    '#9B9690',
+  btnBg:       '#2B4535',
+  btnText:     '#F0EDE8',
+  gold:        '#A8916A',
+  cardBorder:  'rgba(0,0,0,0.05)',
+  divider:     '#EDEAE5',
+  forest:      '#2B4535',
+  forestLight: 'rgba(43,69,53,0.09)',
 } as const;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BOTANICAL RINGS — same as LoginScreen
+// FIELD — matches LoginScreen Field exactly
 // ─────────────────────────────────────────────────────────────────────────────
-function BotanicRings() {
-  const rings = [
-    { size: 340, top: -100, left: SW * 0.25, op: 0.035 },
-    { size: 180, top: SH * 0.6,  left: -50,  op: 0.030 },
-    { size: 110, top: SH * 0.75, left: SW * 0.72, op: 0.045 },
-    { size: 70,  top: 50,   left: SW * 0.08,  op: 0.040 },
-  ];
-  return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
-      {rings.map((r, i) => (
-        <View key={i} style={{
-          position: 'absolute', top: r.top, left: r.left,
-          width: r.size, height: r.size, borderRadius: r.size / 2,
-          borderWidth: 1,
-          borderColor: `rgba(122,155,126,${r.op * 3})`,
-          backgroundColor: `rgba(122,155,126,${r.op})`,
-        }} />
-      ))}
-    </View>
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GLASS INPUT — same as LoginScreen
-// ─────────────────────────────────────────────────────────────────────────────
-function GlassInput({
-  label, value, onChangeText, placeholder, secureTextEntry,
-  keyboardType, autoCapitalize, autoComplete, editable = true,
-  returnKeyType, onSubmitEditing, inputRef,
+function Field({
+  label, value, onChangeText, placeholder,
+  secureTextEntry, keyboardType, autoCapitalize,
+  autoComplete, editable = true, returnKeyType,
+  onSubmitEditing, inputRef,
 }: {
-  label: string; value: string; onChangeText: (v: string) => void;
-  placeholder?: string; secureTextEntry?: boolean; keyboardType?: any;
-  autoCapitalize?: any; autoComplete?: any; editable?: boolean;
-  returnKeyType?: any; onSubmitEditing?: () => void;
+  label: string;
+  value: string;
+  onChangeText: (v: string) => void;
+  placeholder?: string;
+  secureTextEntry?: boolean;
+  keyboardType?: any;
+  autoCapitalize?: any;
+  autoComplete?: any;
+  editable?: boolean;
+  returnKeyType?: any;
+  onSubmitEditing?: () => void;
   inputRef?: React.RefObject<TextInput | null>;
 }) {
   const [focused, setFocused] = useState(false);
   return (
-    <View style={gi.wrap}>
-      <Text style={gi.label}>{label}</Text>
-      <View style={[gi.field, focused && gi.fieldFocused]}>
+    <View style={f.wrap}>
+      <Text style={f.label}>{label}</Text>
+      <View style={[f.field, focused && f.fieldFocused]}>
         <TextInput
           ref={inputRef}
-          style={gi.input}
+          style={f.input}
           value={value}
           onChangeText={onChangeText}
           placeholder={placeholder}
-          placeholderTextColor={T.textMuted}
+          placeholderTextColor={T.inkMuted}
           secureTextEntry={secureTextEntry}
           keyboardType={keyboardType}
           autoCapitalize={autoCapitalize ?? 'none'}
@@ -122,36 +95,35 @@ function GlassInput({
     </View>
   );
 }
-const gi = StyleSheet.create({
+const f = StyleSheet.create({
   wrap:  { gap: 8 },
-  label: { fontSize: 10, fontWeight: '700', letterSpacing: 1.8, color: T.textMuted },
+  label: {
+    fontSize: 11, fontWeight: '500', letterSpacing: 0.8,
+    color: T.inkMuted, textTransform: 'uppercase',
+  },
   field: {
     backgroundColor: T.inputBg,
-    borderRadius: 16, borderWidth: 1, borderColor: T.inputBorder,
-    overflow: 'hidden',
+    borderRadius: 10, borderWidth: 1, borderColor: T.inputBorder,
   },
-  fieldFocused: {
-    borderColor: T.inputFocus,
-    backgroundColor: 'rgba(122,155,126,0.09)',
-  },
+  fieldFocused: { borderColor: T.inputFocus, backgroundColor: '#FFFFFF' },
   input: {
-    paddingHorizontal: 18,
-    paddingVertical: Platform.OS === 'ios' ? 16 : 13,
-    fontSize: 16, color: T.textPrimary, fontWeight: '400',
+    paddingHorizontal: 16,
+    paddingVertical: Platform.OS === 'ios' ? 15 : 13,
+    fontSize: 15, color: T.inkDark, fontWeight: '400', letterSpacing: 0.1,
   },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// GLASS DATE BUTTON — same feel as GlassInput
+// DATE BUTTON — same light style as Field
 // ─────────────────────────────────────────────────────────────────────────────
-function GlassDateButton({
+function DateButton({
   label, value, onPress,
 }: { label: string; value: string | null; onPress: () => void }) {
   return (
-    <View style={gi.wrap}>
-      <Text style={gi.label}>{label}</Text>
-      <TouchableOpacity style={gi.field} onPress={onPress} activeOpacity={0.8}>
-        <Text style={[gi.input, { color: value ? T.textPrimary : T.textMuted }]}>
+    <View style={f.wrap}>
+      <Text style={f.label}>{label}</Text>
+      <TouchableOpacity style={f.field} onPress={onPress} activeOpacity={0.8}>
+        <Text style={[f.input, { color: value ? T.inkDark : T.inkMuted }]}>
           {value ?? 'Select date of birth'}
         </Text>
       </TouchableOpacity>
@@ -160,7 +132,7 @@ function GlassDateButton({
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROLE CARD — glass style consistent with the overall screen
+// ROLE CARD — light style
 // ─────────────────────────────────────────────────────────────────────────────
 function RoleCard({
   emoji, title, description, selected, onPress,
@@ -172,7 +144,7 @@ function RoleCard({
     <TouchableOpacity
       style={[rc.root, selected && rc.rootSelected]}
       onPress={onPress}
-      activeOpacity={0.82}
+      activeOpacity={0.8}
     >
       <View style={rc.inner}>
         <Text style={rc.emoji}>{emoji}</Text>
@@ -189,33 +161,32 @@ function RoleCard({
 }
 const rc = StyleSheet.create({
   root: {
-    backgroundColor: T.glass,
-    borderRadius: 18, borderWidth: 1,
-    borderColor: T.glassBorder, padding: 18,
+    backgroundColor: T.inputBg,
+    borderRadius: 14, borderWidth: 1, borderColor: T.inputBorder, padding: 16,
   },
   rootSelected: {
-    borderColor: 'rgba(122,155,126,0.45)',
-    backgroundColor: 'rgba(122,155,126,0.09)',
+    borderColor: T.forest,
+    backgroundColor: T.forestLight,
   },
   inner: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  emoji: { fontSize: 26 },
+  emoji: { fontSize: 24 },
   text:  { flex: 1 },
-  title: { fontSize: 16, fontWeight: '600', color: T.textPrimary, marginBottom: 3 },
-  desc:  { fontSize: 13, color: T.textSecondary, lineHeight: 18 },
+  title: { fontSize: 15, fontWeight: '600', color: T.inkDark, marginBottom: 2 },
+  desc:  { fontSize: 13, color: T.inkMuted, lineHeight: 18 },
   radio: {
     width: 22, height: 22, borderRadius: 11,
-    borderWidth: 2, borderColor: T.glassBorderHi,
+    borderWidth: 2, borderColor: T.inputBorder,
     alignItems: 'center', justifyContent: 'center',
   },
-  radioSelected: { borderColor: T.sage },
+  radioSelected: { borderColor: T.forest },
   radioDot: {
     width: 11, height: 11, borderRadius: 6,
-    backgroundColor: T.sage,
+    backgroundColor: T.forest,
   },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// PROGRESS DOTS — replace progress bar with minimal dots
+// STEP DOTS — light style
 // ─────────────────────────────────────────────────────────────────────────────
 function StepDots({ current, total }: { current: number; total: number }) {
   return (
@@ -225,7 +196,9 @@ function StepDots({ current, total }: { current: number; total: number }) {
           key={i}
           style={[
             sd.dot,
-            i < current ? sd.dotDone : i === current - 1 ? sd.dotActive : sd.dotFuture,
+            i < current     ? sd.dotDone   :
+            i === current - 1 ? sd.dotActive :
+            sd.dotFuture,
           ]}
         />
       ))}
@@ -233,11 +206,31 @@ function StepDots({ current, total }: { current: number; total: number }) {
   );
 }
 const sd = StyleSheet.create({
-  wrap: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 6 },
+  wrap: { flexDirection: 'row', gap: 6, justifyContent: 'center', marginBottom: 20 },
   dot: { width: 6, height: 6, borderRadius: 3 },
-  dotDone:   { backgroundColor: T.sage },
-  dotActive: { backgroundColor: T.sageBright, width: 18 },
-  dotFuture: { backgroundColor: 'rgba(255,255,255,0.15)' },
+  dotDone:   { backgroundColor: T.forest },
+  dotActive: { backgroundColor: T.forest, width: 18 },
+  dotFuture: { backgroundColor: T.inputBorder },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// LOGOTYPE — same as LoginScreen
+// ─────────────────────────────────────────────────────────────────────────────
+function Logotype() {
+  return (
+    <View style={logo.wrap}>
+      <View style={logo.rule} />
+      <Text style={logo.mark}>TLC</Text>
+    </View>
+  );
+}
+const logo = StyleSheet.create({
+  wrap: { alignItems: 'center', gap: 10, marginBottom: 32 },
+  rule: { width: 28, height: 1, backgroundColor: T.gold, borderRadius: 1 },
+  mark: {
+    fontSize: 13, fontWeight: '600', letterSpacing: 4,
+    color: T.inkMid, textTransform: 'uppercase',
+  },
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -263,22 +256,30 @@ export default function RegisterScreen({ navigation }: Props) {
   const fadeAnim  = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
 
-  // ── Validation — preserved exactly ─────────────────────────────────────────
+  // Entrance animation
+  React.useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim,  { toValue: 1, duration: 540, delay: 60, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 480, delay: 60, useNativeDriver: true }),
+    ]).start();
+  }, []);
+
+  // ── Validation — preserved exactly ──────────────────────────────────────────
   const validateEmail = (e: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
   const validateAge   = (d: Date)   => new Date().getFullYear() - d.getFullYear() >= 18;
 
   const validateStep1 = () => {
     if (!email || !password || !confirmPassword) { Alert.alert('Error', 'Please fill in all fields'); return false; }
-    if (!validateEmail(email))   { Alert.alert('Error', 'Please enter a valid email address'); return false; }
-    if (password.length < 8)     { Alert.alert('Error', 'Password must be at least 8 characters'); return false; }
+    if (!validateEmail(email))       { Alert.alert('Error', 'Please enter a valid email address'); return false; }
+    if (password.length < 8)         { Alert.alert('Error', 'Password must be at least 8 characters'); return false; }
     if (password !== confirmPassword) { Alert.alert('Error', 'Passwords do not match'); return false; }
     return true;
   };
   const validateStep2 = () => {
-    if (!firstName || !lastName)  { Alert.alert('Error', 'Please enter your full name'); return false; }
-    if (!phone)                   { Alert.alert('Error', 'Please enter your phone number'); return false; }
-    if (!dateOfBirth)             { Alert.alert('Error', 'Please enter your date of birth'); return false; }
-    if (!validateAge(dateOfBirth)){ Alert.alert('Error', 'You must be 18 or older to use TLC'); return false; }
+    if (!firstName || !lastName) { Alert.alert('Error', 'Please enter your full name'); return false; }
+    if (!phone)                  { Alert.alert('Error', 'Please enter your phone number'); return false; }
+    if (!dateOfBirth)            { Alert.alert('Error', 'Please enter your date of birth'); return false; }
+    if (!validateAge(dateOfBirth)) { Alert.alert('Error', 'You must be 18 or older to use TLC'); return false; }
     return true;
   };
 
@@ -314,26 +315,15 @@ export default function RegisterScreen({ navigation }: Props) {
   const formatDate = (d: Date) =>
     d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
-  // ── Step content ────────────────────────────────────────────────────────────
   const STEP_TITLES = [
-    { title: 'Create Account',       sub: 'Start with your login details' },
-    { title: 'Tell Us About You',    sub: 'Your coach uses this to personalise your care' },
-    { title: 'Choose Your Role',     sub: 'Tracking your health or coaching others?' },
+    { title: 'Create Account',    sub: 'Start with your login details' },
+    { title: 'Tell Us About You', sub: 'Your coach uses this to personalise your care' },
+    { title: 'Choose Your Role',  sub: 'Tracking your health or coaching others?' },
   ];
   const { title, sub } = STEP_TITLES[currentStep - 1];
 
   return (
     <View style={s.root}>
-      {/* Background gradient — same as LoginScreen */}
-      <LinearGradient
-        colors={[T.bgDeep, T.bgMid, '#162819', '#1A2E1D']}
-        style={StyleSheet.absoluteFillObject}
-        start={{ x: 0.15, y: 0 }} end={{ x: 0.85, y: 1 }}
-      />
-      <BotanicRings />
-      {/* Top bloom */}
-      <View style={s.topBloom} pointerEvents="none" />
-
       <SafeAreaView style={s.safe} edges={['top', 'bottom']}>
         <KeyboardAvoidingView
           style={s.kav}
@@ -344,215 +334,195 @@ export default function RegisterScreen({ navigation }: Props) {
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
+            <Animated.View style={[
+              s.inner,
+              { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+            ]}>
 
-            {/* ── BRAND MARK — same as LoginScreen ─────────────────── */}
-            <View style={s.brand}>
-              <View style={s.ornamentRow}>
-                <View style={s.ornamentLine} />
-                <Text style={s.leafEmoji}>🌿</Text>
-                <View style={s.ornamentLine} />
+              {/* ── LOGOTYPE ─────────────────────────────────────────── */}
+              <Logotype />
+
+              {/* ── HEADLINE ─────────────────────────────────────────── */}
+              <View style={s.header}>
+                <Text style={s.headline}>Join TLC</Text>
+                <Text style={s.sub}>Rooted in faith. Moving in health.</Text>
               </View>
-              <Text style={s.brandName}>Transforming</Text>
-              <Text style={s.brandName}>Lives Coaching</Text>
-            </View>
 
-            {/* ── GLASS CARD ────────────────────────────────────────── */}
-            <View style={s.card}>
-              <View style={s.cardGlow} />
+              {/* ── CARD ─────────────────────────────────────────────── */}
+              <View style={s.card}>
 
-              {/* Step dots + header */}
-              <StepDots current={currentStep} total={3} />
-              <Animated.View style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-                marginBottom: 22,
-              }}>
-                <Text style={s.stepTitle}>{title}</Text>
-                <Text style={s.stepSub}>{sub}</Text>
-              </Animated.View>
+                {/* Step dots + step header */}
+                <StepDots current={currentStep} total={3} />
+                <Animated.View style={{ marginBottom: 20 }}>
+                  <Text style={s.stepTitle}>{title}</Text>
+                  <Text style={s.stepSub}>{sub}</Text>
+                </Animated.View>
 
-              {/* Step content */}
-              <Animated.View style={{
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-                gap: 16,
-              }}>
+                {/* Step content */}
+                <Animated.View style={{ gap: 16 }}>
 
-                {/* STEP 1 */}
-                {currentStep === 1 && (
-                  <>
-                    <GlassInput
-                      label="EMAIL"
-                      value={email}
-                      onChangeText={setEmail}
-                      placeholder="your@email.com"
-                      keyboardType="email-address"
-                      autoComplete="email"
-                      editable={!isLoading}
-                    />
-                    <GlassInput
-                      label="PASSWORD"
-                      value={password}
-                      onChangeText={setPassword}
-                      placeholder="At least 8 characters"
-                      secureTextEntry
-                      autoComplete="off"
-                      editable={!isLoading}
-                    />
-                    <GlassInput
-                      label="CONFIRM PASSWORD"
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      placeholder="Re-enter your password"
-                      secureTextEntry
-                      autoComplete="off"
-                      editable={!isLoading}
-                    />
-                  </>
-                )}
-
-                {/* STEP 2 */}
-                {currentStep === 2 && (
-                  <>
-                    <View style={s.nameRow}>
-                      <View style={{ flex: 1 }}>
-                        <GlassInput
-                          label="FIRST NAME"
-                          value={firstName}
-                          onChangeText={setFirstName}
-                          placeholder="Jane"
-                          autoCapitalize="words"
-                          editable={!isLoading}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <GlassInput
-                          label="LAST NAME"
-                          value={lastName}
-                          onChangeText={setLastName}
-                          placeholder="Doe"
-                          autoCapitalize="words"
-                          editable={!isLoading}
-                        />
-                      </View>
-                    </View>
-                    <GlassInput
-                      label="PHONE NUMBER"
-                      value={phone}
-                      onChangeText={setPhone}
-                      placeholder="(555) 123-4567"
-                      keyboardType="phone-pad"
-                      editable={!isLoading}
-                    />
-                    <GlassDateButton
-                      label="DATE OF BIRTH"
-                      value={dateOfBirth ? formatDate(dateOfBirth) : null}
-                      onPress={() => setShowDatePicker(true)}
-                    />
-                    <Text style={s.helperTxt}>Must be 18+ to use TLC</Text>
-                    {showDatePicker && (
-                      <DateTimePicker
-                        value={dateOfBirth || new Date(1990, 0, 1)}
-                        mode="date"
-                        display="spinner"
-                        onChange={(_, d) => { setShowDatePicker(false); if (d) setDateOfBirth(d); }}
-                        maximumDate={new Date()}
+                  {/* STEP 1 */}
+                  {currentStep === 1 && (
+                    <>
+                      <Field
+                        label="Email"
+                        value={email}
+                        onChangeText={setEmail}
+                        placeholder="your@email.com"
+                        keyboardType="email-address"
+                        autoComplete="email"
+                        editable={!isLoading}
                       />
-                    )}
-                  </>
-                )}
+                      <Field
+                        label="Password"
+                        value={password}
+                        onChangeText={setPassword}
+                        placeholder="At least 8 characters"
+                        secureTextEntry
+                        autoComplete="off"
+                        editable={!isLoading}
+                      />
+                      <Field
+                        label="Confirm Password"
+                        value={confirmPassword}
+                        onChangeText={setConfirmPassword}
+                        placeholder="Re-enter your password"
+                        secureTextEntry
+                        autoComplete="off"
+                        editable={!isLoading}
+                      />
+                    </>
+                  )}
 
-                {/* STEP 3 */}
-                {currentStep === 3 && (
-                  <>
-                    <RoleCard
-                      emoji="👤"
-                      title="I'm a User"
-                      description="Track my glucose, symptoms, and cycle. Connect with my coach."
-                      selected={role === 'user'}
-                      onPress={() => setRole('user')}
-                    />
-                    <RoleCard
-                      emoji="🩺"
-                      title="I'm a Coach"
-                      description="Monitor my clients' health data and provide personalised guidance."
-                      selected={role === 'coach'}
-                      onPress={() => setRole('coach')}
-                    />
-                  </>
-                )}
+                  {/* STEP 2 */}
+                  {currentStep === 2 && (
+                    <>
+                      <View style={s.nameRow}>
+                        <View style={{ flex: 1 }}>
+                          <Field
+                            label="First Name"
+                            value={firstName}
+                            onChangeText={setFirstName}
+                            placeholder="Jane"
+                            autoCapitalize="words"
+                            editable={!isLoading}
+                          />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Field
+                            label="Last Name"
+                            value={lastName}
+                            onChangeText={setLastName}
+                            placeholder="Doe"
+                            autoCapitalize="words"
+                            editable={!isLoading}
+                          />
+                        </View>
+                      </View>
+                      <Field
+                        label="Phone Number"
+                        value={phone}
+                        onChangeText={setPhone}
+                        placeholder="(555) 123-4567"
+                        keyboardType="phone-pad"
+                        editable={!isLoading}
+                      />
+                      <DateButton
+                        label="Date of Birth"
+                        value={dateOfBirth ? formatDate(dateOfBirth) : null}
+                        onPress={() => setShowDatePicker(true)}
+                      />
+                      <Text style={s.helperTxt}>Must be 18+ to use TLC</Text>
+                      {showDatePicker && (
+                        <DateTimePicker
+                          value={dateOfBirth || new Date(1990, 0, 1)}
+                          mode="date"
+                          display="spinner"
+                          onChange={(_, d) => { setShowDatePicker(false); if (d) setDateOfBirth(d); }}
+                          maximumDate={new Date()}
+                        />
+                      )}
+                    </>
+                  )}
 
-              </Animated.View>
+                  {/* STEP 3 */}
+                  {currentStep === 3 && (
+                    <>
+                      <RoleCard
+                        emoji="👤"
+                        title="I'm a User"
+                        description="Track my glucose, symptoms, and cycle. Connect with my coach."
+                        selected={role === 'user'}
+                        onPress={() => setRole('user')}
+                      />
+                      <RoleCard
+                        emoji="🩺"
+                        title="I'm a Coach"
+                        description="Monitor my clients' health data and provide personalised guidance."
+                        selected={role === 'coach'}
+                        onPress={() => setRole('coach')}
+                      />
+                    </>
+                  )}
 
-              {/* ── NAV BUTTONS ─────────────────────────────────────── */}
-              <View style={s.btnRow}>
-                {currentStep > 1 && (
+                </Animated.View>
+
+                {/* ── NAV BUTTONS ──────────────────────────────────────── */}
+                <View style={s.btnRow}>
+                  {currentStep > 1 && (
+                    <TouchableOpacity
+                      style={s.backBtn}
+                      onPress={handleBack}
+                      disabled={isLoading}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={s.backBtnTxt}>← Back</Text>
+                    </TouchableOpacity>
+                  )}
+
+                  {currentStep < 3 ? (
+                    <TouchableOpacity
+                      style={[s.ctaBtn, currentStep === 1 && s.ctaBtnFull]}
+                      onPress={handleNext}
+                      disabled={isLoading}
+                      activeOpacity={0.88}
+                    >
+                      <Text style={s.ctaBtnTxt}>Next →</Text>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={[s.ctaBtn, s.ctaBtnFull, isLoading && s.ctaBtnDisabled]}
+                      onPress={handleRegister}
+                      disabled={isLoading}
+                      activeOpacity={0.88}
+                    >
+                      {isLoading
+                        ? <ActivityIndicator color={T.btnText} />
+                        : <Text style={s.ctaBtnTxt}>Create Account  →</Text>
+                      }
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Divider */}
+                <View style={s.divider} />
+
+                {/* Sign in link */}
+                <View style={s.registerRow}>
+                  <Text style={s.registerPrompt}>Already have an account? </Text>
                   <TouchableOpacity
-                    style={s.backBtn}
-                    onPress={handleBack}
+                    onPress={() => navigation.navigate('Login')}
                     disabled={isLoading}
-                    activeOpacity={0.8}
+                    activeOpacity={0.65}
                   >
-                    <Text style={s.backBtnTxt}>← Back</Text>
+                    <Text style={s.registerLink}>Sign in</Text>
                   </TouchableOpacity>
-                )}
+                </View>
 
-                {currentStep < 3 ? (
-                  <TouchableOpacity
-                    style={[s.nextBtn, currentStep === 1 && s.nextBtnFull]}
-                    onPress={handleNext}
-                    disabled={isLoading}
-                    activeOpacity={0.87}
-                  >
-                    <LinearGradient
-                      colors={[T.sageMid, T.sageDeep, '#2A3D2E']}
-                      style={StyleSheet.absoluteFillObject}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    />
-                    <Text style={s.nextBtnTxt}>Next →</Text>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity
-                    style={[s.nextBtn, s.nextBtnFull, isLoading && { opacity: 0.55 }]}
-                    onPress={handleRegister}
-                    disabled={isLoading}
-                    activeOpacity={0.87}
-                  >
-                    <LinearGradient
-                      colors={[T.sageMid, T.sageDeep, '#2A3D2E']}
-                      style={StyleSheet.absoluteFillObject}
-                      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
-                    />
-                    {isLoading
-                      ? <ActivityIndicator color="#FFFFFF" />
-                      : <Text style={s.nextBtnTxt}>Create Account</Text>
-                    }
-                  </TouchableOpacity>
-                )}
               </View>
+              {/* ── END CARD ─────────────────────────────────────────── */}
 
-              {/* Divider */}
-              <View style={s.divider} />
-
-              {/* Sign in link */}
-              <TouchableOpacity
-                style={s.linkBtn}
-                onPress={() => navigation.navigate('Login')}
-                disabled={isLoading}
-                activeOpacity={0.7}
-              >
-                <Text style={s.linkTxt}>
-                  Already have an account?{' '}
-                  <Text style={s.linkBold}>Sign in</Text>
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Footer */}
-            <Text style={s.footer}>
-              A calmer way to notice patterns & align glucose, cycle, and life
-            </Text>
-
+            </Animated.View>
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
@@ -561,105 +531,80 @@ export default function RegisterScreen({ navigation }: Props) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ROOT STYLES — mirrors LoginScreen structure exactly
+// STYLES — mirrors LoginScreen structure exactly
 // ─────────────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  root:  { flex: 1 },
-  safe:  { flex: 1 },
-  kav:   { flex: 1 },
+  root: { flex: 1, backgroundColor: T.pageBg },
+  safe: { flex: 1 },
+  kav:  { flex: 1 },
   scroll: {
     flexGrow: 1, justifyContent: 'center',
-    paddingHorizontal: 24, paddingTop: 32, paddingBottom: 32,
+    paddingHorizontal: 24, paddingTop: 60, paddingBottom: 48,
+  },
+  inner: {},
+
+  header: { alignItems: 'center', marginBottom: 32, gap: 8 },
+  headline: {
+    fontSize: 30, fontWeight: '300', letterSpacing: -0.4,
+    color: T.inkDark, textAlign: 'center',
+  },
+  sub: {
+    fontSize: 14, fontWeight: '400',
+    color: T.inkMuted, letterSpacing: 0.1, textAlign: 'center',
   },
 
-  topBloom: {
-    position: 'absolute', top: -80,
-    left: SW * 0.5 - 160,
-    width: 320, height: 320, borderRadius: 160,
-    backgroundColor: 'rgba(122,155,126,0.08)',
-  },
-
-  // Brand — same as LoginScreen
-  brand: { alignItems: 'center', paddingBottom: 32, gap: 6 },
-  ornamentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
-  ornamentLine: { width: 36, height: 1, backgroundColor: 'rgba(122,155,126,0.30)' },
-  leafEmoji:    { fontSize: 20 },
-  brandName: {
-    fontSize: 32, fontWeight: '700',
-    color: T.textPrimary, letterSpacing: -0.8,
-    lineHeight: 38, textAlign: 'center',
-  },
-
-  // Glass card — same as LoginScreen
+  // Form card — matches LoginScreen exactly
   card: {
-    backgroundColor: T.glass,
-    borderRadius: 28, borderWidth: 1,
-    borderColor: T.glassBorderHi,
-    overflow: 'hidden',
-    padding: 24,
-    gap: 0,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 20 },
-    shadowOpacity: 0.30, shadowRadius: 40, elevation: 12,
-  },
-  cardGlow: {
-    position: 'absolute', top: 0, left: 0, right: 0,
-    height: 1, backgroundColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: T.cardBg,
+    borderRadius: 22, borderWidth: 1, borderColor: T.cardBorder,
+    paddingHorizontal: 24, paddingVertical: 28, gap: 16,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05, shadowRadius: 30, elevation: 6,
   },
 
-  // Step header
   stepTitle: {
-    fontSize: 22, fontWeight: '700',
-    color: T.textPrimary, letterSpacing: -0.4,
-    marginBottom: 4,
+    fontSize: 20, fontWeight: '600',
+    color: T.inkDark, letterSpacing: -0.3, marginBottom: 4,
   },
-  stepSub: {
-    fontSize: 13, color: T.textSecondary, lineHeight: 18,
-  },
+  stepSub: { fontSize: 13, color: T.inkMuted, lineHeight: 18 },
 
   nameRow: { flexDirection: 'row', gap: 12 },
 
-  helperTxt: {
-    fontSize: 11, color: T.textMuted,
-    marginTop: -8, marginLeft: 2,
-  },
+  helperTxt: { fontSize: 11, color: T.inkMuted, marginTop: -8, marginLeft: 2 },
 
-  // Buttons — same pattern as LoginScreen login button
-  btnRow: {
-    flexDirection: 'row', gap: 12,
-    marginTop: 24,
-  },
+  // Nav buttons
+  btnRow: { flexDirection: 'row', gap: 12, marginTop: 8 },
   backBtn: {
-    flex: 1, height: 54, borderRadius: 16,
+    flex: 1, height: 52, borderRadius: 11,
     alignItems: 'center', justifyContent: 'center',
-    backgroundColor: T.glass,
-    borderWidth: 1, borderColor: T.glassBorder,
+    backgroundColor: T.inputBg,
+    borderWidth: 1, borderColor: T.inputBorder,
   },
-  backBtnTxt: { fontSize: 15, fontWeight: '600', color: T.textSecondary },
-  nextBtn: {
-    flex: 1, height: 54, borderRadius: 16,
-    alignItems: 'center', justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1, borderColor: 'rgba(122,155,126,0.30)',
-    shadowColor: T.sageDeep,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.35, shadowRadius: 16, elevation: 6,
+  backBtnTxt: { fontSize: 15, fontWeight: '500', color: T.inkMid },
+
+  ctaBtn: {
+    flex: 1, height: 52, backgroundColor: T.btnBg,
+    borderRadius: 11, alignItems: 'center', justifyContent: 'center',
+    shadowColor: T.btnBg,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 4,
   },
-  nextBtnFull: { flex: 1 },
-  nextBtnTxt: {
-    fontSize: 16, fontWeight: '700',
-    color: '#FFFFFF', letterSpacing: 0.4,
+  ctaBtnFull:     { flex: 1 },
+  ctaBtnDisabled: { opacity: 0.50 },
+  ctaBtnTxt: {
+    fontSize: 15, fontWeight: '500',
+    color: T.btnText, letterSpacing: 0.2,
   },
 
-  divider: { height: 1, backgroundColor: T.glassBorder, marginVertical: 20 },
+  divider: { height: 1, backgroundColor: T.divider, marginVertical: 2 },
 
-  linkBtn: { alignItems: 'center', paddingVertical: 4 },
-  linkTxt:  { fontSize: 14, color: T.textMuted },
-  linkBold: { fontSize: 14, fontWeight: '700', color: T.sageBright },
-
-  footer: {
-    textAlign: 'center', fontSize: 12,
-    color: T.textMuted, lineHeight: 18,
-    paddingTop: 24, paddingHorizontal: 16,
+  registerRow: {
+    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
+  },
+  registerPrompt: { fontSize: 13, color: T.inkMuted, fontWeight: '400' },
+  registerLink: {
+    fontSize: 13, fontWeight: '500', color: T.inkDark,
+    textDecorationLine: 'underline', textDecorationColor: T.gold,
   },
 });

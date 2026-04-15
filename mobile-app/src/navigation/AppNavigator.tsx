@@ -16,7 +16,6 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 
 // Stack screens pushed on top of tabs
 import AddGlucoseScreen from '../screens/AddGlucoseScreen';
-import AddSymptomScreen from '../screens/AddSymptomScreen';
 import { LogCycleScreen } from '../screens/LogCycleScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import RhythmProfileScreen from '../screens/RhythmProfileScreen';
@@ -68,6 +67,7 @@ export default function AppNavigator() {
               <Stack.Screen name="ClientDetail" component={ClientDetailScreen} />
               <Stack.Screen name="Conversations" component={ConversationsScreen} />
               <Stack.Screen name="Messaging" component={MessagingScreen} />
+              <Stack.Screen name="HealthSync" component={HealthSyncScreen} />
               <Stack.Screen name="GroupChat" component={GroupChatScreen} />
               <Stack.Screen name="GroupDashboard" component={GroupDashboardScreen} />
               <Stack.Screen name="SessionDetail" component={SessionDetailScreen} />
@@ -80,7 +80,6 @@ export default function AppNavigator() {
 
               {/* All modal/push screens sit on top of the tabs */}
               <Stack.Screen name="AddGlucose" component={AddGlucoseScreen} />
-              <Stack.Screen name="AddSymptom" component={AddSymptomScreen} />
               <Stack.Screen name="LogCycle" component={LogCycleScreen} />
               <Stack.Screen name="Settings" component={SettingsScreen} />
               <Stack.Screen name="RhythmProfile" component={RhythmProfileScreen} />

@@ -12,12 +12,11 @@ import RegisterScreen from '../screens/RegisterScreen';
 // User Screens
 import DashboardScreen from '../screens/DashboardScreen';
 import AddGlucoseScreen from '../screens/AddGlucoseScreen';
-import AddSymptomScreen from '../screens/AddSymptomScreen';
 import LogCycleScreen from '../screens/LogCycleScreen';
 
 // Coach Screens
-import CoachDashboardScreen from '../screens/Coachdashboardscreen';
-import ClientDetailScreen from '../screens/Clientdetailscreen';
+import CoachDashboardScreen from '../screens/CoachDashboardScreen';
+import ClientDetailScreen from '../screens/ClientDetailScreen';
 
 // Colors matching Dashboard
 const colors = {
@@ -50,7 +49,7 @@ export default function AppNavigator() {
   }
 
   // Determine if user is a coach
-  const isCoach = user?.role === 'coach' || user?.role === 'admin';
+  const isCoach = user?.role === 'coach';
 
   return (
     <NavigationContainer>
@@ -85,10 +84,6 @@ export default function AppNavigator() {
               <Stack.Screen 
                 name="AddGlucose" 
                 component={AddGlucoseScreen}
-              />
-              <Stack.Screen 
-                name="AddSymptom" 
-                component={AddSymptomScreen}
               />
               <Stack.Screen 
                 name="LogCycle" 

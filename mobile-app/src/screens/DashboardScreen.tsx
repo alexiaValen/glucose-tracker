@@ -391,7 +391,7 @@ export default function DashboardScreen() {
 
   // Nav — all unchanged
   const goLogGlucose  = () => navigation.navigate('AddGlucose');
-  const goLogSymptoms = () => navigation.navigate('AddSymptom');
+  const goLogSymptoms = () => navigation.navigate('LogCycle');
   const goLogCycle    = () => navigation.navigate('LogCycle');
   const goSettings    = () => navigation.navigate('Settings');
   const goLesson      = (l: Lesson) => navigation.navigate('LessonDetail', { lesson: l });
