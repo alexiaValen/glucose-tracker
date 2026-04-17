@@ -13,8 +13,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  LineChart,
-  Line,
   ReferenceLine,
 } from "recharts";
 
@@ -628,13 +626,15 @@ function DashboardView({
     glucose: c.recentStats?.avgGlucose ?? 0,
   })), [clients]);
 
-  // Mock weekly trend (average glucose per day)
-  const trendData = [
-    { day: "Mon", avg: 102 }, { day: "Tue", avg: 98 },
-    { day: "Wed", avg: 107 }, { day: "Thu", avg: 95 },
-    { day: "Fri", avg: 110 }, { day: "Sat", avg: 101 },
-    { day: "Sun", avg: 99 },
-  ];
+  // Per-client average glucose for the bar chart — use real data, no mocks
+  const trendData = useMemo(() => {
+    const withData = clients.filter(c => c.recentStats?.avgGlucose);
+    if (withData.length === 0) return [];
+    return withData.map(c => ({
+      day: c.firstName,
+      avg: c.recentStats?.avgGlucose ?? 0,
+    }));
+  }, [clients]);
 
   const [search, setSearch] = useState("");
   const filtered = useMemo(() =>
@@ -672,29 +672,26 @@ function DashboardView({
         }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: C.inkDark }}>Glucose Trends</div>
-              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>7-day average across clients</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: C.inkDark }}>Average Glucose</div>
+              <div style={{ fontSize: 12, color: C.inkMuted, marginTop: 2 }}>Per client · recent readings</div>
             </div>
             <div style={{ fontSize: 11, color: C.inkMuted, background: C.pageBg, padding: "4px 10px", borderRadius: 20 }}>
-              This Week
+              All Clients
             </div>
           </div>
           <ResponsiveContainer width="100%" height={180}>
-            <LineChart data={trendData}>
-              <CartesianGrid stroke={C.divider} strokeDasharray="4 4" />
+            <BarChart data={trendData} barCategoryGap="30%">
+              <CartesianGrid stroke={C.divider} strokeDasharray="4 4" vertical={false} />
               <XAxis dataKey="day" tick={{ fontSize: 11, fill: C.inkMuted }} axisLine={false} tickLine={false} />
-              <YAxis domain={[70, 140]} tick={{ fontSize: 11, fill: C.inkMuted }} axisLine={false} tickLine={false} />
+              <YAxis domain={[60, 180]} tick={{ fontSize: 11, fill: C.inkMuted }} axisLine={false} tickLine={false} />
               <Tooltip
                 contentStyle={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, fontSize: 12 }}
-                formatter={(v: any) => [`${v} mg/dL`, "Avg"]}
+                formatter={(v: any) => [`${v} mg/dL`, "Avg Glucose"]}
               />
               <ReferenceLine y={70}  stroke={C.alert} strokeDasharray="3 3" opacity={0.4} />
-              <ReferenceLine y={125} stroke={C.gold}  strokeDasharray="3 3" opacity={0.4} />
-              <Line type="monotone" dataKey="avg" stroke={C.forest} strokeWidth={2.5}
-                dot={{ r: 4, fill: C.forest, strokeWidth: 0 }}
-                activeDot={{ r: 6, fill: C.sage }}
-              />
-            </LineChart>
+              <ReferenceLine y={140} stroke={C.gold}  strokeDasharray="3 3" opacity={0.4} />
+              <Bar dataKey="avg" fill={C.forest} radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
         </div>
 

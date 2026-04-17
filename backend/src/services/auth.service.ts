@@ -189,22 +189,21 @@ export class AuthService {
 
     await pool.query(`INSERT INTO user_profiles (user_id) VALUES ($1)`, [user.id]);
 
-    // Auto-assign regular users to main coach and send welcome message
-    const MAIN_COACH_ID = '329f8f7a-2e22-4889-8480-67770ba62a47'; // Alexia's ID
-    
-    if (role === 'user') {
+    // Auto-assign regular users to Michelle (the coach/owner) and send welcome message
+    // Set MAIN_COACH_ID in Railway env vars to Michelle's user UUID
+    const MAIN_COACH_ID = process.env.MAIN_COACH_ID;
+
+    if (role === 'user' && MAIN_COACH_ID) {
       try {
-        // Assign to coach
         await pool.query(
-          `INSERT INTO coach_clients (coach_id, client_id) 
-           VALUES ($1, $2) 
+          `INSERT INTO coach_clients (coach_id, client_id)
+           VALUES ($1, $2)
            ON CONFLICT DO NOTHING`,
           [MAIN_COACH_ID, user.id]
         );
-        
-        // Send welcome message from coach
+
         await pool.query(
-          `INSERT INTO messages (sender_id, recipient_id, message, read) 
+          `INSERT INTO messages (sender_id, recipient_id, message, read)
            VALUES ($1, $2, $3, $4)`,
           [
             MAIN_COACH_ID,
@@ -213,7 +212,7 @@ export class AuthService {
             false
           ]
         );
-        
+
         console.log(`✅ Auto-assigned user ${email} to coach and sent welcome message`);
       } catch (error) {
         console.error('Error auto-assigning coach:', error);
@@ -315,30 +314,42 @@ export class AuthService {
     try {
       const payload = jwt.verify(refreshToken, JWT_REFRESH_SECRET) as UserPayload;
 
-      const tokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+      const oldHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
       const result = await pool.query(
-        `SELECT id FROM refresh_tokens 
+        `SELECT id FROM refresh_tokens
          WHERE user_id = $1 AND token_hash = $2 AND revoked_at IS NULL AND expires_at > NOW()`,
-        [payload.userId, tokenHash]
+        [payload.userId, oldHash]
       );
 
       if (result.rows.length === 0) {
         throw new Error('Invalid refresh token');
       }
 
-      const accessToken = jwt.sign(
-        {
-          userId: payload.userId,
-          email: payload.email,
-          role: payload.role,
-          firstName: payload.firstName,
-          lastName: payload.lastName,
-        },
-        JWT_SECRET,
-        { expiresIn: ACCESS_TOKEN_EXPIRY }
+      // Revoke old refresh token (rotation — prevents replay attacks)
+      await pool.query(
+        'UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1',
+        [oldHash]
       );
 
-      return { accessToken };
+      const tokenPayload = {
+        userId: payload.userId,
+        email: payload.email,
+        role: payload.role,
+        firstName: payload.firstName,
+        lastName: payload.lastName,
+      };
+
+      const accessToken = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+      const newRefreshToken = jwt.sign(tokenPayload, JWT_REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
+
+      const newHash = crypto.createHash('sha256').update(newRefreshToken).digest('hex');
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      await pool.query(
+        `INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)`,
+        [payload.userId, newHash, expiresAt]
+      );
+
+      return { accessToken, refreshToken: newRefreshToken };
     } catch (error) {
       throw new Error('Invalid or expired refresh token');
     }

@@ -1,6 +1,6 @@
 import { Router, Response } from "express";
 import { supabase } from "../config/database";
-import { authMiddleware, AuthRequest } from "../middleware/auth.middleware";
+import { authMiddleware, requireCoach, AuthRequest } from "../middleware/auth.middleware";
 
 const router = Router();
 
@@ -42,8 +42,8 @@ router.get("/my-coach", authMiddleware, async (req: AuthRequest, res: Response) 
   }
 });
 
-// ==================== PROTECTED ====================
-router.use(authMiddleware);
+// ==================== PROTECTED (coach or admin only) ====================
+router.use(authMiddleware, requireCoach);
 
 // ==================== GET CLIENTS ====================
 router.get("/clients", async (req: AuthRequest, res: Response) => {
@@ -63,7 +63,7 @@ router.get("/clients", async (req: AuthRequest, res: Response) => {
 
     if (relError) {
       console.error("❌ REL ERROR:", relError);
-      return res.status(500).json({ error: "relError", details: relError });
+      return res.status(500).json({ error: "Failed to fetch client relationships" });
     }
 
     if (!relationships || relationships.length === 0) {
@@ -81,45 +81,47 @@ router.get("/clients", async (req: AuthRequest, res: Response) => {
 
     if (clientError) {
       console.error("❌ CLIENT ERROR:", clientError);
-      return res.status(500).json({ error: "clientError", details: clientError });
+      return res.status(500).json({ error: "Failed to fetch client profiles" });
     }
 
-    const clientsWithStats = await Promise.all(
-      (clients || []).map(async (client) => {
-        const { data: readings } = await supabase
-          .from("glucose_readings")
-          .select("value")
-          .eq("user_id", client.id)
-          .order("measured_at", { ascending: false })
-          .limit(20);
+    // Single batch query for all clients' last 20 readings — no N+1
+    const { data: allReadings } = await supabase
+      .from("glucose_readings")
+      .select("user_id, value, measured_at")
+      .in("user_id", clientIds)
+      .order("measured_at", { ascending: false });
 
-        const values = (readings || [])
-          .map((r) => r.value)
-          .filter((v) => typeof v === "number");
+    // Group readings by user_id, keep latest 20 per client
+    const readingsByClient = new Map<string, { value: number; measured_at: string }[]>();
+    for (const r of allReadings || []) {
+      const bucket = readingsByClient.get(r.user_id) ?? [];
+      if (bucket.length < 20) bucket.push({ value: r.value, measured_at: r.measured_at });
+      readingsByClient.set(r.user_id, bucket);
+    }
 
-        const avg = values.length
-          ? values.reduce((a, b) => a + b, 0) / values.length
-          : 0;
+    const clientsWithStats = (clients || []).map((client) => {
+      const readings = readingsByClient.get(client.id) ?? [];
+      const values = readings.map((r) => r.value).filter((v) => typeof v === "number");
 
-        const last = values.length ? values[0] : 0;
+      const avg = values.length ? values.reduce((a, b) => a + b, 0) / values.length : 0;
+      const last = values.length ? values[0] : 0;
+      const inRange = values.filter((v) => v >= 70 && v <= 180).length;
+      const tir = values.length ? (inRange / values.length) * 100 : 0;
+      const lastActive = readings[0]?.measured_at ?? null;
 
-        const inRange = values.filter((v) => v >= 70 && v <= 180).length;
-
-        const tir = values.length ? (inRange / values.length) * 100 : 0;
-
-        return {
-          id: client.id,
-          firstName: client.first_name,
-          lastName: client.last_name,
-          email: client.email,
-          recentStats: {
-            avgGlucose: Math.round(avg),
-            lastReading: Math.round(last),
-            timeInRange: Math.round(tir),
-          },
-        };
-      })
-    );
+      return {
+        id: client.id,
+        firstName: client.first_name,
+        lastName: client.last_name,
+        email: client.email,
+        lastActive,
+        recentStats: {
+          avgGlucose: Math.round(avg),
+          lastReading: Math.round(last),
+          timeInRange: Math.round(tir),
+        },
+      };
+    });
 
     res.json({ clients: clientsWithStats });
   } catch (error) {

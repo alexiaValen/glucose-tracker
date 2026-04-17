@@ -42,10 +42,23 @@ class HealthKitService {
     if (Platform.OS !== 'ios') return false;
 
     try {
-      // Dynamic import so non-iOS builds don't crash
       const AppleHealthKit = require('react-native-health');
+
+      // Guard: native module not linked (Expo Go / simulator without dev client)
+      if (typeof AppleHealthKit?.initHealthKit !== 'function') {
+        console.error('HealthKit native module not linked — use a custom dev client or production build');
+        return false;
+      }
+
       return new Promise((resolve) => {
+        // 10-second safety net so the promise never hangs forever
+        const timeout = setTimeout(() => {
+          console.error('HealthKit initHealthKit timed out');
+          resolve(false);
+        }, 10_000);
+
         AppleHealthKit.initHealthKit(HK_PERMISSIONS, (err: string) => {
+          clearTimeout(timeout);
           if (err) {
             console.error('HealthKit init error:', err);
             resolve(false);

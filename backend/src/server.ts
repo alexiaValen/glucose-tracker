@@ -30,12 +30,13 @@ const allowedList = (process.env.ALLOWED_ORIGINS || "")
 
 const corsOptions: cors.CorsOptions = {
   origin: (origin, cb) => {
+    // Allow server-to-server (no origin) and Expo dev clients
     if (!origin) return cb(null, true);
 
     if (allowedList.includes(origin)) return cb(null, true);
 
-    if (origin.endsWith(".vercel.app")) return cb(null, true);
-
+    // Only allow *.vercel.app if it was explicitly added to ALLOWED_ORIGINS
+    // Removed the wildcard — any Vercel project would have had access otherwise
     console.warn(`⚠️ CORS blocked for origin: ${origin}`);
     return cb(new Error(`CORS blocked for origin: ${origin}`));
   },

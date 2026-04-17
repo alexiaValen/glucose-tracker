@@ -1,12 +1,32 @@
 import { Router, Request, Response } from 'express';
 import { authService } from '../services/auth.service';
 import { body, validationResult } from 'express-validator';
+import rateLimit from 'express-rate-limit';
+
+// 5 attempts per 15 minutes per IP for password-reset flows
+const resetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts, please try again in 15 minutes.' },
+});
+
+// 10 login attempts per 15 minutes per IP
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many login attempts, please try again in 15 minutes.' },
+});
 
 const router = Router();
 
 // POST /api/v1/auth/request-reset
 router.post(
   '/request-reset',
+  resetLimiter,
   [body('email').isEmail().normalizeEmail({ gmail_remove_dots: false })],
   async (req: Request, res: Response) => {
     try {
@@ -28,6 +48,7 @@ router.post(
 // POST /api/v1/auth/verify-reset-code
 router.post(
   '/verify-reset-code',
+  resetLimiter,
   [
     body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('resetCode').isLength({ min: 6, max: 6 }),
@@ -52,6 +73,7 @@ router.post(
 // POST /api/v1/auth/reset-password
 router.post(
   '/reset-password',
+  resetLimiter,
   [
     body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('resetCode').isLength({ min: 6, max: 6 }),
@@ -80,7 +102,7 @@ router.post(
   [
     body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('password').isLength({ min: 8 }),
-    body('role').optional().isIn(['user', 'coach']),
+    body('role').optional().isIn(['user', 'coach']), // admin cannot be self-assigned
     body('phone').optional(),
     body('dateOfBirth').optional().isISO8601(),
   ],
@@ -121,6 +143,7 @@ router.post(
 // POST /api/v1/auth/login
 router.post(
   '/login',
+  loginLimiter,
   [
     body('email').isEmail().normalizeEmail({ gmail_remove_dots: false }),
     body('password').notEmpty(),

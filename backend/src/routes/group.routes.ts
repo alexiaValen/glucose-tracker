@@ -817,40 +817,6 @@ router.delete('/:groupId/messages/:messageId', async (req, res) => {
   }
 });
 
-// Alternative DELETE /api/v1/groups/:groupId/messages/:messageId with coach override
-router.delete('/:groupId/messages/:messageId', async (req, res) => {
-  try {
-    const { groupId, messageId } = req.params;
-    const userId = req.user!.id;
-
-    const { data: group } = await supabase
-      .from('coaching_groups')
-      .select('coach_id')
-      .eq('id', groupId)
-      .single();
-
-    const isCoach = group?.coach_id === userId;
-
-    const query = supabase
-      .from('group_messages')
-      .delete()
-      .eq('id', messageId)
-      .eq('group_id', groupId);
-
-    // Non-coaches can only delete their own messages
-    if (!isCoach) {
-      query.eq('sender_id', userId);
-    }
-
-    const { error } = await query;
-    if (error) throw error;
-
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting message:', error);
-    res.status(500).json({ error: 'Failed to delete message' });
-  }
-});
 
 // POST /api/v1/groups/:groupId/sessions/:sessionId/rsvp
 router.post('/:groupId/sessions/:sessionId/rsvp', async (req, res) => {
