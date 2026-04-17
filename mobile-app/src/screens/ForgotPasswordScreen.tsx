@@ -46,19 +46,11 @@ export default function ForgotPasswordScreen({ navigation }: Props) {
         email: email.toLowerCase(),
       });
 
-      if (response.data.resetCode) {
-        Alert.alert(
-          'Reset Code Sent',
-          `Your reset code is: ${response.data.resetCode}\n\n(This is only shown in development)`,
-          [{ text: 'OK', onPress: () => setStep('code') }]
-        );
-      } else {
-        Alert.alert(
-          'Check Your Email',
-          "If that email exists, we've sent a 6-digit reset code.",
-          [{ text: 'OK', onPress: () => setStep('code') }]
-        );
-      }
+      Alert.alert(
+        'Check Your Email',
+        "If that email is registered, we've sent a 6-digit reset code. Check your spam folder if you don't see it.",
+        [{ text: 'OK', onPress: () => setStep('code') }]
+      );
     } catch (error: any) {
       Alert.alert('Error', error.response?.data?.error || 'Failed to send reset code');
     } finally {

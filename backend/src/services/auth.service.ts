@@ -54,14 +54,10 @@ export class AuthService {
       [user.id, resetTokenHash, resetCode, expiresAt]
     );
 
-    // Try to send email but don't fail if it doesn't work
-    await this.sendPasswordResetEmail(email, resetCode, user.first_name).catch(err => {
-      console.error('Email failed, continuing anyway:', err);
-    });
+    await this.sendPasswordResetEmail(email, resetCode, user.first_name);
 
     return {
       message: 'If that email exists, a reset code has been sent',
-      resetCode: resetCode // always return code so app can use it
     };
   }
 
