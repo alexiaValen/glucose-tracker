@@ -1,5 +1,5 @@
 import { Router, Request, Response } from 'express';
-import { pool } from '../config/database';
+import { pool, supabase } from '../config/database';
 import { authMiddleware } from '../middleware/auth.middleware';
 import { body, validationResult } from 'express-validator';
 
@@ -229,6 +229,122 @@ router.get('/predict', async (req: Request, res: Response) => {
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ==================== CYCLE EVENTS (daily check-ins) ==========================
+
+const BLEEDING_SEVERITY: Record<string, number> = {
+  spotting: 2,
+  light:    4,
+  medium:   6,
+  heavy:    8,
+};
+
+// POST /api/v1/cycle/events
+// Logs a single day's bleeding + symptoms. Bridges to the symptoms table so
+// coaches can see cycle-sourced symptoms alongside manually logged ones.
+router.post('/events', async (req: Request, res: Response) => {
+  try {
+    const userId = req.user!.id;
+    const { date, bleeding, symptoms = [], notes, cycleId } = req.body;
+
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return res.status(400).json({ error: 'date is required (YYYY-MM-DD)' });
+    }
+
+    const dayStart  = `${date}T00:00:00.000Z`;
+    const dayEnd    = `${date}T23:59:59.999Z`;
+    const loggedAt  = `${date}T12:00:00.000Z`;
+    const sourceTag = 'source:cycle';
+
+    // Remove existing cycle-sourced entries for this day (idempotent upsert)
+    await supabase
+      .from('symptoms')
+      .delete()
+      .eq('user_id', userId)
+      .gte('logged_at', dayStart)
+      .lte('logged_at', dayEnd)
+      .like('notes', `${sourceTag}%`);
+
+    const toInsert: object[] = [];
+
+    if (bleeding && bleeding !== 'none') {
+      toInsert.push({
+        user_id:      userId,
+        symptom_type: `bleeding_${bleeding}`,
+        severity:     BLEEDING_SEVERITY[bleeding] ?? 5,
+        logged_at:    loggedAt,
+        notes:        notes ? `${sourceTag} | ${notes}` : sourceTag,
+      });
+    }
+
+    for (const s of symptoms as string[]) {
+      const type = s.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+      toInsert.push({
+        user_id:      userId,
+        symptom_type: type,
+        severity:     5,
+        logged_at:    loggedAt,
+        notes:        notes ? `${sourceTag} | ${notes}` : sourceTag,
+      });
+    }
+
+    if (toInsert.length > 0) {
+      const { error } = await supabase.from('symptoms').insert(toInsert);
+      if (error) {
+        console.error('❌ cycle/events insert:', error);
+        return res.status(500).json({ error: 'Failed to save cycle event' });
+      }
+    }
+
+    res.json({ date, bleeding, symptoms, notes, cycleId });
+  } catch (err: any) {
+    console.error('❌ POST /cycle/events:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/v1/cycle/events
+// Reconstructs daily events from the symptoms table for the authenticated user.
+router.get('/events', async (req: Request, res: Response) => {
+  try {
+    const userId  = req.user!.id;
+    const limit   = Math.min(parseInt((req.query.limit as string) || '60', 10), 200);
+
+    const { data, error } = await supabase
+      .from('symptoms')
+      .select('symptom_type, severity, logged_at, notes')
+      .eq('user_id', userId)
+      .like('notes', 'source:cycle%')
+      .order('logged_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    // Group rows back into per-day events
+    const eventMap: Record<string, { bleeding: string; symptoms: string[]; notes?: string }> = {};
+    for (const row of data ?? []) {
+      const date = (row.logged_at as string).slice(0, 10);
+      if (!eventMap[date]) eventMap[date] = { bleeding: 'none', symptoms: [] };
+
+      if ((row.symptom_type as string).startsWith('bleeding_')) {
+        eventMap[date].bleeding = (row.symptom_type as string).replace('bleeding_', '');
+      } else {
+        const label = (row.symptom_type as string).replace(/_/g, ' ');
+        eventMap[date].symptoms.push(label);
+      }
+
+      const noteRaw = (row.notes as string | null) ?? '';
+      const extraNote = noteRaw.replace(/^source:cycle\s*\|\s*/, '').replace('source:cycle', '').trim();
+      if (extraNote) eventMap[date].notes = extraNote;
+    }
+
+    const events = Object.entries(eventMap).map(([date, e]) => ({ date, ...e }));
+    res.json({ events });
+  } catch (err: any) {
+    console.error('❌ GET /cycle/events:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -262,6 +262,77 @@ router.patch("/clients/:clientId", async (req: AuthRequest, res: Response) => {
   }
 });
 
+// ==================== GET CLIENT SYMPTOMS (for coach) =========================
+// GET /api/v1/coach/clients/:clientId/symptoms
+router.get("/clients/:clientId/symptoms", async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId = req.user?.id;
+    const { clientId } = req.params;
+    const limit = Math.min(parseInt((req.query.limit as string) || '50', 10), 100);
+
+    if (!coachId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data: rel } = await supabase
+      .from("coach_clients")
+      .select("client_id")
+      .eq("coach_id", coachId)
+      .eq("client_id", clientId)
+      .single();
+
+    if (!rel) return res.status(403).json({ error: "Not your client" });
+
+    const { data: symptoms, error } = await supabase
+      .from("symptoms")
+      .select("id, symptom_type, severity, logged_at, notes, glucose_reading_id")
+      .eq("user_id", clientId)
+      .order("logged_at", { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    res.json({ symptoms: symptoms ?? [] });
+  } catch (err) {
+    console.error("❌ GET /coach/clients/:id/symptoms:", err);
+    res.status(500).json({ error: "Failed to fetch client symptoms" });
+  }
+});
+
+// ==================== GET CLIENT CURRENT CYCLE (for coach) ====================
+// GET /api/v1/coach/clients/:clientId/cycle
+router.get("/clients/:clientId/cycle", async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId = req.user?.id;
+    const { clientId } = req.params;
+
+    if (!coachId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { data: rel } = await supabase
+      .from("coach_clients")
+      .select("client_id")
+      .eq("coach_id", coachId)
+      .eq("client_id", clientId)
+      .single();
+
+    if (!rel) return res.status(403).json({ error: "Not your client" });
+
+    const { data: cycle, error } = await supabase
+      .from("cycle_logs")
+      .select("*")
+      .eq("user_id", clientId)
+      .is("cycle_end_date", null)
+      .order("cycle_start_date", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    res.json({ cycle: cycle ?? null });
+  } catch (err) {
+    console.error("❌ GET /coach/clients/:id/cycle:", err);
+    res.status(500).json({ error: "Failed to fetch client cycle" });
+  }
+});
+
 // ==================== GET CLIENT GLUCOSE (for coach) ==========================
 // GET /api/v1/coach/clients/:clientId/glucose
 router.get("/clients/:clientId/glucose", async (req: AuthRequest, res: Response) => {
