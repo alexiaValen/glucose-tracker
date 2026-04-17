@@ -1,5 +1,5 @@
 import { Router, Response } from "express";
-import { supabase } from "../config/database";
+import { supabase, pool } from "../config/database";
 import { authMiddleware, requireCoach, AuthRequest } from "../middleware/auth.middleware";
 
 const router = Router();
@@ -274,28 +274,71 @@ router.get("/clients/:clientId/symptoms", async (req: AuthRequest, res: Response
 
     if (!coachId) return res.status(401).json({ error: "Unauthorized" });
 
-    const { data: rel } = await supabase
-      .from("coach_clients")
-      .select("client_id")
-      .eq("coach_id", coachId)
-      .eq("client_id", clientId)
-      .single();
+    const rel = await pool.query(
+      "SELECT client_id FROM coach_clients WHERE coach_id = $1 AND client_id = $2",
+      [coachId, clientId]
+    );
+    if (rel.rowCount === 0) return res.status(403).json({ error: "Not your client" });
 
-    if (!rel) return res.status(403).json({ error: "Not your client" });
+    // Use pool (direct pg) to bypass any RLS policies on the symptoms table
+    const result = await pool.query(
+      `SELECT id, symptom_type, severity, logged_at, notes, glucose_reading_id
+       FROM symptoms
+       WHERE user_id = $1
+       ORDER BY logged_at DESC
+       LIMIT $2`,
+      [clientId, limit]
+    );
 
-    const { data: symptoms, error } = await supabase
-      .from("symptoms")
-      .select("id, symptom_type, severity, logged_at, notes, glucose_reading_id")
-      .eq("user_id", clientId)
-      .order("logged_at", { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    res.json({ symptoms: symptoms ?? [] });
+    res.json({ symptoms: result.rows });
   } catch (err) {
     console.error("❌ GET /coach/clients/:id/symptoms:", err);
     res.status(500).json({ error: "Failed to fetch client symptoms" });
+  }
+});
+
+// ==================== GET CLIENT STATS (for coach) ============================
+// GET /api/v1/coach/clients/:clientId/stats
+router.get("/clients/:clientId/stats", async (req: AuthRequest, res: Response) => {
+  try {
+    const coachId = req.user?.id;
+    const { clientId } = req.params;
+
+    if (!coachId) return res.status(401).json({ error: "Unauthorized" });
+
+    const rel = await pool.query(
+      "SELECT client_id FROM coach_clients WHERE coach_id = $1 AND client_id = $2",
+      [coachId, clientId]
+    );
+    if (rel.rowCount === 0) return res.status(403).json({ error: "Not your client" });
+
+    const result = await pool.query(
+      `SELECT
+         COUNT(*) AS total_readings,
+         ROUND(AVG(value)::numeric, 1) AS avg_glucose,
+         ROUND(
+           100.0 * SUM(CASE WHEN value BETWEEN 70 AND 180 THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0)
+         , 1) AS time_in_range,
+         MAX(value) AS max_glucose,
+         MIN(value) AS min_glucose,
+         MAX(measured_at) AS last_reading_at
+       FROM glucose_readings
+       WHERE user_id = $1`,
+      [clientId]
+    );
+
+    const row = result.rows[0];
+    res.json({
+      avgGlucose:    parseFloat(row.avg_glucose) || 0,
+      timeInRange:   parseFloat(row.time_in_range) || 0,
+      totalReadings: parseInt(row.total_readings) || 0,
+      maxGlucose:    parseFloat(row.max_glucose) || 0,
+      minGlucose:    parseFloat(row.min_glucose) || 0,
+      lastReadingAt: row.last_reading_at ?? null,
+    });
+  } catch (err) {
+    console.error("❌ GET /coach/clients/:id/stats:", err);
+    res.status(500).json({ error: "Failed to fetch client stats" });
   }
 });
 
@@ -308,27 +351,21 @@ router.get("/clients/:clientId/cycle", async (req: AuthRequest, res: Response) =
 
     if (!coachId) return res.status(401).json({ error: "Unauthorized" });
 
-    const { data: rel } = await supabase
-      .from("coach_clients")
-      .select("client_id")
-      .eq("coach_id", coachId)
-      .eq("client_id", clientId)
-      .single();
+    const rel = await pool.query(
+      "SELECT client_id FROM coach_clients WHERE coach_id = $1 AND client_id = $2",
+      [coachId, clientId]
+    );
+    if (rel.rowCount === 0) return res.status(403).json({ error: "Not your client" });
 
-    if (!rel) return res.status(403).json({ error: "Not your client" });
+    const result = await pool.query(
+      `SELECT * FROM cycle_logs
+       WHERE user_id = $1 AND cycle_end_date IS NULL
+       ORDER BY cycle_start_date DESC
+       LIMIT 1`,
+      [clientId]
+    );
 
-    const { data: cycle, error } = await supabase
-      .from("cycle_logs")
-      .select("*")
-      .eq("user_id", clientId)
-      .is("cycle_end_date", null)
-      .order("cycle_start_date", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (error) throw error;
-
-    res.json({ cycle: cycle ?? null });
+    res.json({ cycle: result.rows[0] ?? null });
   } catch (err) {
     console.error("❌ GET /coach/clients/:id/cycle:", err);
     res.status(500).json({ error: "Failed to fetch client cycle" });
@@ -341,30 +378,26 @@ router.get("/clients/:clientId/glucose", async (req: AuthRequest, res: Response)
   try {
     const coachId  = req.user?.id;
     const { clientId } = req.params;
-    const limit = parseInt((req.query.limit as string) || '50', 10);
+    const limit = Math.min(parseInt((req.query.limit as string) || '50', 10), 100);
 
     if (!coachId) return res.status(401).json({ error: "Unauthorized" });
 
-    // Verify this coach actually coaches this client
-    const { data: rel } = await supabase
-      .from("coach_clients")
-      .select("client_id")
-      .eq("coach_id", coachId)
-      .eq("client_id", clientId)
-      .single();
+    const rel = await pool.query(
+      "SELECT client_id FROM coach_clients WHERE coach_id = $1 AND client_id = $2",
+      [coachId, clientId]
+    );
+    if (rel.rowCount === 0) return res.status(403).json({ error: "Not your client" });
 
-    if (!rel) return res.status(403).json({ error: "Not your client" });
+    const result = await pool.query(
+      `SELECT id, value, measured_at, unit, source, source_device, notes, created_at
+       FROM glucose_readings
+       WHERE user_id = $1
+       ORDER BY measured_at DESC
+       LIMIT $2`,
+      [clientId, limit]
+    );
 
-    const { data: readings, error } = await supabase
-      .from("glucose_readings")
-      .select("id, value, measured_at, unit, source, source_device, notes, created_at")
-      .eq("user_id", clientId)
-      .order("measured_at", { ascending: false })
-      .limit(limit);
-
-    if (error) throw error;
-
-    res.json(readings ?? []);
+    res.json(result.rows);
   } catch (err) {
     console.error("❌ GET /coach/clients/:id/glucose:", err);
     res.status(500).json({ error: "Failed to fetch client glucose data" });
