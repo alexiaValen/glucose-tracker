@@ -14,6 +14,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -110,6 +111,14 @@ function IOSHealthSync({ navigation }: { navigation: any }) {
       else {
         setStatus('unauthorized');
         setErrorMsg('Permission denied. Enable it in Settings → Health → Data Access & Devices.');
+        Alert.alert(
+          'Apple Health Access Required',
+          'TLC needs permission to read your blood glucose. Go to Settings → Privacy & Security → Health → TLC and enable all categories.',
+          [
+            { text: 'Open Settings', onPress: () => Linking.openURL('app-settings:') },
+            { text: 'Cancel', style: 'cancel' },
+          ]
+        );
       }
     } catch (err: any) {
       setStatus('error');
