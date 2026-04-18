@@ -17,6 +17,7 @@ import {
   RefreshControl,
   Animated,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -27,6 +28,7 @@ import { useAuthStore }      from '../stores/authStore';
 import { useGlucoseStore }   from '../stores/glucoseStore';
 import { useSymptomStore }   from '../stores/symptomStore';
 import { useCycleStore }     from '../stores/cycleStore';
+import { healthKitService }  from '../services/healthkit.service';
 import { ViewingBanner }     from '../components/ViewingBanner';
 import { getRhythmForPhase } from '../data/rhythmData';
 import { getMyLessons }      from '../services/lessonService';
@@ -353,6 +355,11 @@ export default function DashboardScreen() {
 
   // ── All original logic preserved ───────────────────────────────────────────
   const loadAll = useCallback(async () => {
+    // Silently sync HealthKit data before fetching from backend so the
+    // dashboard always reflects the latest readings without manual intervention.
+    if (Platform.OS === 'ios' && healthKitService.isAvailable()) {
+      healthKitService.syncToBackend().catch(() => {/* best-effort */});
+    }
     await Promise.allSettled([
       fetchReadings(), fetchStats(), fetchSymptoms(), fetchCurrentCycle(),
     ]);
